@@ -21,7 +21,6 @@ dependencies:
 
   # Offline SQLite database
   sqflite: ^2.3.3+1
-  sqflite_common_ffi: ^2.3.4+1   # Windows / Linux / macOS desktop SQLite
   path: ^1.9.0
 
   # File-system path helper
