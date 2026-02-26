@@ -1,0 +1,106 @@
+# ── Python ─────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+eggs/
+.eggs/
+lib64/
+pip-wheel-metadata/
+share/python-wheels/
+*.so
+
+# Virtual environments ()
+.venv
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# pytest / test cache
+.pytest_cache/
+.cache
+nosetests.xml
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# mypy / ruff / pyright
+.mypy_cache/
+.ruff_cache/
+.pyright/
+pyrightconfig.json
+
+# ── Flutter / Dart ──────────────────────────────────────────────────────────
+# (flutter/.gitignore inside frontend/ handles the Flutter-specific entries)
+frontend/.dart_tool/
+frontend/build/
+frontend/.flutter-plugins-dependencies
+frontend/.pub-cache/
+frontend/.pub/
+
+# ── IDE / Editor ────────────────────────────────────────────────────────────
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Visual Studio cache
+*.[Cc]ache
+!*.[Cc]ache/
+
+# ── ML / Model artefacts ────────────────────────────────────────────────────
+# Large binary model files – store with Git LFS or share via cloud storage
+*.pt
+*.pth
+*.onnx
+*.tflite
+*.pb
+*.h5
+*.npy
+*.npz
+# NOTE: *.pkl, *.pickle, *.db, *.sqlite, *.sqlite3 are NOT ignored
+# so database and data files are shared with all teammates.
+
+# ── Build outputs ───────────────────────────────────────────────────────────
+build/
+dist/
+out/
+backend/output/*.tflite
+backend/output/*.onnx
+backend/output/*.pt
+
+# ── Logs ────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── OS ──────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
