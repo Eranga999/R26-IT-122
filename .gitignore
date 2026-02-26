@@ -44,8 +44,7 @@ coverage.xml
 pyrightconfig.json
 
 # ── Flutter / Dart ──────────────────────────────────────────────────────────
-# (flutter/.gitignore inside frontend/ handles the Flutter-specific entries)
-frontend/.dart_tool/
+.dart_tool/
 frontend/build/
 frontend/.flutter-plugins-dependencies
 frontend/.pub-cache/
