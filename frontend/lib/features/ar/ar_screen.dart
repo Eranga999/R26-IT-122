@@ -2,6 +2,7 @@
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/ar_availability.dart';
 import '../../features/database/landmark_model.dart';
+import 'ar_camera_view.dart';
 
 /// AR overlay screen – dynamically checks ARCore availability on the device.
 /// Shows a supported or unsupported UI accordingly.
@@ -71,29 +72,11 @@ class _ArScreenState extends State<ArScreen> {
       return;
     }
     if (_arStatus?.supported == true) {
-      // ARCore plugin integration pending – show phase-2 notice
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Row(children: [
-            Icon(Icons.view_in_ar_rounded, color: Color(0xFFFFB300)),
-            SizedBox(width: 10),
-            Text('AR Experience'),
-          ]),
-          content: const Text(
-            'Your device supports ARCore!\n\n'
-            'Full 3-D overlay rendering is planned for Phase 2 of the project '
-            'once the ARCore plugin NDK compatibility is resolved.',
-            style: TextStyle(height: 1.6),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Got it'),
-            ),
-          ],
+      // Navigate to live camera AR overlay view
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ArCameraView(landmark: widget.landmark),
         ),
       );
     } else {
