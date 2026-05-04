@@ -1,5 +1,6 @@
-
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 class RagChatScreen extends StatefulWidget {
   const RagChatScreen({Key? key}) : super(key: key);
@@ -13,7 +14,7 @@ class _RagChatScreenState extends State<RagChatScreen> {
   final List<Map<String, String>> _messages = [];
   bool _isLoading = false;
 
-  void _sendMessage() async {
+  Future<void> _sendMessage() async {
     if (_controller.text.trim().isEmpty) return;
     setState(() {
       _messages.add({'user': _controller.text.trim()});
@@ -21,12 +22,36 @@ class _RagChatScreenState extends State<RagChatScreen> {
     });
     final userMessage = _controller.text.trim();
     _controller.clear();
-    // Simulate async RAG response
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() {
-      _messages.add({'bot': 'RAG: Here is an answer about "$userMessage" from the knowledge base.'});
-      _isLoading = false;
-    });
+    try {
+      // TODO: Replace with your actual backend IP if running on a device
+      const backendUrl = 'http://10.0.2.2:5000/chat'; // 10.0.2.2 for Android emulator, localhost for web/desktop
+      final response = await http.post(
+        Uri.parse(backendUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'question': userMessage,
+          'landmark_id': 'sigiriya', // or make this dynamic
+        }),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          _messages.add({'bot': data['answer'] ?? 'No answer.'});
+        });
+      } else {
+        setState(() {
+          _messages.add({'bot': 'Error: Backend returned ${response.statusCode}'});
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _messages.add({'bot': 'Error: Could not connect to backend. Make sure the server is running.'});
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override

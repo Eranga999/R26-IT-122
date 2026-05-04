@@ -1,0 +1,72 @@
+[
+  { "id": "sig_001", "landmark": "Sigiriya", "category": "history", "text": "Sigiriya is an ancient rock fortress in Sri Lanka built by King Kashyapa in the 5th century AD and is a UNESCO World Heritage Site." },
+  { "id": "sig_002", "landmark": "Sigiriya", "category": "history", "text": "King Kashyapa chose Sigiriya as his capital after seizing the throne from his father, King Dhatusena." },
+  { "id": "sig_003", "landmark": "Sigiriya", "category": "history", "text": "After King Kashyapa's death, Sigiriya was transformed into a Buddhist monastery." },
+  { "id": "sig_004", "landmark": "Sigiriya", "category": "history", "text": "Sigiriya is often referred to as the Eighth Wonder of the World due to its historical and architectural significance." },
+  { "id": "sig_005", "landmark": "Sigiriya", "category": "history", "text": "The site shows evidence of human settlement even before King Kashyapa's reign." },
+
+  { "id": "sig_006", "landmark": "Sigiriya", "category": "architecture", "text": "Sigiriya rises approximately 200 meters above the surrounding plains." },
+  { "id": "sig_007", "landmark": "Sigiriya", "category": "architecture", "text": "The Lion’s Paw is the entrance staircase carved into the rock in the shape of a lion." },
+  { "id": "sig_008", "landmark": "Sigiriya", "category": "architecture", "text": "The summit of Sigiriya contains ruins of an ancient royal palace." },
+  { "id": "sig_009", "landmark": "Sigiriya", "category": "architecture", "text": "Sigiriya is designed with symmetrical layouts showing advanced urban planning." },
+  { "id": "sig_010", "landmark": "Sigiriya", "category": "architecture", "text": "Massive staircases and terraces were carved directly into the rock surface." },
+
+  { "id": "sig_011", "landmark": "Sigiriya", "category": "engineering", "text": "Sigiriya contains one of the oldest hydraulic systems in the world." },
+  { "id": "sig_012", "landmark": "Sigiriya", "category": "engineering", "text": "Water gardens at Sigiriya use underground channels and surface reservoirs." },
+  { "id": "sig_013", "landmark": "Sigiriya", "category": "engineering", "text": "Ancient engineers created fountains that still function during rainy seasons." },
+  { "id": "sig_014", "landmark": "Sigiriya", "category": "engineering", "text": "The site demonstrates advanced knowledge of water pressure control." },
+  { "id": "sig_015", "landmark": "Sigiriya", "category": "engineering", "text": "Symmetrical garden layouts reflect careful engineering and planning." },
+
+  { "id": "sig_016", "landmark": "Sigiriya", "category": "art", "text": "Sigiriya frescoes depict celestial maidens painted on the western rock face." },
+  { "id": "sig_017", "landmark": "Sigiriya", "category": "art", "text": "The frescoes are considered masterpieces of ancient Sri Lankan art." },
+  { "id": "sig_018", "landmark": "Sigiriya", "category": "art", "text": "Only a small portion of the original frescoes remains today." },
+  { "id": "sig_019", "landmark": "Sigiriya", "category": "art", "text": "The paintings show advanced use of natural pigments and shading techniques." },
+  { "id": "sig_020", "landmark": "Sigiriya", "category": "art", "text": "The identity of the women in the frescoes is still debated by historians." },
+
+  { "id": "sig_021", "landmark": "Sigiriya", "category": "culture", "text": "The Mirror Wall was once polished so highly that it reflected images like a mirror." },
+  { "id": "sig_022", "landmark": "Sigiriya", "category": "culture", "text": "The Mirror Wall contains ancient graffiti written by visitors over centuries." },
+  { "id": "sig_023", "landmark": "Sigiriya", "category": "culture", "text": "Graffiti includes poems, comments, and praises written in early Sinhala script." },
+  { "id": "sig_024", "landmark": "Sigiriya", "category": "culture", "text": "Sigiriya reflects a combination of royal power, art, and Buddhist influence." },
+  { "id": "sig_025", "landmark": "Sigiriya", "category": "culture", "text": "The site represents ancient Sri Lankan civilization and cultural identity." },
+
+  { "id": "sig_026", "landmark": "Sigiriya", "category": "facts", "text": "Sigiriya is located in the Matale District of Sri Lanka." },
+  { "id": "sig_027", "landmark": "Sigiriya", "category": "facts", "text": "It attracts thousands of local and foreign tourists every year." },
+  { "id": "sig_028", "landmark": "Sigiriya", "category": "facts", "text": "The rock is made of hardened magma from an extinct volcano." },
+  { "id": "sig_029", "landmark": "Sigiriya", "category": "facts", "text": "Sigiriya is one of the best-preserved ancient urban planning sites in Asia." },
+  { "id": "sig_030", "landmark": "Sigiriya", "category": "facts", "text": "It is listed as a UNESCO World Heritage Site since 1982." },
+
+  { "id": "sig_031", "landmark": "Sigiriya", "category": "architecture", "text": "The main entrance to Sigiriya was designed in the shape of a giant lion." },
+  { "id": "sig_032", "landmark": "Sigiriya", "category": "architecture", "text": "The Lion’s Paw remains as two large carved stone feet at the entrance." },
+  { "id": "sig_033", "landmark": "Sigiriya", "category": "architecture", "text": "The site includes symmetrical gardens divided into water, boulder, and terraced gardens." },
+
+  { "id": "sig_034", "landmark": "Sigiriya", "category": "engineering", "text": "Sigiriya gardens are aligned with geometric precision and water flow systems." },
+  { "id": "sig_035", "landmark": "Sigiriya", "category": "engineering", "text": "Underground drainage systems prevent water damage to structures." },
+
+  { "id": "sig_036", "landmark": "Sigiriya", "category": "history", "text": "The site was rediscovered in the 19th century by British archaeologists." },
+  { "id": "sig_037", "landmark": "Sigiriya", "category": "history", "text": "Excavations revealed hidden gardens and palace foundations." },
+
+  { "id": "sig_038", "landmark": "Sigiriya", "category": "culture", "text": "Sigiriya is a symbol of ancient Sri Lankan innovation and creativity." },
+  { "id": "sig_039", "landmark": "Sigiriya", "category": "culture", "text": "The site blends natural landscape with human engineering." },
+
+  { "id": "sig_040", "landmark": "Sigiriya", "category": "facts", "text": "The climb to Sigiriya summit involves over 1,200 steps." },
+  { "id": "sig_041", "landmark": "Sigiriya", "category": "facts", "text": "Sigiriya is one of the most visited tourist attractions in Sri Lanka." },
+
+  { "id": "sig_042", "landmark": "Sigiriya", "category": "art", "text": "The frescoes are painted on a sheltered rock surface protected from weather." },
+  { "id": "sig_043", "landmark": "Sigiriya", "category": "art", "text": "Only a small group of frescoes remains due to natural erosion and vandalism." },
+
+  { "id": "sig_044", "landmark": "Sigiriya", "category": "engineering", "text": "Cooling and ventilation techniques were used in the palace design." },
+  { "id": "sig_045", "landmark": "Sigiriya", "category": "engineering", "text": "The site demonstrates early use of landscape architecture principles." },
+
+  { "id": "sig_046", "landmark": "Sigiriya", "category": "history", "text": "Sigiriya was built as both a fortress and a royal pleasure garden." },
+  { "id": "sig_047", "landmark": "Sigiriya", "category": "culture", "text": "The site reflects the transition between monarchy and monastic use." },
+
+  { "id": "sig_048", "landmark": "Sigiriya", "category": "facts", "text": "The surrounding area includes wildlife and forest ecosystems." },
+  { "id": "sig_049", "landmark": "Sigiriya", "category": "facts", "text": "Sigiriya is part of Sri Lanka’s Cultural Triangle." },
+
+  { "id": "sig_050", "landmark": "Sigiriya", "category": "architecture", "text": "Stone pathways and staircases were carved to blend with natural rock formations." },
+  { "id": "sig_051", "landmark": "Sigiriya", "category": "engineering", "text": "The irrigation system allowed gardens to function even in dry seasons." },
+  { "id": "sig_052", "landmark": "Sigiriya", "category": "culture", "text": "Sigiriya remains a major symbol of Sri Lankan heritage identity." },
+  { "id": "sig_053", "landmark": "Sigiriya", "category": "art", "text": "The artistic style shows influence of South Asian classical painting traditions." },
+  { "id": "sig_054", "landmark": "Sigiriya", "category": "history", "text": "Sigiriya represents one of the earliest examples of planned city design in the region." },
+  { "id": "sig_055", "landmark": "Sigiriya", "category": "facts", "text": "The site is protected by the Department of Archaeology of Sri Lanka." }
+]
