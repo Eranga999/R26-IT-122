@@ -8,6 +8,7 @@ import '../../features/database/sub_landmark_model.dart';
 import '../../widgets/landmark_info_card.dart';
 import '../camera/camera_screen.dart';
 import '../rag/rag_screen.dart';
+import '../chat/rag_chat_screen.dart';
 import '../navigation/nav_screen.dart';
 
 /// The main landing screen of HeritageAR.
@@ -43,10 +44,27 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.surface,
-      bottomNavigationBar: _buildBottomNav(),
       body: _navIndex == 0 ? _buildExploreBody() : _buildMapPlaceholder(),
-      floatingActionButton: _navIndex == 0 ? _buildScanFab() : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButton: _navIndex == 0
+          ? Padding(
+              padding: const EdgeInsets.only(bottom: 32.0, right: 24.0),
+              child: Align(
+                alignment: Alignment.bottomRight,
+                child: FloatingActionButton(
+                  heroTag: 'chatbot',
+                  backgroundColor: Colors.blueAccent,
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const RagChatScreen()),
+                    );
+                  },
+                  child: const Icon(Icons.chat_bubble, color: Colors.white, size: 32),
+                ),
+              ),
+            )
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
