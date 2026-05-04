@@ -1,3 +1,23 @@
+def combine_results_to_answer(results):
+    """
+    Combine retrieved text results into a short 2-sentence answer.
+    :param results: List of (text, score) tuples
+    :return: String with a concise 2-sentence answer
+    """
+    if not results:
+        return "No relevant information found."
+    # Take the first two unique sentences from the top results
+    sentences = []
+    for text, _ in results:
+        for sent in text.split('.'):
+            sent = sent.strip()
+            if sent and sent not in sentences:
+                sentences.append(sent)
+            if len(sentences) == 2:
+                break
+        if len(sentences) == 2:
+            break
+    return '. '.join(sentences[:2]) + ('.' if sentences else '')
 """
 Retrieves relevant documents using FAISS vector search.
 """
