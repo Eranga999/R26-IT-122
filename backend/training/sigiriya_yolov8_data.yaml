@@ -1,0 +1,14 @@
+# YOLOv8 dataset config for Sigiriya-only sub-landmark detection.
+# Local workspace path (project root based).
+# If training in Colab, change this to: /content/sigiriya_dataset
+path: backend/dataset/sigiriya_dataset
+train: images/train
+val: images/val
+test: images/test
+
+names:
+  0: sigiriya_entrance
+  1: sigiriya_lion_rock
+  2: sigiriya_mirror_wall
+  3: sigiriya_lion_staircase
+  4: sigiriya_throne

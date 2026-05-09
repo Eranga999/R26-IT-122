@@ -14,7 +14,15 @@ import '../navigation/nav_screen.dart';
 import '../home/home_screen.dart';
 
 class CameraScreen extends StatefulWidget {
-  const CameraScreen({super.key});
+  const CameraScreen({
+    super.key,
+    this.lockedLandmarkId,
+    this.lockedLandmarkName,
+  });
+
+  final int? lockedLandmarkId;
+  final String? lockedLandmarkName;
+
   @override
   State<CameraScreen> createState() => _CameraScreenState();
 }
@@ -87,6 +95,10 @@ class _CameraScreenState extends State<CameraScreen>
 
   Future<void> _onLandmarkDetected(String label, double conf) async {
     final id = _labelToId(label);
+    if (widget.lockedLandmarkId != null && id != widget.lockedLandmarkId) {
+      return;
+    }
+
     final lm = await DatabaseHelper.instance.getLandmarkById(id);
     if (lm == null || !mounted) return;
     final subs = await DatabaseHelper.instance.getSubLandmarks(id);
@@ -100,13 +112,14 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   int _labelToId(String label) {
+    final normalized = label.trim().toLowerCase();
     const m = {
-      'Sigiriya': 1,
-      'Dambulla': 2,
-      'Dambulla Cave Temple': 2,
-      'Polonnaruwa': 3
+      'sigiriya': 1,
+      'dambulla': 2,
+      'dambulla cave temple': 2,
+      'polonnaruwa': 3
     };
-    return m[label] ?? 1;
+    return m[normalized] ?? 1;
   }
 
   void _dismissPanel() => setState(() {
@@ -117,6 +130,10 @@ class _CameraScreenState extends State<CameraScreen>
 
   Future<void> _showDemoPicker() async {
     final landmarks = await DatabaseHelper.instance.getAllLandmarks();
+    final options = widget.lockedLandmarkId == null
+        ? landmarks
+        : landmarks.where((lm) => lm.id == widget.lockedLandmarkId).toList();
+
     if (!mounted) return;
     showModalBottomSheet(
       context: context,
@@ -145,10 +162,13 @@ class _CameraScreenState extends State<CameraScreen>
                     fontSize: 16,
                     fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
-            const Text('Select a landmark to preview the AR overlay',
-                style: TextStyle(color: Colors.white54, fontSize: 12)),
+            Text(
+                widget.lockedLandmarkName == null
+                    ? 'Select a landmark to preview the AR overlay'
+                    : 'Site lock active: ${widget.lockedLandmarkName}',
+                style: const TextStyle(color: Colors.white54, fontSize: 12)),
             const SizedBox(height: 16),
-            ...landmarks.map((lm) => ListTile(
+            ...options.map((lm) => ListTile(
                   leading: Container(
                       width: 40,
                       height: 40,
@@ -217,6 +237,22 @@ class _CameraScreenState extends State<CameraScreen>
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         fontFamily: 'Georgia')),
+                if (widget.lockedLandmarkName != null) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black45,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white30),
+                    ),
+                    child: Text(
+                      widget.lockedLandmarkName!,
+                      style: const TextStyle(color: Colors.white, fontSize: 11),
+                    ),
+                  ),
+                ],
                 const Spacer(),
                 if (_panelVisible && _detectedLandmark != null)
                   Container(

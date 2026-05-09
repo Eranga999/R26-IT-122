@@ -1,4 +1,6 @@
 ﻿import 'package:flutter/material.dart';
+import '../../core/location/site_geofence.dart';
+import '../../core/location/site_lock_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/ar_availability.dart';
 import '../../features/ar/ar_screen.dart';
@@ -22,11 +24,14 @@ class _HomeScreenState extends State<HomeScreen> {
   List<LandmarkModel> _landmarks = [];
   bool _loading = true;
   int _navIndex = 0;
+  SiteLockResult? _siteLock;
+  bool _siteLockLoading = true;
 
   @override
   void initState() {
     super.initState();
     _loadLandmarks();
+    _resolveGpsSiteLock();
   }
 
   Future<void> _loadLandmarks() async {
@@ -37,6 +42,96 @@ class _HomeScreenState extends State<HomeScreen> {
         _loading = false;
       });
     }
+  }
+
+  Future<void> _resolveGpsSiteLock() async {
+    if (mounted) {
+      setState(() => _siteLockLoading = true);
+    }
+
+    final result = await SiteLockService.instance.lockSiteByGps();
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _siteLock = result;
+      _siteLockLoading = false;
+    });
+  }
+
+  Future<void> _manualLockSitePicker() async {
+    if (_landmarks.isEmpty) {
+      return;
+    }
+
+    final sites = await SiteLockService.instance.loadSites();
+    if (!mounted) {
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF1A0A00),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white30,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const Text(
+                'Select Current Site',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Use manual lock when GPS is unavailable.',
+                style: TextStyle(color: Colors.white60, fontSize: 12),
+              ),
+              const SizedBox(height: 16),
+              ...sites.map((site) => ListTile(
+                    leading: const Icon(Icons.place_rounded,
+                        color: Color(0xFFFFB300)),
+                    title: Text(site.landmarkName,
+                        style: const TextStyle(color: Colors.white)),
+                    subtitle: Text(site.landmarkId,
+                        style: const TextStyle(
+                            color: Colors.white54, fontSize: 12)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      if (!mounted) {
+                        return;
+                      }
+                      setState(() {
+                        _siteLock = SiteLockResult.manual(site: site);
+                      });
+                    },
+                  )),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -104,7 +199,12 @@ class _HomeScreenState extends State<HomeScreen> {
       elevation: 6,
       onPressed: () => Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => const CameraScreen()),
+        MaterialPageRoute(
+          builder: (_) => CameraScreen(
+            lockedLandmarkId: _siteLock?.site?.landmarkDbId,
+            lockedLandmarkName: _siteLock?.site?.landmarkName,
+          ),
+        ),
       ),
       child:
           const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 28),
@@ -227,6 +327,13 @@ class _HomeScreenState extends State<HomeScreen> {
   // â”€â”€ Content slivers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   List<Widget> _buildContent() {
     return [
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+          child: _buildSiteLockBanner(),
+        ),
+      ),
+
       // section label
       const SliverToBoxAdapter(
         child: Padding(
@@ -298,6 +405,86 @@ class _HomeScreenState extends State<HomeScreen> {
 
       const SliverToBoxAdapter(child: SizedBox(height: 100)),
     ];
+  }
+
+  Widget _buildSiteLockBanner() {
+    if (_siteLockLoading) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.black12),
+        ),
+        child: const Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Detecting your current heritage site by GPS...',
+                style: TextStyle(fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final lock = _siteLock;
+    final locked = lock?.isLocked ?? false;
+    final siteName = lock?.site?.landmarkName ?? 'Site not locked';
+    final subtitle = locked
+        ? 'Locked by ${lock!.source.toUpperCase()}  |  ${lock.distanceMeters?.toStringAsFixed(0) ?? '-'} m from center'
+        : (lock?.message ?? 'Unable to lock site from GPS.');
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: locked ? const Color(0xFFE8F5E9) : const Color(0xFFFFF3E0),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: locked ? const Color(0xFF81C784) : const Color(0xFFFFB74D),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            locked ? Icons.gps_fixed_rounded : Icons.gps_off_rounded,
+            color: locked ? const Color(0xFF1B5E20) : const Color(0xFFE65100),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  siteName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: locked ? _resolveGpsSiteLock : _manualLockSitePicker,
+            child: Text(locked ? 'Refresh' : 'Manual'),
+          ),
+        ],
+      ),
+    );
   }
 
   // â”€â”€ Map placeholder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
