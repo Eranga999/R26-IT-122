@@ -26,6 +26,9 @@ dependencies:
   # File-system path helper
   path_provider: ^2.1.4
 
+  # GPS/geofence-based landmark site lock
+  geolocator: ^11.1.0
+
   # AR engine (ARCore / ARKit) - disabled until NDK+AGP compat resolved
   # ar_flutter_plugin: ^0.7.3
 
@@ -41,6 +44,7 @@ flutter:
     - assets/models/
     - assets/images/
     - assets/embeddings/
+    - assets/config/
   #         style: italic
   #   - family: Trajan Pro
   #     fonts:
