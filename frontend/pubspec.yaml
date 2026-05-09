@@ -16,8 +16,11 @@ dependencies:
   # Camera feed
   camera: ^0.10.5+9
 
-  # On-device TFLite inference (model integration pending – stubbed for UI demo)
-  # tflite_flutter: ^0.10.4
+  # On-device TFLite inference
+  tflite_flutter: ^0.10.4
+
+  # Image conversion for camera frames
+  image: ^4.2.0
 
   # Offline SQLite database
   sqflite: ^2.3.3+1
@@ -41,7 +44,7 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/models/
+    - assets/models/landmark_model.tflite
     - assets/images/
     - assets/embeddings/
     - assets/config/
