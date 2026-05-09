@@ -49,23 +49,31 @@ cd heritage_ar
 
 ```bash
 # 1. Setup environment
-conda create -n heritage_ar python=3.10
-conda activate heritage_ar
-pip install torch torchvision ultralytics
+py -3.10 -m venv .venv
+.venv\Scripts\activate
+pip install -r backend/requirements.txt
 
-# 2. Train model
+# 2. Put the Roboflow export here
+# backend/dataset/sigiriya_dataset/
+#   ├── train/images
+#   ├── train/labels
+#   ├── valid/images
+#   ├── valid/labels
+#   └── test/images
+#       └── test/labels
+
+# 3. Train model
 cd backend
 python training/train_sigiriya_yolov8.py
 
-# 3. Evaluate
+# 4. Evaluate
 python training/evaluate_sigiriya_yolov8.py
 
-# 4. Convert to TFLite
-python conversion/onnx_to_tflite.py
-python conversion/quantize_model.py
+# 5. Convert to TFLite
+python conversion/onnx_to_tflite.py --input_model runs/detect/sigiriya_v1/weights/best.pt --output_model output/sigiriya_best.tflite
 
-# 5. Test converted model
-python conversion/test_tflite_model.py
+# 6. Test converted model
+python conversion/test_tflite_model.py --tflite_model output/sigiriya_best.tflite --data_yaml training/sigiriya_yolov8_data.yaml --split test
 ```
 
 ---
@@ -89,11 +97,15 @@ mkdir -p backend/dataset/sigiriya/{sigiriya_entrance,sigiriya_lion_rock,sigiriya
 **Tools**: Roboflow, LabelImg, VGG Annotator
 **Output Format**: YOLO (bounding boxes in `.txt` files)
 
-Expected structure after annotation:
+Expected structure after Roboflow export:
 ```
 backend/dataset/sigiriya_dataset/
-├── images/{train,val,test}/
-└── labels/{train,val,test}/        # .txt files with YOLO format
+├── train/images/
+├── train/labels/
+├── valid/images/
+├── valid/labels/
+├── test/images/
+└── test/labels/                    # .txt files with YOLO format
 ```
 
 ---
