@@ -68,5 +68,67 @@
   { "id": "sig_052", "landmark": "Sigiriya", "category": "culture", "text": "Sigiriya remains a major symbol of Sri Lankan heritage identity." },
   { "id": "sig_053", "landmark": "Sigiriya", "category": "art", "text": "The artistic style shows influence of South Asian classical painting traditions." },
   { "id": "sig_054", "landmark": "Sigiriya", "category": "history", "text": "Sigiriya represents one of the earliest examples of planned city design in the region." },
-  { "id": "sig_055", "landmark": "Sigiriya", "category": "facts", "text": "The site is protected by the Department of Archaeology of Sri Lanka." }
+  { "id": "sig_055", "landmark": "Sigiriya", "category": "facts", "text": "The site is protected by the Department of Archaeology of Sri Lanka." },
+
+  
+  { "id": "sig_056", "landmark": "Sigiriya", "category": "tourism", "text": "Sigiriya attracts visitors from around the world because of its historical and architectural importance." },
+  { "id": "sig_057", "landmark": "Sigiriya", "category": "tourism", "text": "Early morning is considered one of the best times to climb Sigiriya due to cooler weather." },
+  { "id": "sig_058", "landmark": "Sigiriya", "category": "tourism", "text": "Tourists visiting Sigiriya often explore nearby heritage sites within the Cultural Triangle." },
+  { "id": "sig_059", "landmark": "Sigiriya", "category": "tourism", "text": "The summit of Sigiriya provides panoramic views of forests and surrounding villages." },
+  { "id": "sig_060", "landmark": "Sigiriya", "category": "tourism", "text": "Sigiriya has become one of the most photographed landmarks in Sri Lanka." },
+
+  { "id": "sig_061", "landmark": "Sigiriya", "category": "tourism", "text": "Guided tours at Sigiriya help visitors understand the historical significance of the site." },
+  { "id": "sig_062", "landmark": "Sigiriya", "category": "tourism", "text": "The site includes resting areas for visitors climbing the rock fortress." },
+  { "id": "sig_063", "landmark": "Sigiriya", "category": "tourism", "text": "Tourists are advised to carry water while climbing Sigiriya due to the long staircase." },
+  { "id": "sig_064", "landmark": "Sigiriya", "category": "tourism", "text": "Local and foreign tourists visit Sigiriya throughout the year." },
+  { "id": "sig_065", "landmark": "Sigiriya", "category": "tourism", "text": "The Sigiriya museum displays artifacts and historical information related to the site." },
+
+  { "id": "sig_066", "landmark": "Sigiriya", "category": "archaeology", "text": "Archaeological excavations at Sigiriya revealed foundations of ancient buildings." },
+  { "id": "sig_067", "landmark": "Sigiriya", "category": "archaeology", "text": "Researchers discovered evidence of sophisticated city planning at Sigiriya." },
+  { "id": "sig_068", "landmark": "Sigiriya", "category": "archaeology", "text": "Ancient brick structures were uncovered during archaeological studies." },
+  { "id": "sig_069", "landmark": "Sigiriya", "category": "archaeology", "text": "Archaeologists identified royal gardens surrounding the rock fortress." },
+  { "id": "sig_070", "landmark": "Sigiriya", "category": "archaeology", "text": "Excavations at Sigiriya revealed remains of ancient water management systems." },
+
+  { "id": "sig_071", "landmark": "Sigiriya", "category": "archaeology", "text": "Stone inscriptions discovered near Sigiriya provide historical insights into the site." },
+  { "id": "sig_072", "landmark": "Sigiriya", "category": "archaeology", "text": "Archaeologists believe Sigiriya served both military and ceremonial purposes." },
+  { "id": "sig_073", "landmark": "Sigiriya", "category": "archaeology", "text": "Ancient pathways discovered around Sigiriya connected different parts of the fortress." },
+  { "id": "sig_074", "landmark": "Sigiriya", "category": "archaeology", "text": "Artifacts found at Sigiriya include pottery, tools, and decorative objects." },
+  { "id": "sig_075", "landmark": "Sigiriya", "category": "archaeology", "text": "The archaeological site continues to be studied by local and international researchers." },
+
+  { "id": "sig_076", "landmark": "Sigiriya", "category": "religion", "text": "After the fall of King Kashyapa, Sigiriya became a Buddhist monastic complex." },
+  { "id": "sig_077", "landmark": "Sigiriya", "category": "religion", "text": "Monks used caves around Sigiriya for meditation and religious practices." },
+  { "id": "sig_078", "landmark": "Sigiriya", "category": "religion", "text": "Several rock shelters near Sigiriya contain ancient Buddhist inscriptions." },
+  { "id": "sig_079", "landmark": "Sigiriya", "category": "religion", "text": "Buddhist monks occupied Sigiriya for many centuries after the royal period ended." },
+  { "id": "sig_080", "landmark": "Sigiriya", "category": "religion", "text": "Religious influence shaped many cultural aspects of Sigiriya after its transformation into a monastery." },
+
+  { "id": "sig_081", "landmark": "Sigiriya", "category": "environment", "text": "The forests surrounding Sigiriya are home to various species of birds and wildlife." },
+  { "id": "sig_082", "landmark": "Sigiriya", "category": "environment", "text": "The area around Sigiriya contains rich biodiversity and natural ecosystems." },
+  { "id": "sig_083", "landmark": "Sigiriya", "category": "environment", "text": "Large water gardens at Sigiriya contribute to the ecological balance of the site." },
+  { "id": "sig_084", "landmark": "Sigiriya", "category": "environment", "text": "The surrounding landscape includes forests, lakes, and rocky terrain." },
+  { "id": "sig_085", "landmark": "Sigiriya", "category": "environment", "text": "Environmental conservation is important for preserving Sigiriya’s natural beauty." },
+
+  { "id": "sig_086", "landmark": "Sigiriya", "category": "environment", "text": "Wild elephants are occasionally seen in forested areas near Sigiriya." },
+  { "id": "sig_087", "landmark": "Sigiriya", "category": "environment", "text": "Native trees around Sigiriya provide shade and support local wildlife habitats." },
+  { "id": "sig_088", "landmark": "Sigiriya", "category": "environment", "text": "Seasonal rainfall supports the functioning of Sigiriya’s ancient fountains." },
+  { "id": "sig_089", "landmark": "Sigiriya", "category": "environment", "text": "The natural rock formation of Sigiriya stands prominently above dense greenery." },
+  { "id": "sig_090", "landmark": "Sigiriya", "category": "environment", "text": "The site combines natural landscapes with human-made architectural features." },
+
+  { "id": "sig_091", "landmark": "Sigiriya", "category": "gardens", "text": "The water gardens of Sigiriya are among the oldest landscaped gardens in Asia." },
+  { "id": "sig_092", "landmark": "Sigiriya", "category": "gardens", "text": "Sigiriya gardens include symmetrical pools and fountains." },
+  { "id": "sig_093", "landmark": "Sigiriya", "category": "gardens", "text": "Boulder gardens at Sigiriya contain pathways between massive natural rocks." },
+  { "id": "sig_094", "landmark": "Sigiriya", "category": "gardens", "text": "Terraced gardens were built along the slopes leading to the summit." },
+  { "id": "sig_095", "landmark": "Sigiriya", "category": "gardens", "text": "Ancient landscape architects carefully designed Sigiriya’s garden layouts." },
+
+  { "id": "sig_096", "landmark": "Sigiriya", "category": "gardens", "text": "Water channels in the gardens were designed to control water movement efficiently." },
+  { "id": "sig_097", "landmark": "Sigiriya", "category": "gardens", "text": "The gardens demonstrate advanced planning techniques from ancient Sri Lanka." },
+  { "id": "sig_098", "landmark": "Sigiriya", "category": "gardens", "text": "The combination of water, rocks, and greenery creates a balanced garden design." },
+  { "id": "sig_099", "landmark": "Sigiriya", "category": "gardens", "text": "Sigiriya gardens are divided into water gardens, cave gardens, and terraced gardens." },
+  { "id": "sig_100", "landmark": "Sigiriya", "category": "gardens", "text": "The garden complex reflects the luxurious lifestyle of the royal palace era." },
+
+  { "id": "sig_101", "landmark": "Sigiriya", "category": "fortress", "text": "Sigiriya was strategically built as a fortress for protection against enemies." },
+  { "id": "sig_102", "landmark": "Sigiriya", "category": "fortress", "text": "The height of the rock provided a natural defensive advantage." },
+  { "id": "sig_103", "landmark": "Sigiriya", "category": "fortress", "text": "Ancient guards likely monitored the surrounding area from the summit." },
+  { "id": "sig_104", "landmark": "Sigiriya", "category": "fortress", "text": "The narrow staircases helped control access to the upper palace." },
+  { "id": "sig_105", "landmark": "Sigiriya", "category": "fortress", "text": "Moats and walls surrounding Sigiriya strengthened its defensive structure." }
+
 ]

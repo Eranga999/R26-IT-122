@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../../core/theme/app_theme.dart';
 
 class RagChatScreen extends StatefulWidget {
   const RagChatScreen({Key? key}) : super(key: key);
@@ -11,7 +12,9 @@ class RagChatScreen extends StatefulWidget {
 
 class _RagChatScreenState extends State<RagChatScreen> {
   final TextEditingController _controller = TextEditingController();
-  final List<Map<String, String>> _messages = [];
+  final List<Map<String, String>> _messages = [
+    {'bot': 'Greetings! 🏛️ I am your Heritage Guide. I can tell you all about the history, architecture, and hidden secrets of Sigiriya. How can I help you today?'}
+  ];
   bool _isLoading = false;
 
   Future<void> _sendMessage() async {
@@ -23,14 +26,13 @@ class _RagChatScreenState extends State<RagChatScreen> {
     final userMessage = _controller.text.trim();
     _controller.clear();
     try {
-      // TODO: Replace with your actual backend IP if running on a device
-      const backendUrl = 'http://10.0.2.2:5000/chat'; // 10.0.2.2 for Android emulator, localhost for web/desktop
+      const backendUrl = 'http://10.0.2.2:5000/chat'; 
       final response = await http.post(
         Uri.parse(backendUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'question': userMessage,
-          'landmark_id': 'sigiriya', // or make this dynamic
+          'landmark_id': 'sigiriya',
         }),
       );
       if (response.statusCode == 200) {
@@ -57,131 +59,189 @@ class _RagChatScreenState extends State<RagChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.surface,
       appBar: AppBar(
-        title: const Text('Heritage Chat'),
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
-        elevation: 1,
+        title: const Text(
+          'Heritage Guide',
+          style: TextStyle(
+            fontFamily: 'Georgia',
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF3E1D0A),
+                Color(0xFF8D4E1A),
+              ],
+            ),
+          ),
+        ),
+        elevation: 4,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SafeArea(
         child: Column(
           children: [
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                 itemCount: _messages.length,
                 itemBuilder: (context, index) {
                   final entry = _messages[index];
                   final isUser = entry.containsKey('user');
-                  return Row(
-                    mainAxisAlignment:
-                        isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      if (!isUser)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: CircleAvatar(
-                            backgroundColor: Colors.green[200],
-                            child: const Icon(Icons.android, color: Colors.white),
-                            radius: 18,
-                          ),
-                        ),
-                      Flexible(
-                        child: Container(
-                          margin: EdgeInsets.only(
-                              top: 4,
-                              bottom: 4,
-                              left: isUser ? 40 : 0,
-                              right: isUser ? 0 : 40),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: isUser ? Colors.blueAccent : Colors.grey[200],
-                            borderRadius: BorderRadius.only(
-                              topLeft: const Radius.circular(18),
-                              topRight: const Radius.circular(18),
-                              bottomLeft: Radius.circular(isUser ? 18 : 4),
-                              bottomRight: Radius.circular(isUser ? 4 : 18),
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.04),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Text(
-                            entry.values.first,
-                            style: TextStyle(
-                              color: isUser ? Colors.white : Colors.black87,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (isUser)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 8.0),
-                          child: CircleAvatar(
-                            backgroundColor: Colors.blueAccent,
-                            child: const Icon(Icons.person, color: Colors.white),
-                            radius: 18,
-                          ),
-                        ),
-                    ],
-                  );
+                  return _buildMessageBubble(entry.values.first, isUser);
                 },
               ),
             ),
             if (_isLoading)
               const Padding(
                 padding: EdgeInsets.all(8.0),
-                child: CircularProgressIndicator(),
+                child: CircularProgressIndicator(color: AppTheme.secondary),
               ),
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.grey[300]!),
-                      ),
-                      child: TextField(
-                        controller: _controller,
-                        decoration: const InputDecoration(
-                          hintText: 'Ask a heritage question...',
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        ),
-                        minLines: 1,
-                        maxLines: 4,
-                        onSubmitted: (_) => _sendMessage(),
-                        enabled: !_isLoading,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.blueAccent,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.send),
-                      color: Colors.white,
-                      onPressed: _isLoading ? null : _sendMessage,
-                    ),
+            _buildInputArea(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMessageBubble(String message, bool isUser) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Row(
+        mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (!isUser) _buildBotAvatar(),
+          Flexible(
+            child: Container(
+              margin: EdgeInsets.only(
+                  left: isUser ? 50 : 8,
+                  right: isUser ? 8 : 50),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: isUser ? AppTheme.primary : Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(20),
+                  topRight: const Radius.circular(20),
+                  bottomLeft: Radius.circular(isUser ? 20 : 4),
+                  bottomRight: Radius.circular(isUser ? 4 : 20),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
                   ),
                 ],
               ),
+              child: Text(
+                message,
+                style: TextStyle(
+                  color: isUser ? Colors.white : const Color(0xFF4E342E),
+                  fontSize: 15,
+                  height: 1.4,
+                ),
+              ),
             ),
-          ],
+          ),
+          if (isUser) _buildUserAvatar(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBotAvatar() {
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppTheme.secondary, AppTheme.accent],
         ),
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.secondary.withOpacity(0.3),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: const Icon(Icons.account_balance, color: Colors.white, size: 20),
+    );
+  }
+
+  Widget _buildUserAvatar() {
+    return const CircleAvatar(
+      backgroundColor: AppTheme.primary,
+      radius: 18,
+      child: Icon(Icons.person, color: Colors.white, size: 20),
+    );
+  }
+
+  Widget _buildInputArea() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppTheme.surface,
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: AppTheme.primary.withOpacity(0.2)),
+              ),
+              child: TextField(
+                controller: _controller,
+                decoration: const InputDecoration(
+                  hintText: 'Ask your heritage guide...',
+                  hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+                minLines: 1,
+                maxLines: 4,
+                onSubmitted: (_) => _sendMessage(),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          GestureDetector(
+            onTap: _isLoading ? null : _sendMessage,
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppTheme.primary,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primary.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.send_rounded, color: Colors.white, size: 24),
+            ),
+          ),
+        ],
       ),
     );
   }

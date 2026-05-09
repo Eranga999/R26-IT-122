@@ -1,62 +1,80 @@
-"""
-Entry point for the offline RAG question answering module.
-"""
-
 import os
 import sys
 from embedder import Embedder
-from retriever import Retriever, load_json_texts, combine_results_to_answer
+from retriever import Retriever, load_json_data
 from vector_store import VectorStore
+from response_formatter import ResponseFormatter
 
 def get_answer(question, landmark_id):
     """
-    Offline RAG pipeline: returns a string answer for a question and landmark_id.
+    Offline RAG pipeline with personalized conversational formatting.
     :param question: User question string
     :param landmark_id: Landmark identifier (used to select dataset)
-    :return: String answer
+    :return: Formatted conversational answer
     """
     # Map landmark_id to dataset file
     dataset_map = {
         'sigiriya': '../data/sigiriya_dataset.json',
         'dambulla': '../data/dambulla_dataset.json',
         'polonnaruwa': '../data/polonnaruwa_dataset.json',
-        # Add more mappings as needed
     }
-    rel_dataset_path = dataset_map.get(landmark_id)
+    
+    rel_dataset_path = dataset_map.get(landmark_id.lower())
     if not rel_dataset_path:
-        return f"No dataset found for landmark_id '{landmark_id}'."
+        return f"Greetings! I'm still learning about '{landmark_id}', but I'd be happy to talk about Sigiriya or other major sites instead! 🏛️"
+        
     dataset_path = os.path.join(os.path.dirname(__file__), rel_dataset_path)
     model_path = os.path.join(os.path.dirname(__file__), '../models/sentence_model')
 
     if not os.path.exists(dataset_path):
-        return f"Dataset not found at {dataset_path}"
-    texts = load_json_texts(dataset_path, text_field="text")
-    if not texts:
-        return "No text data found in dataset."
+        return f"I apologize, but I can't access my records for {landmark_id} right now. Please try again later! 🏛️"
+    
+    # Load full JSON data with categories
+    data = load_json_data(dataset_path)
+    if not data:
+        return "I'm sorry, my knowledge base seems to be empty for this location. 🏺"
+        
     if not os.path.exists(model_path):
-        return f"Model not found at {model_path}"
+        return "System Error: Neural model not found. Please ensure the model is downloaded for offline use."
+        
+    # Initialize components
     embedder = Embedder(model_path)
+    
+    # Generate embeddings and initialize vector store
+    # Note: In a production app, embeddings should be pre-calculated
+    texts = [item.get("text", "") for item in data]
     embeddings = embedder.generate_embeddings(texts)
+    
     dim = embeddings[0].shape[0]
     vector_store = VectorStore(dim)
     vector_store.add_embeddings(embeddings)
-    retriever = Retriever(vector_store, embedder, texts)
+    
+    # Retrieve relevant info
+    retriever = Retriever(vector_store, embedder, data)
     results = retriever.query(question, top_k=3)
-    answer = combine_results_to_answer(results)
+    
+    # Format as conversational guide response
+    formatter = ResponseFormatter()
+    answer = formatter.format_response(results, landmark_id, query=question)
+    
     return answer
 
-# Optional: CLI for manual testing
-if __name__ == "__main__":
-    print("Offline RAG QA module initialized.")
-    print("\nType your question (or 'exit' to quit):")
-    landmark_id = input("Enter landmark id (e.g., sigiriya): ").strip()
+# CLI for manual testing
+def main():
+    print("--- 🏛️ Heritage Guide RAG System (Conversational Mode) ---")
+    landmark_id = input("Enter landmark id (e.g., sigiriya): ").strip() or "sigiriya"
+    print(f"\nGuide is ready! Type your question about {landmark_id} (or 'exit' to quit):")
+    
     while True:
-        user_query = input('> ').strip()
+        user_query = input('\nYou: ').strip()
         if user_query.lower() in ('exit', 'quit'):
-            print("Exiting.")
+            print("Guide: Safe travels on your journey! Goodbye! 👋")
             break
+        if not user_query:
+            continue
+            
         answer = get_answer(user_query, landmark_id)
-        print(f"Answer: {answer}\n")
+        print(f"\nGuide: {answer}")
 
 if __name__ == "__main__":
     main()
