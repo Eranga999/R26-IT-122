@@ -1,4 +1,4 @@
-package com.example.heritage_ar
+package com.example.r26_it_122
 
 import android.os.Build
 import com.google.ar.core.ArCoreApk
@@ -8,7 +8,7 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
 
-    private val CHANNEL = "com.example.heritage_ar/ar_check"
+    private val CHANNEL = "com.example.r26_it_122/ar_check"
 
     // Tracks whether we have already asked to install ARCore this session.
     private var requestedArCoreInstall = false
