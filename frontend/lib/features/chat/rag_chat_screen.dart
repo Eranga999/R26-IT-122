@@ -49,7 +49,7 @@ class _RagChatScreenState extends State<RagChatScreen> {
     final userMessage = _controller.text.trim();
     _controller.clear();
     try {
-      const backendUrl = 'http://10.0.2.2:5000/chat';
+      const backendUrl = 'http://10.0.2.2:5001/chat';
       final response = await http.post(
         Uri.parse(backendUrl),
         headers: {'Content-Type': 'application/json'},
