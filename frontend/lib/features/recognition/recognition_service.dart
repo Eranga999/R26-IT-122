@@ -35,11 +35,11 @@ class RecognitionService {
 
   // ── Labels – MUST match your training class order exactly ──────────────────
   static const List<String> labels = [
-    'sigiriya_entrance',
+    'sigiriya_lion_paws',
     'sigiriya_lion_rock',
     'sigiriya_mirror_wall',
-    'sigiriya_lion_staircase',
     'sigiriya_throne',
+    'sigiriya_ticket_counter',
   ];
 
   // ── State ──────────────────────────────────────────────────────────────────
