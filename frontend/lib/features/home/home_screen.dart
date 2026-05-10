@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/ar_availability.dart';
 import '../../features/ar/ar_screen.dart';
@@ -44,27 +44,33 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.surface,
-      body: _navIndex == 0 ? _buildExploreBody() : _buildMapPlaceholder(),
-      floatingActionButton: _navIndex == 0
-          ? Padding(
-              padding: const EdgeInsets.only(bottom: 32.0, right: 24.0),
-              child: Align(
-                alignment: Alignment.bottomRight,
-                child: FloatingActionButton(
-                  heroTag: 'chatbot',
-                  backgroundColor: Colors.blueAccent,
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const RagChatScreen()),
-                    );
-                  },
-                  child: const Icon(Icons.chat_bubble, color: Colors.white, size: 32),
-                ),
+      body: Stack(
+        children: [
+          _navIndex == 0 ? _buildExploreBody() : _buildMapPlaceholder(),
+          // Heritage Chatbot Overlay Button
+          if (_navIndex == 0)
+            Positioned(
+              bottom: 110,
+              right: 20,
+              child: FloatingActionButton(
+                heroTag: 'chatbot',
+                backgroundColor: Colors.blueAccent,
+                elevation: 4,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const RagChatScreen()),
+                  );
+                },
+                child:
+                    const Icon(Icons.chat_bubble, color: Colors.white, size: 28),
               ),
-            )
-          : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+            ),
+        ],
+      ),
+      floatingActionButton: _buildScanFab(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
