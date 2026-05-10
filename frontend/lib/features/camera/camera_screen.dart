@@ -9,6 +9,7 @@ import '../../features/database/database_helper.dart';
 import '../../features/database/landmark_model.dart';
 import '../../features/database/sub_landmark_model.dart';
 import '../ar/ar_screen.dart';
+import '../ar/ar_navigation_screen.dart';
 import '../rag/rag_screen.dart';
 import '../navigation/nav_screen.dart';
 import '../home/home_screen.dart';
@@ -559,33 +560,34 @@ class _CameraScreenState extends State<CameraScreen>
 
                   // View AR button – reflects device capability
                   Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                      child: SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                              onPressed: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => ArScreen(landmark: lm))),
-                              icon: const Icon(Icons.view_in_ar_rounded,
-                                  size: 18),
-                              label: Text(
-                                _arStatus?.supported == true
-                                    ? 'Launch AR'
-                                    : 'View AR Details',
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                  backgroundColor: _arStatus?.supported == true
-                                      ? const Color(0xFF00695C)
-                                      : const Color(0xFF455A64),
-                                  foregroundColor: Colors.white,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 15),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14)),
-                                  textStyle: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w700))))),
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ArNavigationScreen(
+                              destination: _detectedLandmark!.name,
+                              detectedLabel: _detectedClassLabel ??
+                                  'sigiriya_lion_paws',
+                            ),
+                          ),
+                        ),
+                        icon: const Icon(Icons.navigation_rounded, size: 18),
+                        label: const Text('Navigate with AR'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF00695C),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                          textStyle: const TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                  ),
 
                   Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -898,3 +900,150 @@ class _CornerPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter old) => false;
 }
+<<<<<<< Updated upstream
+=======
+
+class _DetectionOverlayPainter extends CustomPainter {
+  final DetectionResult detection;
+  final Size? previewSize;
+
+  const _DetectionOverlayPainter(this.detection, this.previewSize);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Map normalized detection bounding box (0..1) from the camera preview
+    // to the displayed widget size, accounting for how CameraPreview scales
+    // (BoxFit.cover behaviour – the preview is center-cropped to fill).
+    final double previewW = previewSize?.width ?? size.width;
+    final double previewH = previewSize?.height ?? size.height;
+
+    final previewRatio = previewW / previewH;
+    final widgetRatio = size.width / size.height;
+
+    double scaledPreviewW, scaledPreviewH, offsetX = 0, offsetY = 0;
+    if (previewRatio > widgetRatio) {
+      // preview is wider than widget — scale to match height
+      final scale = size.height / previewH;
+      scaledPreviewH = size.height;
+      scaledPreviewW = previewW * scale;
+      offsetX = (size.width - scaledPreviewW) / 2;
+    } else {
+      // preview is taller than widget — scale to match width
+      final scale = size.width / previewW;
+      scaledPreviewW = size.width;
+      scaledPreviewH = previewH * scale;
+      offsetY = (size.height - scaledPreviewH) / 2;
+    }
+
+    final x1 = offsetX + detection.boundingBox.left * scaledPreviewW;
+    final y1 = offsetY + detection.boundingBox.top * scaledPreviewH;
+    final x2 = offsetX + detection.boundingBox.right * scaledPreviewW;
+    final y2 = offsetY + detection.boundingBox.bottom * scaledPreviewH;
+
+    final box = Rect.fromLTRB(x1, y1, x2, y2);
+
+    // Debug overlay: draw preview bounds and mapping info when in debug mode
+    if (kDebugMode) {
+      final previewRect = Rect.fromLTWH(
+        offsetX.clamp(0.0, size.width),
+        offsetY.clamp(0.0, size.height),
+        scaledPreviewW.clamp(0.0, size.width),
+        scaledPreviewH.clamp(0.0, size.height),
+      );
+      canvas.drawRect(
+          previewRect, Paint()..color = Colors.red.withOpacity(0.18));
+      canvas.drawRect(
+          previewRect,
+          Paint()
+            ..color = Colors.red
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1);
+
+      final info =
+          'pv=${previewSize?.width.toStringAsFixed(0) ?? 'NA'}x${previewSize?.height.toStringAsFixed(0) ?? 'NA'} '
+          'sW=${scaledPreviewW.toStringAsFixed(0)} sH=${scaledPreviewH.toStringAsFixed(0)} '
+          ' oX=${offsetX.toStringAsFixed(0)} oY=${offsetY.toStringAsFixed(0)}';
+      final tp = TextPainter(
+        text: TextSpan(
+          text: info,
+          style: const TextStyle(color: Colors.white, fontSize: 10),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: size.width - 8);
+      tp.paint(canvas, Offset(8, size.height - tp.height - 8));
+    }
+
+    final fillPaint = Paint()
+      ..color = Colors.greenAccent.withOpacity(0.12)
+      ..style = PaintingStyle.fill;
+    final borderPaint = Paint()
+      ..color = Colors.greenAccent
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+
+    canvas.drawRect(box, fillPaint);
+    canvas.drawRect(box, borderPaint);
+
+    final label =
+        '${detection.label} ${(detection.confidence * 100).toStringAsFixed(0)}%';
+    final coords =
+        'x:${(detection.boundingBox.left * 100).toStringAsFixed(0)}% '
+        'y:${(detection.boundingBox.top * 100).toStringAsFixed(0)}% '
+        'w:${((detection.boundingBox.right - detection.boundingBox.left) * 100).toStringAsFixed(0)}% '
+        'h:${((detection.boundingBox.bottom - detection.boundingBox.top) * 100).toStringAsFixed(0)}%';
+
+    final textPainter = TextPainter(
+      text: TextSpan(
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+        children: [
+          TextSpan(text: label),
+          const TextSpan(text: '\n'),
+          TextSpan(
+            text: coords,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: Colors.white70,
+            ),
+          ),
+        ],
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: size.width * 0.75);
+
+    final padding = 8.0;
+    final labelWidth = textPainter.width + padding * 2;
+    final labelHeight = textPainter.height + padding * 2;
+    double left = box.left;
+    double top = box.top - labelHeight - 8;
+    if (top < 0) {
+      top = box.bottom + 8;
+    }
+    if (left + labelWidth > size.width) {
+      left = size.width - labelWidth - 8;
+    }
+    left = left.clamp(8.0, size.width - labelWidth - 8.0);
+
+    final bgRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(left, top, labelWidth, labelHeight),
+      const Radius.circular(10),
+    );
+
+    canvas.drawRRect(
+      bgRect,
+      Paint()..color = Colors.black.withOpacity(0.72),
+    );
+
+    textPainter.paint(canvas, Offset(left + padding, top + padding));
+  }
+
+  @override
+  bool shouldRepaint(covariant _DetectionOverlayPainter oldDelegate) {
+    return oldDelegate.detection != detection;
+  }
+}
+>>>>>>> Stashed changes

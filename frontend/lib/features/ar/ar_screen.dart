@@ -3,6 +3,8 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/ar_availability.dart';
 import '../../features/database/landmark_model.dart';
 import 'ar_camera_view.dart';
+import 'street_view_screen.dart';
+import 'ar_navigation_screen.dart';
 
 /// AR overlay screen – dynamically checks ARCore availability on the device.
 /// Shows a supported or unsupported UI accordingly.
@@ -64,32 +66,24 @@ class _ArScreenState extends State<ArScreen> {
   }
 
   void _onLaunchAr(List<Color> colors) {
-    if (_arStatus?.canInstall == true ||
-        (!(_arStatus?.supported ?? false) &&
-            !(_arStatus?.arCoreInstalled ?? false))) {
-      // Offer in-app ARCore install via Google Play.
-      _installArCore();
-      return;
-    }
-    if (_arStatus?.supported == true) {
-      // Navigate to live camera AR overlay view
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ArCameraView(landmark: widget.landmark),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ArNavigationScreen(
+          destination: widget.landmark.name,
+          detectedLabel: _labelFromName(widget.landmark.name),
         ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _arStatus?.reason ?? 'AR not supported on this device',
-          ),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.red.shade800,
-        ),
-      );
-    }
+      ),
+    );
+  }
+
+  String _labelFromName(String name) {
+    const map = {
+      'Sigiriya': 'sigiriya_lion_paws',
+      'Dambulla Cave Temple': 'sigiriya_mirror_wall',
+      'Polonnaruwa': 'sigiriya_lion_rock',
+    };
+    return map[name] ?? 'sigiriya_lion_paws';
   }
 
   @override
@@ -404,19 +398,11 @@ class _ArScreenState extends State<ArScreen> {
                           child: ElevatedButton.icon(
                             onPressed: _checking
                                 ? null
-                                : (_arStatus?.canInstall == true)
-                                    ? _installArCore
-                                    : () => _onLaunchAr(colors),
+                                : () => _onLaunchAr(colors),
                             icon: (_arStatus?.canInstall == true)
                                 ? const Icon(Icons.download_rounded)
                                 : const Icon(Icons.view_in_ar_rounded),
-                            label: Text(arSupported
-                                ? 'Launch AR'
-                                : (_arStatus?.canInstall == true)
-                                    ? 'Install ARCore'
-                                    : (_arStatus?.isEmulator ?? false)
-                                        ? 'ARCore Not Installed (Emulator)'
-                                        : 'AR Not Available on This Device'),
+                            label: const Text('Start Route Tour'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: _checking
                                   ? Colors.grey.shade700

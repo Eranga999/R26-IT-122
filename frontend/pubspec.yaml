@@ -8,16 +8,25 @@ environment:
   sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
+  sensors_plus: ^6.0.1
   flutter:
     sdk: flutter
 
   cupertino_icons: ^1.0.8
 
   # Camera feed
-  camera: ^0.10.5+9
+  camera: ^0.12.0
 
+<<<<<<< Updated upstream
   # On-device TFLite inference (model integration pending – stubbed for UI demo)
   # tflite_flutter: ^0.10.4
+=======
+  # On-device TFLite inference
+  tflite_flutter: 0.12.1
+
+  # Image conversion for camera frames
+  image: ^4.2.0
+>>>>>>> Stashed changes
 
   # Offline SQLite database
   sqflite: ^2.3.3+1
