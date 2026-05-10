@@ -55,6 +55,8 @@ class RecognitionService {
 
   bool   get isLoaded  => _interpreter != null;
   String? get loadError => _loadError;
+  int    get inputWidth => _inputWidth;
+  int    get inputHeight => _inputHeight;
 
   // ── Model loading ──────────────────────────────────────────────────────────
   Future<void> loadModel() async {
@@ -88,19 +90,9 @@ class RecognitionService {
       debugPrint('[RecognitionService] Default Output[0] shape: $outShape, type: ${outTensor.type}, name: ${outTensor.name}');
       _outputShape = outShape.length > 1 ? outShape.sublist(1) : outShape;
 
-      // Force-resize the input tensor to match what we expect [1, H, W, 3]
-      // This sometimes fixes "failed to prepare" errors in models with weirdly exported ops.
-      try {
-        if (inShape.length == 4) {
-          _interpreter!.resizeInputTensor(0, inShape);
-          debugPrint('[RecognitionService] resizeInputTensor(0, $inShape) called');
-        }
-        _interpreter!.allocateTensors();
-        debugPrint('[RecognitionService] Tensors allocated successfully');
-      } catch (e) {
-        debugPrint('[RecognitionService] Failed to allocate tensors (likely Op mismatch): $e');
-      }
-
+      _interpreter!.allocateTensors();
+      debugPrint('[RecognitionService] Tensors allocated successfully');
+      
       _loadError = null;
     } catch (e, stack) {
       _loadError = e.toString();
@@ -143,12 +135,19 @@ class RecognitionService {
     // 3. Build input tensor [1, H, W, 3] – values in [0, 1]
     final inputTensor = _imageToFloat32([resized], _inputWidth, _inputHeight);
 
-    // 4. Allocate output buffer, run inference
-    final rawOutput = _allocateOutput();
+    // 4. Allocate output buffer
+    final outTensor = _interpreter!.getOutputTensor(0);
+    final outShape  = outTensor.shape; 
+    // Usually [1, numBoxFields, numAnchors]
+    final int totalElements = outShape.reduce((a, b) => a * b);
+    final Float32List rawOutput = Float32List(totalElements);
+    
     try {
-      _interpreter!.run(inputTensor, rawOutput);
+      // Create a map for outputs if multi-output, but here we just have 1
+      final outputs = {0: rawOutput.buffer.asFloat32List()};
+      _interpreter!.runForMultipleInputs([inputTensor], outputs);
     } catch (e) {
-      print('[RecognitionService] Inference run failed: $e');
+      debugPrint('[RecognitionService] Inference run failed: $e');
       return [];
     }
 
@@ -186,10 +185,7 @@ class RecognitionService {
     return _outputShape[0] < _outputShape[1];
   }
 
-  List<DetectionResult> _parseOutput(dynamic raw, double threshold) {
-    // Flatten the nested list into a plain List<double>
-    final flat = _flattenToDoubles(raw);
-
+  List<DetectionResult> _parseOutput(Float32List flat, double threshold) {
     if (_outputShape.length < 2) return [];
 
     final int rows;
@@ -208,10 +204,6 @@ class RecognitionService {
     final int numAnchors   = cols;
     final int numBoxFields = rows;
     final int numClasses   = numBoxFields - 4; // cx,cy,w,h + class scores
-
-    if (numClasses <= 0 || numClasses != labels.length) {
-      // Class count mismatch – still try but cap to labels.length
-    }
     final int effectiveClasses = numClasses;
 
     final results = <DetectionResult>[];

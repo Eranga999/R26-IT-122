@@ -35,6 +35,7 @@ class _CameraScreenState extends State<CameraScreen>
   CameraController? _controller;
   String? _cameraError;
   bool _isProcessing = false;
+  int _lastProcessTime = 0; // for throttling
 
   // ── Live detection state (shown while scanning) ────────────────────────────
   List<DetectionResult> _liveDetections = [];  // real-time boxes on camera
@@ -91,8 +92,10 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> _processFrame(CameraImage image) async {
-    if (_isProcessing || _panelVisible) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (_isProcessing || _panelVisible || (now - _lastProcessTime < 333)) return;
     _isProcessing = true;
+    _lastProcessTime = now;
     try {
       final results = await RecognitionService.instance.predictAll(
         image,
@@ -290,6 +293,37 @@ class _CameraScreenState extends State<CameraScreen>
                   sensorOrientation:
                       _controller?.description.sensorOrientation ?? 0,
                 ),
+              ),
+            ),
+          ),
+
+        // Debug Stats
+        if (kDebugMode)
+          Positioned(
+            top: 100,
+            left: 20,
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                   const Text('DEBUG SCANNER', style: TextStyle(color: Colors.yellow, fontSize: 10, fontWeight: FontWeight.bold)),
+                   const SizedBox(height: 4),
+                   Text('Model Input: ${RecognitionService.instance.inputWidth}x${RecognitionService.instance.inputHeight}',
+                        style: const TextStyle(color: Colors.white, fontSize: 10)),
+                   Text('Live Detections: ${_liveDetections.length}',
+                        style: const TextStyle(color: Colors.greenAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+                   if (_liveDetections.isNotEmpty)
+                     Text('Top Conf: ${(_liveDetections.first.confidence * 100).toStringAsFixed(0)}%',
+                          style: const TextStyle(color: Colors.white, fontSize: 10)),
+                  if (RecognitionService.instance.loadError != null)
+                    Text('ERROR: ${RecognitionService.instance.loadError}',
+                         style: const TextStyle(color: Colors.redAccent, fontSize: 9)),
+                ],
               ),
             ),
           ),
