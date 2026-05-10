@@ -4,7 +4,8 @@ import 'package:http/http.dart' as http;
 import '../../core/theme/app_theme.dart';
 
 class RagChatScreen extends StatefulWidget {
-  const RagChatScreen({Key? key}) : super(key: key);
+  final String? landmarkName;
+  const RagChatScreen({Key? key, this.landmarkName}) : super(key: key);
 
   @override
   State<RagChatScreen> createState() => _RagChatScreenState();
@@ -12,10 +13,32 @@ class RagChatScreen extends StatefulWidget {
 
 class _RagChatScreenState extends State<RagChatScreen> {
   final TextEditingController _controller = TextEditingController();
-  final List<Map<String, String>> _messages = [
-    {'bot': 'Greetings! 🏛️ I am your Heritage Guide. I can tell you all about the history, architecture, and hidden secrets of Sigiriya. How can I help you today?'}
-  ];
+  late final List<Map<String, String>> _messages;
   bool _isLoading = false;
+  late final List<String> _suggestions;
+
+  @override
+  void initState() {
+    super.initState();
+    _messages = [
+      {
+        'bot':
+            'Greetings! 🏛️ I am your Heritage Guide. I can tell you all about the history, architecture, and hidden secrets of Sigiriya. How can I help you today?'
+      }
+    ];
+    _suggestions = [
+      'Who built Sigiriya?',
+      'Tell me about the frescoes',
+      'How many steps are there?',
+      'What is the Lion Gate?'
+    ];
+  }
+
+  void _sendSuggestedMessage(String msg) {
+    if (_isLoading) return;
+    _controller.text = msg;
+    _sendMessage();
+  }
 
   Future<void> _sendMessage() async {
     if (_controller.text.trim().isEmpty) return;
@@ -26,7 +49,7 @@ class _RagChatScreenState extends State<RagChatScreen> {
     final userMessage = _controller.text.trim();
     _controller.clear();
     try {
-      const backendUrl = 'http://10.0.2.2:5000/chat'; 
+      const backendUrl = 'http://10.0.2.2:5000/chat';
       final response = await http.post(
         Uri.parse(backendUrl),
         headers: {'Content-Type': 'application/json'},
@@ -103,9 +126,47 @@ class _RagChatScreenState extends State<RagChatScreen> {
                 padding: EdgeInsets.all(8.0),
                 child: CircularProgressIndicator(color: AppTheme.secondary),
               ),
+            _buildSuggestions(),
             _buildInputArea(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSuggestions() {
+    return Container(
+      height: 48,
+      margin: const EdgeInsets.only(bottom: 4),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: _suggestions.length,
+        itemBuilder: (context, i) {
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ActionChip(
+              label: Text(
+                _suggestions[i],
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.primary,
+                ),
+              ),
+              onPressed: () => _sendSuggestedMessage(_suggestions[i]),
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.white,
+              elevation: 2,
+              shadowColor: Colors.black26,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(color: AppTheme.primary.withOpacity(0.1)),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

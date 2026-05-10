@@ -47,25 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Stack(
         children: [
           _navIndex == 0 ? _buildExploreBody() : _buildMapPlaceholder(),
-          // Heritage Chatbot Overlay Button
-          if (_navIndex == 0)
-            Positioned(
-              bottom: 110,
-              right: 20,
-              child: FloatingActionButton(
-                heroTag: 'chatbot',
-                backgroundColor: Colors.blueAccent,
-                elevation: 4,
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const RagChatScreen()),
-                  );
-                },
-                child:
-                    const Icon(Icons.chat_bubble, color: Colors.white, size: 28),
-              ),
-            ),
+
         ],
       ),
       floatingActionButton: _buildScanFab(),
@@ -770,30 +752,32 @@ class LandmarkDetailScreenState extends State<LandmarkDetailScreen> {
                   Row(
                     children: [
                       // Ask AI
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  RagScreen(landmarkName: widget.landmark.name),
+                      // Ask AI Guide (Only for Sigiriya)
+                      if (widget.landmark.id == 1) ...[
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => RagChatScreen(
+                                    landmarkName: widget.landmark.name),
+                              ),
+                            ),
+                            icon: const Icon(Icons.smart_toy_rounded, size: 18),
+                            label: const Text('Ask AI Guide'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFFFB300),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14)),
+                              textStyle: const TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.w600),
                             ),
                           ),
-                          icon: const Icon(Icons.smart_toy_rounded, size: 18),
-                          label: const Text('Ask AI Guide'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFFB300),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14)),
-                            textStyle: const TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.w600),
-                          ),
                         ),
-                      ),
-
-                      const SizedBox(width: 10),
+                        const SizedBox(width: 10),
+                      ],
 
                       // Navigate
                       Expanded(
