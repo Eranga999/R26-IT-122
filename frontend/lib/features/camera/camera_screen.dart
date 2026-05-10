@@ -1,6 +1,8 @@
 ﻿import 'dart:io';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:camera/camera.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/ar_availability.dart';
@@ -8,6 +10,7 @@ import '../../features/recognition/recognition_service.dart';
 import '../../features/database/database_helper.dart';
 import '../../features/database/landmark_model.dart';
 import '../../features/database/sub_landmark_model.dart';
+// recognition service already imported above
 import '../ar/ar_screen.dart';
 import '../rag/rag_screen.dart';
 import '../navigation/nav_screen.dart';
@@ -33,6 +36,8 @@ class _CameraScreenState extends State<CameraScreen>
   String? _cameraError;
   bool _isProcessing = false;
   LandmarkModel? _detectedLandmark;
+  DetectionResult? _activeDetection;
+  String? _detectedClassLabel;
   List<SubLandmarkModel> _subLandmarks = [];
   double _confidence = 0;
   bool _panelVisible = false;
@@ -83,18 +88,33 @@ class _CameraScreenState extends State<CameraScreen>
     if (_isProcessing || _panelVisible) return;
     _isProcessing = true;
     try {
-      final result =
-          await RecognitionService.instance.predict(image.planes.first.bytes);
+      final result = await RecognitionService.instance.predict(
+        image,
+        sensorOrientation: _controller?.description.sensorOrientation ?? 0,
+      );
+      if (kDebugMode) {
+        debugPrint('Camera previewSize=${_controller?.value.previewSize}');
+        debugPrint(
+            'sensorOrientation=${_controller?.description.sensorOrientation}');
+        debugPrint(
+            'detection=${result == null ? 'null' : '${result.boundingBox} conf=${result.confidence}'}');
+      }
       if (result != null && mounted && result.confidence >= 0.70) {
-        await _onLandmarkDetected(result.label, result.confidence);
+        await _onLandmarkDetected(result);
       }
     } finally {
       _isProcessing = false;
     }
   }
 
-  Future<void> _onLandmarkDetected(String label, double conf) async {
-    final id = _labelToId(label);
+  Future<void> _onLandmarkDetected(DetectionResult detection) async {
+    final id = _labelToId(detection.label);
+    if (id == null) {
+      if (kDebugMode) {
+        debugPrint('Ignoring unsupported detection label: ${detection.label}');
+      }
+      return;
+    }
     if (widget.lockedLandmarkId != null && id != widget.lockedLandmarkId) {
       return;
     }
@@ -105,26 +125,35 @@ class _CameraScreenState extends State<CameraScreen>
     if (!mounted) return;
     setState(() {
       _detectedLandmark = lm;
+      _activeDetection = detection;
+      _detectedClassLabel = detection.label;
       _subLandmarks = subs;
-      _confidence = conf;
+      _confidence = detection.confidence;
       _panelVisible = true;
     });
   }
 
-  int _labelToId(String label) {
+  int? _labelToId(String label) {
     final normalized = label.trim().toLowerCase();
     const m = {
+      'sigiriya_entrance': 1,
+      'sigiriya_lion_rock': 1,
+      'sigiriya_mirror_wall': 1,
+      'sigiriya_lion_staircase': 1,
+      'sigiriya_throne': 1,
       'sigiriya': 1,
       'dambulla': 2,
       'dambulla cave temple': 2,
-      'polonnaruwa': 3
+      'polonnaruwa': 3,
     };
-    return m[normalized] ?? 1;
+    return m[normalized];
   }
 
   void _dismissPanel() => setState(() {
         _panelVisible = false;
         _detectedLandmark = null;
+        _activeDetection = null;
+        _detectedClassLabel = null;
         _subLandmarks = [];
       });
 
@@ -184,7 +213,14 @@ class _CameraScreenState extends State<CameraScreen>
                       style: TextStyle(color: Colors.white38, fontSize: 11)),
                   onTap: () {
                     Navigator.pop(context);
-                    _onLandmarkDetected(lm.name, 0.94);
+                    // Simulate a detection result centered on screen
+                    final simulatedBox = Rect.fromLTWH(0.25, 0.25, 0.5, 0.5);
+                    final detection = DetectionResult(
+                        label: lm.name.toLowerCase(),
+                        confidence: 0.94,
+                        boundingBox: simulatedBox,
+                        classIndex: 0);
+                    _onLandmarkDetected(detection);
                   },
                 )),
           ],
@@ -197,6 +233,7 @@ class _CameraScreenState extends State<CameraScreen>
   void dispose() {
     _pulseAnim.dispose();
     _controller?.dispose();
+    RecognitionService.instance.dispose();
     super.dispose();
   }
 
@@ -212,6 +249,16 @@ class _CameraScreenState extends State<CameraScreen>
           _buildLoadingState()
         else
           CameraPreview(_controller!),
+
+        if (_activeDetection != null)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: _DetectionOverlayPainter(
+                    _activeDetection!, _controller?.value.previewSize),
+              ),
+            ),
+          ),
 
         // Top bar
         Positioned(
@@ -265,7 +312,8 @@ class _CameraScreenState extends State<CameraScreen>
                       const Icon(Icons.check_circle_rounded,
                           color: Colors.white, size: 14),
                       const SizedBox(width: 4),
-                      Text('${(_confidence * 100).toStringAsFixed(0)}% match',
+                      Text(
+                          '${_detectedClassLabel ?? _detectedLandmark!.name} • ${(_confidence * 100).toStringAsFixed(0)}%',
                           style: const TextStyle(
                               color: Colors.white,
                               fontSize: 12,
@@ -283,6 +331,15 @@ class _CameraScreenState extends State<CameraScreen>
         if (_arStatus != null && !_panelVisible)
           Positioned(
               top: 110, left: 20, right: 20, child: _buildArStatusBanner()),
+
+        if (widget.lockedLandmarkId != null &&
+            widget.lockedLandmarkId != 1 &&
+            !_panelVisible)
+          Positioned(
+              top: 162,
+              left: 20,
+              right: 20,
+              child: _buildUnsupportedSiteBanner()),
 
         if (!_panelVisible)
           Positioned(
@@ -328,6 +385,29 @@ class _CameraScreenState extends State<CameraScreen>
             ok
                 ? 'AR Supported – 3D overlays available'
                 : status.reason ?? 'AR not supported on this device',
+            style: const TextStyle(
+                color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildUnsupportedSiteBanner() {
+    final siteName = widget.lockedLandmarkName ?? 'this site';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.amber.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.amber.shade200, width: 0.8),
+      ),
+      child: Row(children: [
+        const Icon(Icons.info_outline_rounded, color: Colors.white, size: 16),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'Live recognition currently supports Sigiriya only. $siteName is available in the app, but this camera flow will not auto-detect it.',
             style: const TextStyle(
                 color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
           ),
@@ -465,6 +545,30 @@ class _CameraScreenState extends State<CameraScreen>
                       )),
 
                   // History
+
+                  if (_activeDetection != null)
+                    Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                              color: const Color(0xFFF3E5AB),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                  color:
+                                      Color(colors[0].value).withOpacity(0.2))),
+                          child: Text(
+                            'Detected class: ${_detectedClassLabel ?? _activeDetection!.label}\n'
+                            'Confidence: ${(_confidence * 100).toStringAsFixed(1)}%\n'
+                            'BBox: ${_bboxText(_activeDetection!.boundingBox)}',
+                            style: const TextStyle(
+                                color: Color(0xFF4E342E),
+                                fontSize: 12.5,
+                                height: 1.6,
+                                fontWeight: FontWeight.w600),
+                          ),
+                        )),
                   Padding(
                       padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
                       child: Column(
@@ -891,6 +995,13 @@ class _CameraScreenState extends State<CameraScreen>
                     fontWeight: FontWeight.w500),
                 textAlign: TextAlign.center)),
       ]));
+
+  String _bboxText(Rect box) {
+    return 'x:${(box.left * 100).toStringAsFixed(0)}% '
+        'y:${(box.top * 100).toStringAsFixed(0)}% '
+        'w:${((box.right - box.left) * 100).toStringAsFixed(0)}% '
+        'h:${((box.bottom - box.top) * 100).toStringAsFixed(0)}%';
+  }
 }
 
 class _FactPill extends StatelessWidget {
@@ -933,4 +1044,148 @@ class _CornerPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter old) => false;
+}
+
+class _DetectionOverlayPainter extends CustomPainter {
+  final DetectionResult detection;
+  final Size? previewSize;
+
+  const _DetectionOverlayPainter(this.detection, this.previewSize);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Map normalized detection bounding box (0..1) from the camera preview
+    // to the displayed widget size, accounting for how CameraPreview scales
+    // (BoxFit.cover behaviour – the preview is center-cropped to fill).
+    final double previewW = previewSize?.width ?? size.width;
+    final double previewH = previewSize?.height ?? size.height;
+
+    final previewRatio = previewW / previewH;
+    final widgetRatio = size.width / size.height;
+
+    double scaledPreviewW, scaledPreviewH, offsetX = 0, offsetY = 0;
+    if (previewRatio > widgetRatio) {
+      // preview is wider than widget — scale to match height
+      final scale = size.height / previewH;
+      scaledPreviewH = size.height;
+      scaledPreviewW = previewW * scale;
+      offsetX = (size.width - scaledPreviewW) / 2;
+    } else {
+      // preview is taller than widget — scale to match width
+      final scale = size.width / previewW;
+      scaledPreviewW = size.width;
+      scaledPreviewH = previewH * scale;
+      offsetY = (size.height - scaledPreviewH) / 2;
+    }
+
+    final x1 = offsetX + detection.boundingBox.left * scaledPreviewW;
+    final y1 = offsetY + detection.boundingBox.top * scaledPreviewH;
+    final x2 = offsetX + detection.boundingBox.right * scaledPreviewW;
+    final y2 = offsetY + detection.boundingBox.bottom * scaledPreviewH;
+
+    final box = Rect.fromLTRB(x1, y1, x2, y2);
+
+    // Debug overlay: draw preview bounds and mapping info when in debug mode
+    if (kDebugMode) {
+      final previewRect = Rect.fromLTWH(
+        offsetX.clamp(0.0, size.width),
+        offsetY.clamp(0.0, size.height),
+        scaledPreviewW.clamp(0.0, size.width),
+        scaledPreviewH.clamp(0.0, size.height),
+      );
+      canvas.drawRect(
+          previewRect, Paint()..color = Colors.red.withOpacity(0.18));
+      canvas.drawRect(
+          previewRect,
+          Paint()
+            ..color = Colors.red
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1);
+
+      final info =
+          'pv=${previewSize?.width.toStringAsFixed(0) ?? 'NA'}x${previewSize?.height.toStringAsFixed(0) ?? 'NA'} '
+          'sW=${scaledPreviewW.toStringAsFixed(0)} sH=${scaledPreviewH.toStringAsFixed(0)} '
+          ' oX=${offsetX.toStringAsFixed(0)} oY=${offsetY.toStringAsFixed(0)}';
+      final tp = TextPainter(
+        text: TextSpan(
+          text: info,
+          style: const TextStyle(color: Colors.white, fontSize: 10),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: size.width - 8);
+      tp.paint(canvas, Offset(8, size.height - tp.height - 8));
+    }
+
+    final fillPaint = Paint()
+      ..color = Colors.greenAccent.withOpacity(0.12)
+      ..style = PaintingStyle.fill;
+    final borderPaint = Paint()
+      ..color = Colors.greenAccent
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+
+    canvas.drawRect(box, fillPaint);
+    canvas.drawRect(box, borderPaint);
+
+    final label =
+        '${detection.label} ${(detection.confidence * 100).toStringAsFixed(0)}%';
+    final coords =
+        'x:${(detection.boundingBox.left * 100).toStringAsFixed(0)}% '
+        'y:${(detection.boundingBox.top * 100).toStringAsFixed(0)}% '
+        'w:${((detection.boundingBox.right - detection.boundingBox.left) * 100).toStringAsFixed(0)}% '
+        'h:${((detection.boundingBox.bottom - detection.boundingBox.top) * 100).toStringAsFixed(0)}%';
+
+    final textPainter = TextPainter(
+      text: TextSpan(
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+        children: [
+          TextSpan(text: label),
+          const TextSpan(text: '\n'),
+          TextSpan(
+            text: coords,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: Colors.white70,
+            ),
+          ),
+        ],
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: size.width * 0.75);
+
+    final padding = 8.0;
+    final labelWidth = textPainter.width + padding * 2;
+    final labelHeight = textPainter.height + padding * 2;
+    double left = box.left;
+    double top = box.top - labelHeight - 8;
+    if (top < 0) {
+      top = box.bottom + 8;
+    }
+    if (left + labelWidth > size.width) {
+      left = size.width - labelWidth - 8;
+    }
+    left = left.clamp(8.0, size.width - labelWidth - 8.0);
+
+    final bgRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(left, top, labelWidth, labelHeight),
+      const Radius.circular(10),
+    );
+
+    canvas.drawRRect(
+      bgRect,
+      Paint()..color = Colors.black.withOpacity(0.72),
+    );
+
+    textPainter.paint(canvas, Offset(left + padding, top + padding));
+  }
+
+  @override
+  bool shouldRepaint(covariant _DetectionOverlayPainter oldDelegate) {
+    return oldDelegate.detection != detection;
+  }
 }
