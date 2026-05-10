@@ -1,10 +1,19 @@
 # YOLOv8 dataset config for Sigiriya-only sub-landmark detection.
-# Local workspace path (project root based).
-# If training in Colab, change this to: /content/sigiriya_dataset
-path: backend/dataset/sigiriya_dataset
-train: images/train
-val: images/val
-test: images/test
+# Local training expects a Roboflow YOLOv8 export extracted to:
+# backend/dataset/sigiriya_dataset/
+#
+# Folder layout:
+# backend/dataset/sigiriya_dataset/
+# ├── train/images
+# ├── train/labels
+# ├── valid/images
+# ├── valid/labels
+# └── test/images
+#     └── test/labels
+path: ../dataset/sigiriya_dataset
+train: train/images
+val: valid/images
+test: test/images
 
 names:
   0: sigiriya_entrance
