@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -35,12 +35,18 @@ class _CameraScreenState extends State<CameraScreen>
   CameraController? _controller;
   String? _cameraError;
   bool _isProcessing = false;
+
+  // ── Live detection state (shown while scanning) ────────────────────────────
+  List<DetectionResult> _liveDetections = [];  // real-time boxes on camera
+
+  // ── Info-panel state (opened when confident enough) ────────────────────────
   LandmarkModel? _detectedLandmark;
   DetectionResult? _activeDetection;
   String? _detectedClassLabel;
   List<SubLandmarkModel> _subLandmarks = [];
   double _confidence = 0;
   bool _panelVisible = false;
+
   late final AnimationController _pulseAnim;
   ArStatus? _arStatus;
 
@@ -88,20 +94,40 @@ class _CameraScreenState extends State<CameraScreen>
     if (_isProcessing || _panelVisible) return;
     _isProcessing = true;
     try {
-      final result = await RecognitionService.instance.predict(
+      final results = await RecognitionService.instance.predictAll(
         image,
         sensorOrientation: _controller?.description.sensorOrientation ?? 0,
+        threshold: 0.30, // show boxes from 30% confidence
       );
+
+      if (!mounted) return;
+
       if (kDebugMode) {
-        debugPrint('Camera previewSize=${_controller?.value.previewSize}');
         debugPrint(
-            'sensorOrientation=${_controller?.description.sensorOrientation}');
-        debugPrint(
-            'detection=${result == null ? 'null' : '${result.boundingBox} conf=${result.confidence}'}');
+            '[Scan] ${results.length} detections | '
+            'previewSize=${_controller?.value.previewSize} | '
+            'sensor=${_controller?.description.sensorOrientation}°');
+        for (final r in results) {
+          debugPrint('  -> ${r.label} ${(r.confidence * 100).toStringAsFixed(1)}% box=${r.boundingBox}');
+        }
       }
-      if (result != null && mounted && result.confidence >= 0.70) {
-        await _onLandmarkDetected(result);
+
+      // Always update the live overlay
+      setState(() => _liveDetections = results);
+
+      // Open the info panel only when confident enough
+      final highConf = results
+          .where((r) => r.confidence >= 0.50)
+          .fold<DetectionResult?>(
+              null,
+              (best, r) =>
+                  best == null || r.confidence > best.confidence ? r : best);
+
+      if (highConf != null) {
+        await _onLandmarkDetected(highConf);
       }
+    } catch (e) {
+      if (kDebugMode) debugPrint('[Scan] frame error: $e');
     } finally {
       _isProcessing = false;
     }
@@ -155,6 +181,7 @@ class _CameraScreenState extends State<CameraScreen>
         _activeDetection = null;
         _detectedClassLabel = null;
         _subLandmarks = [];
+        _liveDetections = [];
       });
 
   Future<void> _showDemoPicker() async {
@@ -250,12 +277,19 @@ class _CameraScreenState extends State<CameraScreen>
         else
           CameraPreview(_controller!),
 
-        if (_activeDetection != null)
+        // Live bounding-box overlay – shown while scanning AND after panel opens
+        if (_liveDetections.isNotEmpty || _activeDetection != null)
           Positioned.fill(
             child: IgnorePointer(
               child: CustomPaint(
                 painter: _DetectionOverlayPainter(
-                    _activeDetection!, _controller?.value.previewSize),
+                  detections: _panelVisible && _activeDetection != null
+                      ? [_activeDetection!]
+                      : _liveDetections,
+                  previewSize: _controller?.value.previewSize,
+                  sensorOrientation:
+                      _controller?.description.sensorOrientation ?? 0,
+                ),
               ),
             ),
           ),
@@ -1046,146 +1080,144 @@ class _CornerPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
-class _DetectionOverlayPainter extends CustomPainter {
-  final DetectionResult detection;
-  final Size? previewSize;
+// ── Detection overlay painter ───────────────────────────────────────────────
 
-  const _DetectionOverlayPainter(this.detection, this.previewSize);
+class _DetectionOverlayPainter extends CustomPainter {
+  final List<DetectionResult> detections;
+  final Size?  previewSize;      // CameraValue.previewSize (always landscape)
+  final int    sensorOrientation; // degrees (0, 90, 180, 270)
+
+  const _DetectionOverlayPainter({
+    required this.detections,
+    required this.previewSize,
+    required this.sensorOrientation,
+  });
+
+  // Distinct colours per class index
+  static const _boxColours = [
+    Color(0xFF00E676), // green
+    Color(0xFF40C4FF), // light blue
+    Color(0xFFFF6D00), // orange
+    Color(0xFFE040FB), // purple
+    Color(0xFFFFD740), // amber
+  ];
 
   @override
-  void paint(Canvas canvas, Size size) {
-    // Map normalized detection bounding box (0..1) from the camera preview
-    // to the displayed widget size, accounting for how CameraPreview scales
-    // (BoxFit.cover behaviour – the preview is center-cropped to fill).
-    final double previewW = previewSize?.width ?? size.width;
-    final double previewH = previewSize?.height ?? size.height;
+  void paint(Canvas canvas, Size widgetSize) {
+    if (detections.isEmpty || previewSize == null) return;
 
-    final previewRatio = previewW / previewH;
-    final widgetRatio = size.width / size.height;
+    // CameraValue.previewSize is always in landscape (width > height).
+    // When the sensor is rotated 90° or 270° (portrait device), the logical
+    // preview shown by CameraPreview is actually portrait, so we must swap
+    // width ↔ height to get the correct aspect ratio for the displayed frame.
+    final bool isRotated90 =
+        sensorOrientation == 90 || sensorOrientation == 270;
+    final double pvW = isRotated90 ? previewSize!.height : previewSize!.width;
+    final double pvH = isRotated90 ? previewSize!.width  : previewSize!.height;
 
-    double scaledPreviewW, scaledPreviewH, offsetX = 0, offsetY = 0;
-    if (previewRatio > widgetRatio) {
-      // preview is wider than widget — scale to match height
-      final scale = size.height / previewH;
-      scaledPreviewH = size.height;
-      scaledPreviewW = previewW * scale;
-      offsetX = (size.width - scaledPreviewW) / 2;
-    } else {
-      // preview is taller than widget — scale to match width
-      final scale = size.width / previewW;
-      scaledPreviewW = size.width;
-      scaledPreviewH = previewH * scale;
-      offsetY = (size.height - scaledPreviewH) / 2;
-    }
+    // Compute how CameraPreview scales the frame inside the widget
+    // (it uses BoxFit.cover – the preview fills the widget, cropping if needed).
+    final double scaleX = widgetSize.width  / pvW;
+    final double scaleY = widgetSize.height / pvH;
+    final double scale  = scaleX > scaleY ? scaleX : scaleY; // cover
+    final double scaledW = pvW * scale;
+    final double scaledH = pvH * scale;
+    final double offsetX = (widgetSize.width  - scaledW) / 2;
+    final double offsetY = (widgetSize.height - scaledH) / 2;
 
-    final x1 = offsetX + detection.boundingBox.left * scaledPreviewW;
-    final y1 = offsetY + detection.boundingBox.top * scaledPreviewH;
-    final x2 = offsetX + detection.boundingBox.right * scaledPreviewW;
-    final y2 = offsetY + detection.boundingBox.bottom * scaledPreviewH;
+    for (final det in detections) {
+      final colour = _boxColours[det.classIndex % _boxColours.length];
 
-    final box = Rect.fromLTRB(x1, y1, x2, y2);
+      // Map normalised [0..1] box to widget pixels
+      final x1 = offsetX + det.boundingBox.left   * scaledW;
+      final y1 = offsetY + det.boundingBox.top    * scaledH;
+      final x2 = offsetX + det.boundingBox.right  * scaledW;
+      final y2 = offsetY + det.boundingBox.bottom * scaledH;
+      final box = Rect.fromLTRB(x1, y1, x2, y2);
 
-    // Debug overlay: draw preview bounds and mapping info when in debug mode
-    if (kDebugMode) {
-      final previewRect = Rect.fromLTWH(
-        offsetX.clamp(0.0, size.width),
-        offsetY.clamp(0.0, size.height),
-        scaledPreviewW.clamp(0.0, size.width),
-        scaledPreviewH.clamp(0.0, size.height),
-      );
+      // Semi-transparent fill
       canvas.drawRect(
-          previewRect, Paint()..color = Colors.red.withOpacity(0.18));
-      canvas.drawRect(
-          previewRect,
+          box,
           Paint()
-            ..color = Colors.red
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1);
+            ..color = colour.withOpacity(0.15)
+            ..style = PaintingStyle.fill);
 
-      final info =
-          'pv=${previewSize?.width.toStringAsFixed(0) ?? 'NA'}x${previewSize?.height.toStringAsFixed(0) ?? 'NA'} '
-          'sW=${scaledPreviewW.toStringAsFixed(0)} sH=${scaledPreviewH.toStringAsFixed(0)} '
-          ' oX=${offsetX.toStringAsFixed(0)} oY=${offsetY.toStringAsFixed(0)}';
+      // Border
+      canvas.drawRect(
+          box,
+          Paint()
+            ..color = colour
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.5);
+
+      // Corner accents
+      _drawCorners(canvas, box, colour);
+
+      // Label chip: "<name>  <conf>%"
+      final labelText =
+          '${det.label.replaceAll('_', ' ')}  '
+          '${(det.confidence * 100).toStringAsFixed(0)}%';
+
       final tp = TextPainter(
         text: TextSpan(
-          text: info,
-          style: const TextStyle(color: Colors.white, fontSize: 10),
+          text: labelText,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.3,
+          ),
         ),
         textDirection: TextDirection.ltr,
-      )..layout(maxWidth: size.width - 8);
-      tp.paint(canvas, Offset(8, size.height - tp.height - 8));
-    }
+      )..layout(maxWidth: widgetSize.width - 24);
 
-    final fillPaint = Paint()
-      ..color = Colors.greenAccent.withOpacity(0.12)
-      ..style = PaintingStyle.fill;
-    final borderPaint = Paint()
-      ..color = Colors.greenAccent
+      const padH = 6.0;
+      const padV = 4.0;
+      final chipW = tp.width  + padH * 2;
+      final chipH = tp.height + padV * 2;
+
+      // Position chip above the box; flip below if out of bounds
+      double chipX = x1;
+      double chipY = y1 - chipH - 4;
+      if (chipY < 0) chipY = y2 + 4;
+      chipX = chipX.clamp(4.0, widgetSize.width - chipW - 4);
+
+      // Chip background
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+            Rect.fromLTWH(chipX, chipY, chipW, chipH),
+            const Radius.circular(6)),
+        Paint()..color = colour.withOpacity(0.88),
+      );
+
+      tp.paint(canvas, Offset(chipX + padH, chipY + padV));
+    }
+  }
+
+  void _drawCorners(Canvas canvas, Rect box, Color colour) {
+    const len = 14.0;
+    final paint = Paint()
+      ..color = colour
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
+      ..strokeWidth = 3.5
+      ..strokeCap = StrokeCap.round;
 
-    canvas.drawRect(box, fillPaint);
-    canvas.drawRect(box, borderPaint);
-
-    final label =
-        '${detection.label} ${(detection.confidence * 100).toStringAsFixed(0)}%';
-    final coords =
-        'x:${(detection.boundingBox.left * 100).toStringAsFixed(0)}% '
-        'y:${(detection.boundingBox.top * 100).toStringAsFixed(0)}% '
-        'w:${((detection.boundingBox.right - detection.boundingBox.left) * 100).toStringAsFixed(0)}% '
-        'h:${((detection.boundingBox.bottom - detection.boundingBox.top) * 100).toStringAsFixed(0)}%';
-
-    final textPainter = TextPainter(
-      text: TextSpan(
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
-        children: [
-          TextSpan(text: label),
-          const TextSpan(text: '\n'),
-          TextSpan(
-            text: coords,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: Colors.white70,
-            ),
-          ),
-        ],
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: size.width * 0.75);
-
-    final padding = 8.0;
-    final labelWidth = textPainter.width + padding * 2;
-    final labelHeight = textPainter.height + padding * 2;
-    double left = box.left;
-    double top = box.top - labelHeight - 8;
-    if (top < 0) {
-      top = box.bottom + 8;
-    }
-    if (left + labelWidth > size.width) {
-      left = size.width - labelWidth - 8;
-    }
-    left = left.clamp(8.0, size.width - labelWidth - 8.0);
-
-    final bgRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(left, top, labelWidth, labelHeight),
-      const Radius.circular(10),
-    );
-
-    canvas.drawRRect(
-      bgRect,
-      Paint()..color = Colors.black.withOpacity(0.72),
-    );
-
-    textPainter.paint(canvas, Offset(left + padding, top + padding));
+    // Top-left
+    canvas.drawLine(Offset(box.left, box.top), Offset(box.left + len, box.top), paint);
+    canvas.drawLine(Offset(box.left, box.top), Offset(box.left, box.top + len), paint);
+    // Top-right
+    canvas.drawLine(Offset(box.right, box.top), Offset(box.right - len, box.top), paint);
+    canvas.drawLine(Offset(box.right, box.top), Offset(box.right, box.top + len), paint);
+    // Bottom-left
+    canvas.drawLine(Offset(box.left, box.bottom), Offset(box.left + len, box.bottom), paint);
+    canvas.drawLine(Offset(box.left, box.bottom), Offset(box.left, box.bottom - len), paint);
+    // Bottom-right
+    canvas.drawLine(Offset(box.right, box.bottom), Offset(box.right - len, box.bottom), paint);
+    canvas.drawLine(Offset(box.right, box.bottom), Offset(box.right, box.bottom - len), paint);
   }
 
   @override
-  bool shouldRepaint(covariant _DetectionOverlayPainter oldDelegate) {
-    return oldDelegate.detection != detection;
-  }
+  bool shouldRepaint(covariant _DetectionOverlayPainter old) =>
+      old.detections != detections;
 }
+

@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 /// Checks whether the current device supports ARCore (Android) and can
 /// request an in-app install via Google Play.
 class ArAvailability {
-  static const _channel = MethodChannel('com.example.heritage_ar/ar_check');
+  static const _channel = MethodChannel('com.example.r26_it_122/ar_check');
 
   static Future<ArStatus> check() async {
     if (!Platform.isAndroid) {

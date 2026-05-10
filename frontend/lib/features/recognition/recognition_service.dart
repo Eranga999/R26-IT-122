@@ -1,15 +1,17 @@
+import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import 'package:tflite_flutter/tflite_flutter.dart';
 
 class DetectionResult {
   final String label;
   final double confidence;
-  final Rect boundingBox;
+  final Rect boundingBox; // normalised 0..1 in model input space
   final int classIndex;
 
   const DetectionResult({
@@ -20,14 +22,18 @@ class DetectionResult {
   });
 }
 
-/// Real YOLOv8 TFLite recognition service.
+/// YOLOv8 TFLite inference service.
 ///
-/// Expects a model exported from Ultralytics YOLOv8 and stored at:
-/// `assets/models/landmark_model.tflite`.
+/// Handles both common export layouts:
+///   • Transposed  [1, num_classes+4, num_anchors]  ← default ultralytics export
+///   • Standard    [1, num_anchors,   num_classes+4]
+///
+/// Labels MUST match the order used during training.
 class RecognitionService {
   RecognitionService._();
   static final RecognitionService instance = RecognitionService._();
 
+  // ── Labels – MUST match your training class order exactly ──────────────────
   static const List<String> labels = [
     'sigiriya_entrance',
     'sigiriya_lion_rock',
@@ -36,17 +42,23 @@ class RecognitionService {
     'sigiriya_throne',
   ];
 
+  // ── State ──────────────────────────────────────────────────────────────────
   Interpreter? _interpreter;
   String? _loadError;
-  int _inputWidth = 640;
+
+  int _inputWidth  = 640;
   int _inputHeight = 640;
 
-  bool get isLoaded => _interpreter != null;
+  /// Shape of the output tensor (without the batch dim).
+  /// E.g. [9, 8400] or [8400, 9].
+  List<int> _outputShape = [];
+
+  bool   get isLoaded  => _interpreter != null;
   String? get loadError => _loadError;
 
+  // ── Model loading ──────────────────────────────────────────────────────────
   Future<void> loadModel() async {
     if (_interpreter != null) return;
-
     try {
       final modelData =
           await rootBundle.load('assets/models/landmark_model.tflite');
@@ -56,15 +68,44 @@ class RecognitionService {
         options: options,
       );
 
-      final inputShape = _interpreter!.getInputTensor(0).shape;
-      if (inputShape.length >= 4) {
-        _inputHeight = inputShape[1];
-        _inputWidth = inputShape[2];
+      // Read input metadata
+      final inputTensors = _interpreter!.getInputTensors();
+      debugPrint('[RecognitionService] Model loaded. Inputs: ${inputTensors.length}, Outputs: ${_interpreter!.getOutputTensors().length}');
+      
+      final inTensor = _interpreter!.getInputTensor(0);
+      final inShape = inTensor.shape;
+      final inType = inTensor.type;
+      debugPrint('[RecognitionService] Input[0]: shape=$inShape, type=$inType');
+      
+      if (inShape.length >= 4) {
+        _inputHeight = inShape[1];
+        _inputWidth  = inShape[2];
       }
+
+      // Read output shape – strip the leading batch dim (1)
+      final outTensor = _interpreter!.getOutputTensor(0);
+      final outShape = outTensor.shape;
+      debugPrint('[RecognitionService] Default Output[0] shape: $outShape, type: ${outTensor.type}, name: ${outTensor.name}');
+      _outputShape = outShape.length > 1 ? outShape.sublist(1) : outShape;
+
+      // Force-resize the input tensor to match what we expect [1, H, W, 3]
+      // This sometimes fixes "failed to prepare" errors in models with weirdly exported ops.
+      try {
+        if (inShape.length == 4) {
+          _interpreter!.resizeInputTensor(0, inShape);
+          debugPrint('[RecognitionService] resizeInputTensor(0, $inShape) called');
+        }
+        _interpreter!.allocateTensors();
+        debugPrint('[RecognitionService] Tensors allocated successfully');
+      } catch (e) {
+        debugPrint('[RecognitionService] Failed to allocate tensors (likely Op mismatch): $e');
+      }
+
       _loadError = null;
-    } catch (e) {
+    } catch (e, stack) {
       _loadError = e.toString();
-      print('Failed to load TFLite model: $_loadError');
+      debugPrint('[RecognitionService] Failed to load model: $_loadError');
+      debugPrint(stack.toString());
       _interpreter = null;
     }
   }
@@ -74,343 +115,330 @@ class RecognitionService {
     _interpreter = null;
   }
 
+  // ── Inference ──────────────────────────────────────────────────────────────
+  Future<List<DetectionResult>> predictAll(
+    CameraImage image, {
+    int sensorOrientation = 0,
+    double threshold = 0.30,
+    double nmsIouThreshold = 0.45,
+  }) async {
+    if (_interpreter == null) await loadModel();
+    if (_interpreter == null) return [];
+
+    // 1. Convert camera frame → RGB image
+    final stopwatch = Stopwatch()..start();
+    final decoded = _cameraImageToImage(image);
+    if (decoded == null) {
+      print('[RecognitionService] CameraImage conversion failed');
+      return [];
+    }
+
+    // 2. Rotate to correct orientation then resize to model input
+    final rotated = _rotateForInference(decoded, sensorOrientation);
+    final resized = img.copyResize(rotated,
+        width: _inputWidth,
+        height: _inputHeight,
+        interpolation: img.Interpolation.linear);
+
+    // 3. Build input tensor [1, H, W, 3] – values in [0, 1]
+    final inputTensor = _imageToFloat32([resized], _inputWidth, _inputHeight);
+
+    // 4. Allocate output buffer, run inference
+    final rawOutput = _allocateOutput();
+    try {
+      _interpreter!.run(inputTensor, rawOutput);
+    } catch (e) {
+      print('[RecognitionService] Inference run failed: $e');
+      return [];
+    }
+
+    // 5. Parse detections
+    final detections = _parseOutput(rawOutput, threshold);
+    final nmsResults = _nms(detections, nmsIouThreshold);
+    
+    if (kDebugMode) {
+      debugPrint('[RecognitionService] Inference took ${stopwatch.elapsedMilliseconds}ms, found ${nmsResults.length} detections');
+    }
+    return nmsResults;
+  }
+
+  /// Convenience: returns only the single best detection (highest confidence).
   Future<DetectionResult?> predict(
     CameraImage image, {
     int sensorOrientation = 0,
-    double threshold = 0.35,
+    double threshold = 0.30,
   }) async {
-    if (_interpreter == null) {
-      await loadModel();
-    }
-    if (_interpreter == null) return null;
-
-    final decoded = _cameraImageToImage(image);
-    if (decoded == null) return null;
-
-    final rotated = _rotateImage(decoded, sensorOrientation);
-    final resized = img.copyResize(
-      rotated,
-      width: _inputWidth,
-      height: _inputHeight,
-      interpolation: img.Interpolation.linear,
-    );
-
-    final input = _imageToFloat32List(resized);
-    final output = _createOutputBuffer(_interpreter!.getOutputTensor(0).shape);
-
-    _interpreter!.run(input, output);
-
-    return _extractBestDetection(
-      output,
-      normalizedWidth: _inputWidth.toDouble(),
-      normalizedHeight: _inputHeight.toDouble(),
-      threshold: threshold,
-    );
+    final all = await predictAll(image,
+        sensorOrientation: sensorOrientation, threshold: threshold);
+    if (all.isEmpty) return null;
+    return all.reduce((a, b) => a.confidence > b.confidence ? a : b);
   }
 
-  DetectionResult? _extractBestDetection(
-    dynamic output, {
-    required double normalizedWidth,
-    required double normalizedHeight,
-    required double threshold,
-  }) {
-    final candidates = <List<double>>[];
-    _collectCandidateRows(output, candidates);
+  // ── Output parsing ─────────────────────────────────────────────────────────
 
-    DetectionResult? best;
-    for (final row in candidates) {
-      final detection = _parseCandidateRow(
-        row,
-        normalizedWidth: normalizedWidth,
-        normalizedHeight: normalizedHeight,
-        threshold: threshold,
-      );
-      if (detection == null) continue;
-
-      if (best == null || detection.confidence > best.confidence) {
-        best = detection;
-      }
-    }
-
-    return best;
+  /// Determine whether the tensor is transposed (YOLOv8 default) or standard.
+  ///
+  ///  Transposed: shape = [numClasses+4, numAnchors]  → numAnchors >> numClasses
+  ///  Standard  : shape = [numAnchors,  numClasses+4] → same but swapped
+  bool get _isTransposed {
+    if (_outputShape.length < 2) return false;
+    // heuristic: the anchors dim is always the larger one
+    return _outputShape[0] < _outputShape[1];
   }
 
-  DetectionResult? _parseCandidateRow(
-    List<double> row, {
-    required double normalizedWidth,
-    required double normalizedHeight,
-    required double threshold,
-  }) {
-    if (row.length < 6) return null;
+  List<DetectionResult> _parseOutput(dynamic raw, double threshold) {
+    // Flatten the nested list into a plain List<double>
+    final flat = _flattenToDoubles(raw);
 
-    final box = _decodeBoundingBox(
-      row.sublist(0, 4),
-      normalizedWidth: normalizedWidth,
-      normalizedHeight: normalizedHeight,
-    );
-    if (box == null) return null;
+    if (_outputShape.length < 2) return [];
 
-    if (row.length == 6) {
-      final confidence = row[4];
-      final classIndex = row[5].round();
-      if (confidence < threshold) return null;
-      if (classIndex < 0 || classIndex >= labels.length) return null;
+    final int rows;
+    final int cols;
 
-      return DetectionResult(
-        label: labels[classIndex],
-        confidence: confidence,
-        boundingBox: box,
-        classIndex: classIndex,
-      );
+    if (_isTransposed) {
+      // Shape: [numBoxFields, numAnchors]  e.g. [9, 8400]
+      rows = _outputShape[0]; // numBoxFields  = 4 + numClasses
+      cols = _outputShape[1]; // numAnchors
+    } else {
+      // Shape: [numAnchors, numBoxFields]  e.g. [8400, 9]
+      rows = _outputShape[1]; // numBoxFields
+      cols = _outputShape[0]; // numAnchors
     }
 
-    final scores = row.sublist(4);
-    var bestScore = double.negativeInfinity;
-    var bestIndex = -1;
-    for (var i = 0; i < scores.length; i++) {
-      if (scores[i] > bestScore) {
-        bestScore = scores[i];
-        bestIndex = i;
-      }
+    final int numAnchors   = cols;
+    final int numBoxFields = rows;
+    final int numClasses   = numBoxFields - 4; // cx,cy,w,h + class scores
+
+    if (numClasses <= 0 || numClasses != labels.length) {
+      // Class count mismatch – still try but cap to labels.length
     }
+    final int effectiveClasses = numClasses;
 
-    if (bestIndex < 0 || bestIndex >= labels.length) return null;
-    if (bestScore < threshold) return null;
+    final results = <DetectionResult>[];
 
-    return DetectionResult(
-      label: labels[bestIndex],
-      confidence: bestScore,
-      boundingBox: box,
-      classIndex: bestIndex,
-    );
-  }
+    for (int a = 0; a < numAnchors; a++) {
+      double cx, cy, bw, bh;
 
-  void _collectCandidateRows(dynamic node, List<List<double>> rows) {
-    if (node is List) {
-      if (node.isNotEmpty && node.first is num) {
-        rows.add(node.map((value) => (value as num).toDouble()).toList());
-        return;
+      if (_isTransposed) {
+        // flat is stored row-major for [numBoxFields, numAnchors]
+        // value at [field, anchor] = flat[field * numAnchors + anchor]
+        cx = flat[0 * numAnchors + a];
+        cy = flat[1 * numAnchors + a];
+        bw = flat[2 * numAnchors + a];
+        bh = flat[3 * numAnchors + a];
+      } else {
+        // flat is stored row-major for [numAnchors, numBoxFields]
+        // value at [anchor, field] = flat[anchor * numBoxFields + field]
+        cx = flat[a * numBoxFields + 0];
+        cy = flat[a * numBoxFields + 1];
+        bw = flat[a * numBoxFields + 2];
+        bh = flat[a * numBoxFields + 3];
       }
 
-      final numericChildren = node
-          .whereType<List>()
-          .where((child) => child.isNotEmpty && child.first is num)
-          .toList();
-      if (numericChildren.isNotEmpty && numericChildren.length == node.length) {
-        final childLengths =
-            numericChildren.map((child) => child.length).toSet();
-        if (childLengths.length == 1) {
-          final childLength = childLengths.first;
-          if (node.length <= childLength) {
-            for (final child in numericChildren) {
-              rows.add(
-                  child.map((value) => (value as num).toDouble()).toList());
-            }
-            return;
-          }
-
-          for (var i = 0; i < childLength; i++) {
-            final row = <double>[];
-            for (final child in numericChildren) {
-              row.add((child[i] as num).toDouble());
-            }
-            rows.add(row);
-          }
-          return;
+      // Find best class score
+      double bestScore = -1;
+      int bestClass = -1;
+      for (int c = 0; c < effectiveClasses; c++) {
+        double score;
+        if (_isTransposed) {
+          score = flat[(4 + c) * numAnchors + a];
+        } else {
+          score = flat[a * numBoxFields + 4 + c];
+        }
+        if (score > bestScore) {
+          bestScore = score;
+          bestClass = c;
         }
       }
 
+      if (bestClass < 0 || bestScore < threshold) continue;
+
+      final labelStr = (bestClass < labels.length) ? labels[bestClass] : 'CLASS_$bestClass';
+      
+      // YOLOv8 boxes are in pixel space relative to input size (cx,cy,w,h)
+      // Normalise to 0..1
+      // HEURISTIC: If cx/cy are > 1, they are pixel-space. If < 1, they are already normalized.
+      double nx1, ny1, nx2, ny2;
+      if (cx > 1.5 || bw > 1.5) {
+        nx1 = ((cx - bw / 2) / _inputWidth).clamp(0.0, 1.0);
+        ny1 = ((cy - bh / 2) / _inputHeight).clamp(0.0, 1.0);
+        nx2 = ((cx + bw / 2) / _inputWidth).clamp(0.0, 1.0);
+        ny2 = ((cy + bh / 2) / _inputHeight).clamp(0.0, 1.0);
+      } else {
+        nx1 = (cx - bw / 2).clamp(0.0, 1.0);
+        ny1 = (cy - bh / 2).clamp(0.0, 1.0);
+        nx2 = (cx + bw / 2).clamp(0.0, 1.0);
+        ny2 = (cy + bh / 2).clamp(0.0, 1.0);
+      }
+
+      if (nx2 <= nx1 || ny2 <= ny1) continue; // degenerate box
+
+      results.add(DetectionResult(
+        label: labelStr,
+        confidence: bestScore,
+        boundingBox: Rect.fromLTRB(nx1, ny1, nx2, ny2),
+        classIndex: bestClass,
+      ));
+    }
+
+    if (results.isNotEmpty && kDebugMode) {
+       debugPrint('[RecognitionService] Raw detections before NMS: ${results.length}');
+       for (var r in results.take(3)) {
+         debugPrint('  - ${r.label} conf=${r.confidence.toStringAsFixed(3)} box=${r.boundingBox}');
+       }
+    }
+
+    return results;
+  }
+
+  // ── NMS ───────────────────────────────────────────────────────────────────
+  List<DetectionResult> _nms(
+      List<DetectionResult> detections, double iouThreshold) {
+    if (detections.isEmpty) return [];
+
+    // Sort by confidence descending
+    detections.sort((a, b) => b.confidence.compareTo(a.confidence));
+
+    final kept = <DetectionResult>[];
+    final suppressed = List<bool>.filled(detections.length, false);
+
+    for (int i = 0; i < detections.length; i++) {
+      if (suppressed[i]) continue;
+      kept.add(detections[i]);
+      for (int j = i + 1; j < detections.length; j++) {
+        if (suppressed[j]) continue;
+        if (_iou(detections[i].boundingBox, detections[j].boundingBox) >
+            iouThreshold) {
+          suppressed[j] = true;
+        }
+      }
+    }
+    return kept;
+  }
+
+  double _iou(Rect a, Rect b) {
+    final ix1 = max(a.left,   b.left);
+    final iy1 = max(a.top,    b.top);
+    final ix2 = min(a.right,  b.right);
+    final iy2 = min(a.bottom, b.bottom);
+    if (ix2 <= ix1 || iy2 <= iy1) return 0.0;
+    final inter = (ix2 - ix1) * (iy2 - iy1);
+    final aArea = a.width * a.height;
+    final bArea = b.width * b.height;
+    return inter / (aArea + bArea - inter);
+  }
+
+  // ── Tensor utilities ───────────────────────────────────────────────────────
+  dynamic _allocateOutput() {
+    // We always allocate a flat Float32List matching the raw tensor size,
+    // then read it back as a nested structure tflite_flutter expects.
+    final fullShape = [1, ..._outputShape];
+    return _buildNestedList(fullShape, 0);
+  }
+
+  dynamic _buildNestedList(List<int> shape, int dim) {
+    if (dim == shape.length - 1) {
+      return List<double>.filled(shape[dim], 0.0);
+    }
+    return List.generate(shape[dim], (_) => _buildNestedList(shape, dim + 1));
+  }
+
+  List<double> _flattenToDoubles(dynamic node) {
+    final result = <double>[];
+    _flattenHelper(node, result);
+    return result;
+  }
+
+  void _flattenHelper(dynamic node, List<double> out) {
+    if (node is List) {
       for (final child in node) {
-        _collectCandidateRows(child, rows);
+        _flattenHelper(child, out);
       }
+    } else if (node is num) {
+      out.add(node.toDouble());
+    } else if (node is List<double>) {
+      out.addAll(node);
     }
   }
 
-  Rect? _decodeBoundingBox(
-    List<double> raw, {
-    required double normalizedWidth,
-    required double normalizedHeight,
-  }) {
-    // Try corner format first: x1, y1, x2, y2.
-    final cornerBox = _normalizeBox(
-      raw[0],
-      raw[1],
-      raw[2],
-      raw[3],
-      normalizedWidth: normalizedWidth,
-      normalizedHeight: normalizedHeight,
-      isCornerFormat: true,
-    );
-    if (cornerBox != null) return cornerBox;
-
-    // Fallback to center format: cx, cy, w, h.
-    return _normalizeBox(
-      raw[0],
-      raw[1],
-      raw[2],
-      raw[3],
-      normalizedWidth: normalizedWidth,
-      normalizedHeight: normalizedHeight,
-      isCornerFormat: false,
-    );
-  }
-
-  Rect? _normalizeBox(
-    double a,
-    double b,
-    double c,
-    double d, {
-    required double normalizedWidth,
-    required double normalizedHeight,
-    required bool isCornerFormat,
-  }) {
-    final valuesLookNormalized =
-        [a, b, c, d].every((value) => value.abs() <= 1.5);
-
-    double left;
-    double top;
-    double right;
-    double bottom;
-
-    if (isCornerFormat) {
-      if (valuesLookNormalized) {
-        left = a * normalizedWidth;
-        top = b * normalizedHeight;
-        right = c * normalizedWidth;
-        bottom = d * normalizedHeight;
-      } else {
-        left = a;
-        top = b;
-        right = c;
-        bottom = d;
-      }
-
-      if (right <= left || bottom <= top) return null;
-    } else {
-      double cx;
-      double cy;
-      double width;
-      double height;
-
-      if (valuesLookNormalized) {
-        cx = a * normalizedWidth;
-        cy = b * normalizedHeight;
-        width = c * normalizedWidth;
-        height = d * normalizedHeight;
-      } else {
-        cx = a;
-        cy = b;
-        width = c;
-        height = d;
-      }
-
-      left = cx - width / 2;
-      top = cy - height / 2;
-      right = cx + width / 2;
-      bottom = cy + height / 2;
-    }
-
-    left = left.clamp(0.0, normalizedWidth);
-    top = top.clamp(0.0, normalizedHeight);
-    right = right.clamp(0.0, normalizedWidth);
-    bottom = bottom.clamp(0.0, normalizedHeight);
-
-    if (right - left < 2 || bottom - top < 2) return null;
-
-    return Rect.fromLTRB(
-      left / normalizedWidth,
-      top / normalizedHeight,
-      right / normalizedWidth,
-      bottom / normalizedHeight,
-    );
-  }
-
-  dynamic _createOutputBuffer(List<int> shape) {
-    if (shape.isEmpty) return 0.0;
-    if (shape.length == 1) {
-      return List<double>.filled(shape.first, 0.0);
-    }
-    return List.generate(
-      shape.first,
-      (_) => _createOutputBuffer(shape.sublist(1)),
-    );
-  }
-
-  Float32List _imageToFloat32List(img.Image image) {
-    final buffer = Float32List(_inputWidth * _inputHeight * 3);
-    var pixelIndex = 0;
-
-    for (var y = 0; y < _inputHeight; y++) {
-      for (var x = 0; x < _inputWidth; x++) {
-        final pixel = image.getPixel(x, y);
-        buffer[pixelIndex++] = pixel.r / 255.0;
-        buffer[pixelIndex++] = pixel.g / 255.0;
-        buffer[pixelIndex++] = pixel.b / 255.0;
+  /// Build a [1, H, W, 3] Float32List input tensor from a list of images.
+  Float32List _imageToFloat32(List<img.Image> images, int w, int h) {
+    final buffer = Float32List(images.length * h * w * 3);
+    int idx = 0;
+    for (final image in images) {
+      for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+          final p = image.getPixel(x, y);
+          buffer[idx++] = p.r / 255.0;
+          buffer[idx++] = p.g / 255.0;
+          buffer[idx++] = p.b / 255.0;
+        }
       }
     }
-
     return buffer;
   }
 
-  img.Image _rotateImage(img.Image source, int sensorOrientation) {
-    final rotation = sensorOrientation % 360;
-    if (rotation == 0) return source;
-    return img.copyRotate(source, angle: rotation.toDouble());
+  // ── Image conversion ───────────────────────────────────────────────────────
+  img.Image? _cameraImageToImage(CameraImage image) {
+    switch (image.format.group) {
+      case ImageFormatGroup.yuv420:
+        return _yuv420ToImage(image);
+      case ImageFormatGroup.bgra8888:
+        return _bgra8888ToImage(image);
+      default:
+        return null;
+    }
   }
 
-  img.Image? _cameraImageToImage(CameraImage image) {
-    if (image.format.group != ImageFormatGroup.yuv420) {
-      return null;
-    }
+  img.Image _yuv420ToImage(CameraImage image) {
+    final w = image.width;
+    final h = image.height;
+    final out = img.Image(width: w, height: h);
 
-    final width = image.width;
-    final height = image.height;
-    final converted = img.Image(width: width, height: height);
-
-    final yPlane = image.planes[0];
-    final uPlane = image.planes[1];
-    final vPlane = image.planes[2];
-
-    final yBytes = yPlane.bytes;
-    final uBytes = uPlane.bytes;
-    final vBytes = vPlane.bytes;
-
-    final yRowStride = yPlane.bytesPerRow;
-    final uvRowStride = uPlane.bytesPerRow;
+    final yPlane  = image.planes[0];
+    final uPlane  = image.planes[1];
+    final vPlane  = image.planes[2];
+    final yBytes  = yPlane.bytes;
+    final uBytes  = uPlane.bytes;
+    final vBytes  = vPlane.bytes;
+    final yStride = yPlane.bytesPerRow;
+    final uvStride = uPlane.bytesPerRow;
     final uvPixelStride = uPlane.bytesPerPixel ?? 1;
 
-    for (var y = 0; y < height; y++) {
-      final yRowOffset = yRowStride * y;
-      final uvRowOffset = uvRowStride * (y >> 1);
-
-      for (var x = 0; x < width; x++) {
-        final yIndex = yRowOffset + x;
-        final uvIndex = uvRowOffset + (x >> 1) * uvPixelStride;
-
-        final yValue = yBytes[yIndex];
-        final uValue = uBytes[uvIndex];
-        final vValue = vBytes[uvIndex];
-
-        final rgb = _yuvToRgb(yValue, uValue, vValue);
-        converted.setPixelRgba(x, y, rgb[0], rgb[1], rgb[2], 255);
+    for (int y = 0; y < h; y++) {
+      for (int x = 0; x < w; x++) {
+        final yVal = yBytes[yStride * y + x];
+        final uvIdx = uvStride * (y >> 1) + (x >> 1) * uvPixelStride;
+        final uVal  = uBytes[uvIdx];
+        final vVal  = vBytes[uvIdx];
+        final yf = yVal.toDouble();
+        final uf = uVal.toDouble() - 128.0;
+        final vf = vVal.toDouble() - 128.0;
+        final r = (yf + 1.402  * vf).round().clamp(0, 255);
+        final g = (yf - 0.344136 * uf - 0.714136 * vf).round().clamp(0, 255);
+        final b = (yf + 1.772  * uf).round().clamp(0, 255);
+        out.setPixelRgba(x, y, r, g, b, 255);
       }
     }
-
-    return converted;
+    return out;
   }
 
-  List<int> _yuvToRgb(int y, int u, int v) {
-    final yValue = y.toDouble();
-    final uValue = u.toDouble() - 128.0;
-    final vValue = v.toDouble() - 128.0;
+  img.Image _bgra8888ToImage(CameraImage image) {
+    final plane = image.planes[0];
+    return img.Image.fromBytes(
+      width: image.width,
+      height: image.height,
+      bytes: plane.bytes.buffer,
+      order: img.ChannelOrder.bgra,
+    );
+  }
 
-    int clampInt(int v) => v < 0 ? 0 : (v > 255 ? 255 : v);
-
-    final red = clampInt((yValue + 1.402 * vValue).round());
-    final green =
-        clampInt((yValue - 0.344136 * uValue - 0.714136 * vValue).round());
-    final blue = clampInt((yValue + 1.772 * uValue).round());
-
-    return [red, green, blue];
+  /// Rotate image so that the top of frame matches portrait orientation.
+  /// On Android the back camera is typically rotated 90°.
+  img.Image _rotateForInference(img.Image src, int sensorOrientation) {
+    if (sensorOrientation == 90)  return img.copyRotate(src, angle: 90);
+    if (sensorOrientation == 180) return img.copyRotate(src, angle: 180);
+    if (sensorOrientation == 270) return img.copyRotate(src, angle: 270);
+    return src; // 0 – no rotation needed
   }
 }
