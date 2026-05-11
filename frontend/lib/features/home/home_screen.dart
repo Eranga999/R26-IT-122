@@ -232,8 +232,12 @@ class _HomeScreenState extends State<HomeScreen> {
       pinned: true,
       stretch: true,
       backgroundColor: AppTheme.primary,
+      leadingWidth: 56,
       leading: IconButton(
-        icon: const Icon(Icons.menu, color: Colors.white),
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+        splashRadius: 22,
+        icon: const Icon(Icons.menu, color: Colors.white, size: 24),
         onPressed: () {},
       ),
       actions: const [],
@@ -253,66 +257,77 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           child: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
+              padding: const EdgeInsets.fromLTRB(72, 12, 24, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: Colors.white12,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white24),
-                        ),
-                        child: const Icon(Icons.account_balance,
-                            color: Colors.white, size: 24),
-                      ),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'HeritageAR',
-                        style: TextStyle(
-                          fontFamily: 'Georgia',
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 6),
+                  const Text(
+                    'HeritageAR',
+                    style: TextStyle(
+                      fontFamily: 'Georgia',
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 0.5,
+                    ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 18),
                   const Text(
                     'Discover Sri Lanka\'s',
-                    style: TextStyle(color: Colors.white70, fontSize: 15),
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 15,
+                      letterSpacing: 0.2,
+                      height: 1.2,
+                    ),
                   ),
+                  const SizedBox(height: 4),
                   const Text(
                     'Ancient Heritage',
                     style: TextStyle(
                       fontFamily: 'Georgia',
-                      fontSize: 28,
+                      fontSize: 30,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
+                      height: 1.05,
+                      letterSpacing: 0.1,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: AppTheme.secondary.withOpacity(0.25),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                          color: AppTheme.secondary.withOpacity(0.5)),
+                  const SizedBox(height: 12),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.72,
                     ),
-                    child: const Text(
-                      'ðŸ›  UNESCO World Heritage Sites',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.secondary.withOpacity(0.22),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                            color: AppTheme.secondary.withOpacity(0.45)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.verified_rounded,
+                              color: Colors.white, size: 14),
+                          SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              'UNESCO World Heritage Sites',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12.5,
+                                  height: 1.1,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
