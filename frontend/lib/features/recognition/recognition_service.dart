@@ -46,17 +46,17 @@ class RecognitionService {
   Interpreter? _interpreter;
   String? _loadError;
 
-  int _inputWidth  = 640;
+  int _inputWidth = 640;
   int _inputHeight = 640;
 
   /// Shape of the output tensor (without the batch dim).
   /// E.g. [9, 8400] or [8400, 9].
   List<int> _outputShape = [];
 
-  bool   get isLoaded  => _interpreter != null;
+  bool get isLoaded => _interpreter != null;
   String? get loadError => _loadError;
-  int    get inputWidth => _inputWidth;
-  int    get inputHeight => _inputHeight;
+  int get inputWidth => _inputWidth;
+  int get inputHeight => _inputHeight;
 
   // ── Model loading ──────────────────────────────────────────────────────────
   Future<void> loadModel() async {
@@ -72,27 +72,29 @@ class RecognitionService {
 
       // Read input metadata
       final inputTensors = _interpreter!.getInputTensors();
-      debugPrint('[RecognitionService] Model loaded. Inputs: ${inputTensors.length}, Outputs: ${_interpreter!.getOutputTensors().length}');
-      
+      debugPrint(
+          '[RecognitionService] Model loaded. Inputs: ${inputTensors.length}, Outputs: ${_interpreter!.getOutputTensors().length}');
+
       final inTensor = _interpreter!.getInputTensor(0);
       final inShape = inTensor.shape;
       final inType = inTensor.type;
       debugPrint('[RecognitionService] Input[0]: shape=$inShape, type=$inType');
-      
+
       if (inShape.length >= 4) {
         _inputHeight = inShape[1];
-        _inputWidth  = inShape[2];
+        _inputWidth = inShape[2];
       }
 
       // Read output shape – strip the leading batch dim (1)
       final outTensor = _interpreter!.getOutputTensor(0);
       final outShape = outTensor.shape;
-      debugPrint('[RecognitionService] Default Output[0] shape: $outShape, type: ${outTensor.type}, name: ${outTensor.name}');
+      debugPrint(
+          '[RecognitionService] Default Output[0] shape: $outShape, type: ${outTensor.type}, name: ${outTensor.name}');
       _outputShape = outShape.length > 1 ? outShape.sublist(1) : outShape;
 
       _interpreter!.allocateTensors();
       debugPrint('[RecognitionService] Tensors allocated successfully');
-      
+
       _loadError = null;
     } catch (e, stack) {
       _loadError = e.toString();
@@ -137,11 +139,11 @@ class RecognitionService {
 
     // 4. Allocate output buffer
     final outTensor = _interpreter!.getOutputTensor(0);
-    final outShape  = outTensor.shape; 
+    final outShape = outTensor.shape;
     // Usually [1, numBoxFields, numAnchors]
     final int totalElements = outShape.reduce((a, b) => a * b);
     final Float32List rawOutput = Float32List(totalElements);
-    
+
     try {
       // Create a map for outputs if multi-output, but here we just have 1
       final outputs = {0: rawOutput.buffer.asFloat32List()};
@@ -154,9 +156,10 @@ class RecognitionService {
     // 5. Parse detections
     final detections = _parseOutput(rawOutput, threshold);
     final nmsResults = _nms(detections, nmsIouThreshold);
-    
+
     if (kDebugMode) {
-      debugPrint('[RecognitionService] Inference took ${stopwatch.elapsedMilliseconds}ms, found ${nmsResults.length} detections');
+      debugPrint(
+          '[RecognitionService] Inference took ${stopwatch.elapsedMilliseconds}ms, found ${nmsResults.length} detections');
     }
     return nmsResults;
   }
@@ -201,9 +204,9 @@ class RecognitionService {
       cols = _outputShape[0]; // numAnchors
     }
 
-    final int numAnchors   = cols;
+    final int numAnchors = cols;
     final int numBoxFields = rows;
-    final int numClasses   = numBoxFields - 4; // cx,cy,w,h + class scores
+    final int numClasses = numBoxFields - 4; // cx,cy,w,h + class scores
     final int effectiveClasses = numClasses;
 
     final results = <DetectionResult>[];
@@ -245,8 +248,9 @@ class RecognitionService {
 
       if (bestClass < 0 || bestScore < threshold) continue;
 
-      final labelStr = (bestClass < labels.length) ? labels[bestClass] : 'CLASS_$bestClass';
-      
+      final labelStr =
+          (bestClass < labels.length) ? labels[bestClass] : 'CLASS_$bestClass';
+
       // YOLOv8 boxes are in pixel space relative to input size (cx,cy,w,h)
       // Normalise to 0..1
       // HEURISTIC: If cx/cy are > 1, they are pixel-space. If < 1, they are already normalized.
@@ -274,10 +278,12 @@ class RecognitionService {
     }
 
     if (results.isNotEmpty && kDebugMode) {
-       debugPrint('[RecognitionService] Raw detections before NMS: ${results.length}');
-       for (var r in results.take(3)) {
-         debugPrint('  - ${r.label} conf=${r.confidence.toStringAsFixed(3)} box=${r.boundingBox}');
-       }
+      debugPrint(
+          '[RecognitionService] Raw detections before NMS: ${results.length}');
+      for (var r in results.take(3)) {
+        debugPrint(
+            '  - ${r.label} conf=${r.confidence.toStringAsFixed(3)} box=${r.boundingBox}');
+      }
     }
 
     return results;
@@ -309,9 +315,9 @@ class RecognitionService {
   }
 
   double _iou(Rect a, Rect b) {
-    final ix1 = max(a.left,   b.left);
-    final iy1 = max(a.top,    b.top);
-    final ix2 = min(a.right,  b.right);
+    final ix1 = max(a.left, b.left);
+    final iy1 = max(a.top, b.top);
+    final ix2 = min(a.right, b.right);
     final iy2 = min(a.bottom, b.bottom);
     if (ix2 <= ix1 || iy2 <= iy1) return 0.0;
     final inter = (ix2 - ix1) * (iy2 - iy1);
@@ -321,38 +327,6 @@ class RecognitionService {
   }
 
   // ── Tensor utilities ───────────────────────────────────────────────────────
-  dynamic _allocateOutput() {
-    // We always allocate a flat Float32List matching the raw tensor size,
-    // then read it back as a nested structure tflite_flutter expects.
-    final fullShape = [1, ..._outputShape];
-    return _buildNestedList(fullShape, 0);
-  }
-
-  dynamic _buildNestedList(List<int> shape, int dim) {
-    if (dim == shape.length - 1) {
-      return List<double>.filled(shape[dim], 0.0);
-    }
-    return List.generate(shape[dim], (_) => _buildNestedList(shape, dim + 1));
-  }
-
-  List<double> _flattenToDoubles(dynamic node) {
-    final result = <double>[];
-    _flattenHelper(node, result);
-    return result;
-  }
-
-  void _flattenHelper(dynamic node, List<double> out) {
-    if (node is List) {
-      for (final child in node) {
-        _flattenHelper(child, out);
-      }
-    } else if (node is num) {
-      out.add(node.toDouble());
-    } else if (node is List<double>) {
-      out.addAll(node);
-    }
-  }
-
   /// Build a [1, H, W, 3] Float32List input tensor from a list of images.
   Float32List _imageToFloat32(List<img.Image> images, int w, int h) {
     final buffer = Float32List(images.length * h * w * 3);
@@ -387,12 +361,12 @@ class RecognitionService {
     final h = image.height;
     final out = img.Image(width: w, height: h);
 
-    final yPlane  = image.planes[0];
-    final uPlane  = image.planes[1];
-    final vPlane  = image.planes[2];
-    final yBytes  = yPlane.bytes;
-    final uBytes  = uPlane.bytes;
-    final vBytes  = vPlane.bytes;
+    final yPlane = image.planes[0];
+    final uPlane = image.planes[1];
+    final vPlane = image.planes[2];
+    final yBytes = yPlane.bytes;
+    final uBytes = uPlane.bytes;
+    final vBytes = vPlane.bytes;
     final yStride = yPlane.bytesPerRow;
     final uvStride = uPlane.bytesPerRow;
     final uvPixelStride = uPlane.bytesPerPixel ?? 1;
@@ -401,14 +375,14 @@ class RecognitionService {
       for (int x = 0; x < w; x++) {
         final yVal = yBytes[yStride * y + x];
         final uvIdx = uvStride * (y >> 1) + (x >> 1) * uvPixelStride;
-        final uVal  = uBytes[uvIdx];
-        final vVal  = vBytes[uvIdx];
+        final uVal = uBytes[uvIdx];
+        final vVal = vBytes[uvIdx];
         final yf = yVal.toDouble();
         final uf = uVal.toDouble() - 128.0;
         final vf = vVal.toDouble() - 128.0;
-        final r = (yf + 1.402  * vf).round().clamp(0, 255);
+        final r = (yf + 1.402 * vf).round().clamp(0, 255);
         final g = (yf - 0.344136 * uf - 0.714136 * vf).round().clamp(0, 255);
-        final b = (yf + 1.772  * uf).round().clamp(0, 255);
+        final b = (yf + 1.772 * uf).round().clamp(0, 255);
         out.setPixelRgba(x, y, r, g, b, 255);
       }
     }
@@ -428,7 +402,7 @@ class RecognitionService {
   /// Rotate image so that the top of frame matches portrait orientation.
   /// On Android the back camera is typically rotated 90°.
   img.Image _rotateForInference(img.Image src, int sensorOrientation) {
-    if (sensorOrientation == 90)  return img.copyRotate(src, angle: 90);
+    if (sensorOrientation == 90) return img.copyRotate(src, angle: 90);
     if (sensorOrientation == 180) return img.copyRotate(src, angle: 180);
     if (sensorOrientation == 270) return img.copyRotate(src, angle: 270);
     return src; // 0 – no rotation needed
