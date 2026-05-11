@@ -38,7 +38,7 @@ class _CameraScreenState extends State<CameraScreen>
   int _lastProcessTime = 0; // for throttling
 
   // ── Live detection state (shown while scanning) ────────────────────────────
-  List<DetectionResult> _liveDetections = [];  // real-time boxes on camera
+  List<DetectionResult> _liveDetections = []; // real-time boxes on camera
 
   // ── Info-panel state (opened when confident enough) ────────────────────────
   LandmarkModel? _detectedLandmark;
@@ -79,7 +79,7 @@ class _CameraScreenState extends State<CameraScreen>
         if (mounted) setState(() => _cameraError = 'No camera found.');
         return;
       }
-      _controller = CameraController(cameras.first, ResolutionPreset.medium,
+      _controller = CameraController(cameras.first, ResolutionPreset.low,
           enableAudio: false);
       await _controller!.initialize();
       if (mounted) setState(() {});
@@ -93,7 +93,8 @@ class _CameraScreenState extends State<CameraScreen>
 
   Future<void> _processFrame(CameraImage image) async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    if (_isProcessing || _panelVisible || (now - _lastProcessTime < 333)) return;
+    if (_isProcessing || _panelVisible || (now - _lastProcessTime < 500))
+      return;
     _isProcessing = true;
     _lastProcessTime = now;
     try {
@@ -106,12 +107,12 @@ class _CameraScreenState extends State<CameraScreen>
       if (!mounted) return;
 
       if (kDebugMode) {
-        debugPrint(
-            '[Scan] ${results.length} detections | '
+        debugPrint('[Scan] ${results.length} detections | '
             'previewSize=${_controller?.value.previewSize} | '
             'sensor=${_controller?.description.sensorOrientation}°');
         for (final r in results) {
-          debugPrint('  -> ${r.label} ${(r.confidence * 100).toStringAsFixed(1)}% box=${r.boundingBox}');
+          debugPrint(
+              '  -> ${r.label} ${(r.confidence * 100).toStringAsFixed(1)}% box=${r.boundingBox}');
         }
       }
 
@@ -165,11 +166,13 @@ class _CameraScreenState extends State<CameraScreen>
   int? _labelToId(String label) {
     final normalized = label.trim().toLowerCase();
     const m = {
+      'sigiriya_lion_paws': 1,
       'sigiriya_entrance': 1,
       'sigiriya_lion_rock': 1,
       'sigiriya_mirror_wall': 1,
       'sigiriya_lion_staircase': 1,
       'sigiriya_throne': 1,
+      'sigiriya_ticket_counter': 1,
       'sigiriya': 1,
       'dambulla': 2,
       'dambulla cave temple': 2,
@@ -311,18 +314,30 @@ class _CameraScreenState extends State<CameraScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                   const Text('DEBUG SCANNER', style: TextStyle(color: Colors.yellow, fontSize: 10, fontWeight: FontWeight.bold)),
-                   const SizedBox(height: 4),
-                   Text('Model Input: ${RecognitionService.instance.inputWidth}x${RecognitionService.instance.inputHeight}',
-                        style: const TextStyle(color: Colors.white, fontSize: 10)),
-                   Text('Live Detections: ${_liveDetections.length}',
-                        style: const TextStyle(color: Colors.greenAccent, fontSize: 11, fontWeight: FontWeight.bold)),
-                   if (_liveDetections.isNotEmpty)
-                     Text('Top Conf: ${(_liveDetections.first.confidence * 100).toStringAsFixed(0)}%',
-                          style: const TextStyle(color: Colors.white, fontSize: 10)),
+                  const Text('DEBUG SCANNER',
+                      style: TextStyle(
+                          color: Colors.yellow,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text(
+                      'Model Input: ${RecognitionService.instance.inputWidth}x${RecognitionService.instance.inputHeight}',
+                      style:
+                          const TextStyle(color: Colors.white, fontSize: 10)),
+                  Text('Live Detections: ${_liveDetections.length}',
+                      style: const TextStyle(
+                          color: Colors.greenAccent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold)),
+                  if (_liveDetections.isNotEmpty)
+                    Text(
+                        'Top Conf: ${(_liveDetections.first.confidence * 100).toStringAsFixed(0)}%',
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 10)),
                   if (RecognitionService.instance.loadError != null)
                     Text('ERROR: ${RecognitionService.instance.loadError}',
-                         style: const TextStyle(color: Colors.redAccent, fontSize: 9)),
+                        style: const TextStyle(
+                            color: Colors.redAccent, fontSize: 9)),
                 ],
               ),
             ),
@@ -1118,8 +1133,8 @@ class _CornerPainter extends CustomPainter {
 
 class _DetectionOverlayPainter extends CustomPainter {
   final List<DetectionResult> detections;
-  final Size?  previewSize;      // CameraValue.previewSize (always landscape)
-  final int    sensorOrientation; // degrees (0, 90, 180, 270)
+  final Size? previewSize; // CameraValue.previewSize (always landscape)
+  final int sensorOrientation; // degrees (0, 90, 180, 270)
 
   const _DetectionOverlayPainter({
     required this.detections,
@@ -1147,25 +1162,25 @@ class _DetectionOverlayPainter extends CustomPainter {
     final bool isRotated90 =
         sensorOrientation == 90 || sensorOrientation == 270;
     final double pvW = isRotated90 ? previewSize!.height : previewSize!.width;
-    final double pvH = isRotated90 ? previewSize!.width  : previewSize!.height;
+    final double pvH = isRotated90 ? previewSize!.width : previewSize!.height;
 
     // Compute how CameraPreview scales the frame inside the widget
     // (it uses BoxFit.cover – the preview fills the widget, cropping if needed).
-    final double scaleX = widgetSize.width  / pvW;
+    final double scaleX = widgetSize.width / pvW;
     final double scaleY = widgetSize.height / pvH;
-    final double scale  = scaleX > scaleY ? scaleX : scaleY; // cover
+    final double scale = scaleX > scaleY ? scaleX : scaleY; // cover
     final double scaledW = pvW * scale;
     final double scaledH = pvH * scale;
-    final double offsetX = (widgetSize.width  - scaledW) / 2;
+    final double offsetX = (widgetSize.width - scaledW) / 2;
     final double offsetY = (widgetSize.height - scaledH) / 2;
 
     for (final det in detections) {
       final colour = _boxColours[det.classIndex % _boxColours.length];
 
       // Map normalised [0..1] box to widget pixels
-      final x1 = offsetX + det.boundingBox.left   * scaledW;
-      final y1 = offsetY + det.boundingBox.top    * scaledH;
-      final x2 = offsetX + det.boundingBox.right  * scaledW;
+      final x1 = offsetX + det.boundingBox.left * scaledW;
+      final y1 = offsetY + det.boundingBox.top * scaledH;
+      final x2 = offsetX + det.boundingBox.right * scaledW;
       final y2 = offsetY + det.boundingBox.bottom * scaledH;
       final box = Rect.fromLTRB(x1, y1, x2, y2);
 
@@ -1188,8 +1203,7 @@ class _DetectionOverlayPainter extends CustomPainter {
       _drawCorners(canvas, box, colour);
 
       // Label chip: "<name>  <conf>%"
-      final labelText =
-          '${det.label.replaceAll('_', ' ')}  '
+      final labelText = '${det.label.replaceAll('_', ' ')}  '
           '${(det.confidence * 100).toStringAsFixed(0)}%';
 
       final tp = TextPainter(
@@ -1207,7 +1221,7 @@ class _DetectionOverlayPainter extends CustomPainter {
 
       const padH = 6.0;
       const padV = 4.0;
-      final chipW = tp.width  + padH * 2;
+      final chipW = tp.width + padH * 2;
       final chipH = tp.height + padV * 2;
 
       // Position chip above the box; flip below if out of bounds
@@ -1218,8 +1232,7 @@ class _DetectionOverlayPainter extends CustomPainter {
 
       // Chip background
       canvas.drawRRect(
-        RRect.fromRectAndRadius(
-            Rect.fromLTWH(chipX, chipY, chipW, chipH),
+        RRect.fromRectAndRadius(Rect.fromLTWH(chipX, chipY, chipW, chipH),
             const Radius.circular(6)),
         Paint()..color = colour.withOpacity(0.88),
       );
@@ -1237,21 +1250,28 @@ class _DetectionOverlayPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     // Top-left
-    canvas.drawLine(Offset(box.left, box.top), Offset(box.left + len, box.top), paint);
-    canvas.drawLine(Offset(box.left, box.top), Offset(box.left, box.top + len), paint);
+    canvas.drawLine(
+        Offset(box.left, box.top), Offset(box.left + len, box.top), paint);
+    canvas.drawLine(
+        Offset(box.left, box.top), Offset(box.left, box.top + len), paint);
     // Top-right
-    canvas.drawLine(Offset(box.right, box.top), Offset(box.right - len, box.top), paint);
-    canvas.drawLine(Offset(box.right, box.top), Offset(box.right, box.top + len), paint);
+    canvas.drawLine(
+        Offset(box.right, box.top), Offset(box.right - len, box.top), paint);
+    canvas.drawLine(
+        Offset(box.right, box.top), Offset(box.right, box.top + len), paint);
     // Bottom-left
-    canvas.drawLine(Offset(box.left, box.bottom), Offset(box.left + len, box.bottom), paint);
-    canvas.drawLine(Offset(box.left, box.bottom), Offset(box.left, box.bottom - len), paint);
+    canvas.drawLine(Offset(box.left, box.bottom),
+        Offset(box.left + len, box.bottom), paint);
+    canvas.drawLine(Offset(box.left, box.bottom),
+        Offset(box.left, box.bottom - len), paint);
     // Bottom-right
-    canvas.drawLine(Offset(box.right, box.bottom), Offset(box.right - len, box.bottom), paint);
-    canvas.drawLine(Offset(box.right, box.bottom), Offset(box.right, box.bottom - len), paint);
+    canvas.drawLine(Offset(box.right, box.bottom),
+        Offset(box.right - len, box.bottom), paint);
+    canvas.drawLine(Offset(box.right, box.bottom),
+        Offset(box.right, box.bottom - len), paint);
   }
 
   @override
   bool shouldRepaint(covariant _DetectionOverlayPainter old) =>
       old.detections != detections;
 }
-
