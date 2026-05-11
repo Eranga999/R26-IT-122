@@ -1,20 +1,30 @@
-﻿import 'dart:io';
+import 'dart:io';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:camera/camera.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/ar_availability.dart';
 import '../../features/recognition/recognition_service.dart';
 import '../../features/database/database_helper.dart';
 import '../../features/database/landmark_model.dart';
 import '../../features/database/sub_landmark_model.dart';
+// recognition service already imported above
 import '../ar/ar_screen.dart';
 import '../rag/rag_screen.dart';
 import '../navigation/nav_screen.dart';
 import '../home/home_screen.dart';
 
 class CameraScreen extends StatefulWidget {
-  const CameraScreen({super.key});
+  const CameraScreen({
+    super.key,
+    this.lockedLandmarkId,
+    this.lockedLandmarkName,
+  });
+
+  final int? lockedLandmarkId;
+  final String? lockedLandmarkName;
+
   @override
   State<CameraScreen> createState() => _CameraScreenState();
 }
@@ -24,12 +34,25 @@ class _CameraScreenState extends State<CameraScreen>
   CameraController? _controller;
   String? _cameraError;
   bool _isProcessing = false;
+  int _lastProcessTime = 0; // for throttling
+  int _lastPanelUpdateTime = 0;
+  String? _lastPanelLabel;
+
+  static const int _frameThrottleMs = 500;
+  static const int _sameLabelPanelCooldownMs = 1200;
+
+  // ── Live detection state (shown while scanning) ────────────────────────────
+  List<DetectionResult> _liveDetections = []; // real-time boxes on camera
+
+  // ── Info-panel state (opened when confident enough) ────────────────────────
   LandmarkModel? _detectedLandmark;
+  DetectionResult? _activeDetection;
+  String? _detectedClassLabel;
   List<SubLandmarkModel> _subLandmarks = [];
   double _confidence = 0;
   bool _panelVisible = false;
+
   late final AnimationController _pulseAnim;
-  ArStatus? _arStatus;
 
   @override
   void initState() {
@@ -40,13 +63,7 @@ class _CameraScreenState extends State<CameraScreen>
     if (!_isDesktop) {
       _initCamera();
       RecognitionService.instance.loadModel();
-      _checkArSupport();
     }
-  }
-
-  Future<void> _checkArSupport() async {
-    final status = await ArAvailability.check();
-    if (mounted) setState(() => _arStatus = status);
   }
 
   bool get _isDesktop =>
@@ -59,7 +76,7 @@ class _CameraScreenState extends State<CameraScreen>
         if (mounted) setState(() => _cameraError = 'No camera found.');
         return;
       }
-      _controller = CameraController(cameras.first, ResolutionPreset.medium,
+      _controller = CameraController(cameras.first, ResolutionPreset.low,
           enableAudio: false);
       await _controller!.initialize();
       if (mounted) setState(() {});
@@ -72,51 +89,142 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> _processFrame(CameraImage image) async {
-    if (_isProcessing || _panelVisible) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (_isProcessing || (now - _lastProcessTime < _frameThrottleMs)) return;
     _isProcessing = true;
+    _lastProcessTime = now;
     try {
-      final result =
-          await RecognitionService.instance.predict(image.planes.first.bytes);
-      if (result != null && mounted && result.confidence >= 0.70) {
-        await _onLandmarkDetected(result.label, result.confidence);
+      final results = await RecognitionService.instance.predictAll(
+        image,
+        sensorOrientation: _controller?.description.sensorOrientation ?? 0,
+        threshold: 0.50, // keep weak empty-frame detections off the overlay
+      );
+
+      if (!mounted) return;
+
+      if (kDebugMode) {
+        debugPrint('[Scan] ${results.length} detections | '
+            'previewSize=${_controller?.value.previewSize} | '
+            'sensor=${_controller?.description.sensorOrientation}°');
+        for (final r in results) {
+          debugPrint(
+              '  -> ${r.label} ${(r.confidence * 100).toStringAsFixed(1)}% box=${r.boundingBox}');
+        }
       }
+
+      // Filter out very small boxes (likely noise) before updating overlay.
+      // Also ensure the active detection is cleared when there are no live boxes
+      // so the previous overlay doesn't persist when pointing at empty space.
+      final minArea = 0.01; // normalised area (1% of frame)
+      final filtered = results
+          .where((r) => (r.boundingBox.width * r.boundingBox.height) >= minArea)
+          .toList(growable: false);
+
+      if (!mounted) return;
+      setState(() {
+        _liveDetections = filtered;
+        if (filtered.isEmpty) {
+          // remove the active bounding box so overlay disappears
+          _activeDetection = null;
+        }
+      });
+
+      // Open the info panel only when confident enough (apply to filtered list)
+      final highConf = filtered
+          .where((r) => r.confidence >= 0.50)
+          .fold<DetectionResult?>(
+              null,
+              (best, r) =>
+                  best == null || r.confidence > best.confidence ? r : best);
+
+      if (highConf != null) await _onLandmarkDetected(highConf);
+    } catch (e) {
+      if (kDebugMode) debugPrint('[Scan] frame error: $e');
     } finally {
       _isProcessing = false;
     }
   }
 
-  Future<void> _onLandmarkDetected(String label, double conf) async {
-    final id = _labelToId(label);
+  Future<void> _onLandmarkDetected(DetectionResult detection) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    // Prevent rapid re-opening/updating for the same class on consecutive frames.
+    if (_lastPanelLabel == detection.label &&
+        (now - _lastPanelUpdateTime) < _sameLabelPanelCooldownMs) {
+      return;
+    }
+
+    final id = _labelToId(detection.label);
+    if (id == null) {
+      if (kDebugMode) {
+        debugPrint('Ignoring unsupported detection label: ${detection.label}');
+      }
+      return;
+    }
+    if (widget.lockedLandmarkId != null && id != widget.lockedLandmarkId) {
+      return;
+    }
+
+    // If the same landmark is already on panel, just refresh confidence/box.
+    if (_panelVisible && _detectedLandmark?.id == id) {
+      if (!mounted) return;
+      setState(() {
+        _activeDetection = detection;
+        _detectedClassLabel = detection.label;
+        _confidence = detection.confidence;
+      });
+      _lastPanelLabel = detection.label;
+      _lastPanelUpdateTime = now;
+      return;
+    }
+
     final lm = await DatabaseHelper.instance.getLandmarkById(id);
     if (lm == null || !mounted) return;
     final subs = await DatabaseHelper.instance.getSubLandmarks(id);
     if (!mounted) return;
     setState(() {
       _detectedLandmark = lm;
+      _activeDetection = detection;
+      _detectedClassLabel = detection.label;
       _subLandmarks = subs;
-      _confidence = conf;
+      _confidence = detection.confidence;
       _panelVisible = true;
     });
+    _lastPanelLabel = detection.label;
+    _lastPanelUpdateTime = now;
   }
 
-  int _labelToId(String label) {
+  int? _labelToId(String label) {
+    final normalized = label.trim().toLowerCase();
     const m = {
-      'Sigiriya': 1,
-      'Dambulla': 2,
-      'Dambulla Cave Temple': 2,
-      'Polonnaruwa': 3
+      'sigiriya_lion_paws': 1,
+      'sigiriya_lion_rock': 1,
+      'sigiriya_mirror_wall': 1,
+      'sigiriya_throne': 1,
+      'sigiriya_ticket_counter': 1,
+      'sigiriya': 1,
+      'dambulla': 2,
+      'dambulla cave temple': 2,
+      'polonnaruwa': 3,
     };
-    return m[label] ?? 1;
+    return m[normalized];
   }
 
   void _dismissPanel() => setState(() {
         _panelVisible = false;
         _detectedLandmark = null;
+        _activeDetection = null;
+        _detectedClassLabel = null;
         _subLandmarks = [];
+        _liveDetections = [];
       });
 
   Future<void> _showDemoPicker() async {
     final landmarks = await DatabaseHelper.instance.getAllLandmarks();
+    final options = widget.lockedLandmarkId == null
+        ? landmarks
+        : landmarks.where((lm) => lm.id == widget.lockedLandmarkId).toList();
+
     if (!mounted) return;
     showModalBottomSheet(
       context: context,
@@ -145,10 +253,13 @@ class _CameraScreenState extends State<CameraScreen>
                     fontSize: 16,
                     fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
-            const Text('Select a landmark to preview the AR overlay',
-                style: TextStyle(color: Colors.white54, fontSize: 12)),
+            Text(
+                widget.lockedLandmarkName == null
+                    ? 'Select a landmark to preview the AR overlay'
+                    : 'Site lock active: ${widget.lockedLandmarkName}',
+                style: const TextStyle(color: Colors.white54, fontSize: 12)),
             const SizedBox(height: 16),
-            ...landmarks.map((lm) => ListTile(
+            ...options.map((lm) => ListTile(
                   leading: Container(
                       width: 40,
                       height: 40,
@@ -164,7 +275,14 @@ class _CameraScreenState extends State<CameraScreen>
                       style: TextStyle(color: Colors.white38, fontSize: 11)),
                   onTap: () {
                     Navigator.pop(context);
-                    _onLandmarkDetected(lm.name, 0.94);
+                    // Simulate a detection result centered on screen
+                    final simulatedBox = Rect.fromLTWH(0.25, 0.25, 0.5, 0.5);
+                    final detection = DetectionResult(
+                        label: lm.name.toLowerCase(),
+                        confidence: 0.94,
+                        boundingBox: simulatedBox,
+                        classIndex: 0);
+                    _onLandmarkDetected(detection);
                   },
                 )),
           ],
@@ -177,6 +295,7 @@ class _CameraScreenState extends State<CameraScreen>
   void dispose() {
     _pulseAnim.dispose();
     _controller?.dispose();
+    RecognitionService.instance.dispose();
     super.dispose();
   }
 
@@ -192,6 +311,66 @@ class _CameraScreenState extends State<CameraScreen>
           _buildLoadingState()
         else
           CameraPreview(_controller!),
+
+        // Live bounding-box overlay – shown while scanning AND after panel opens
+        if (_liveDetections.isNotEmpty || _activeDetection != null)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: _DetectionOverlayPainter(
+                  detections: _panelVisible && _activeDetection != null
+                      ? [_activeDetection!]
+                      : _liveDetections,
+                  previewSize: _controller?.value.previewSize,
+                  sensorOrientation:
+                      _controller?.description.sensorOrientation ?? 0,
+                ),
+              ),
+            ),
+          ),
+
+        // Debug Stats
+        if (kDebugMode)
+          Positioned(
+            top: 100,
+            left: 20,
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('DEBUG SCANNER',
+                      style: TextStyle(
+                          color: Colors.yellow,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text(
+                      'Model Input: ${RecognitionService.instance.inputWidth}x${RecognitionService.instance.inputHeight}',
+                      style:
+                          const TextStyle(color: Colors.white, fontSize: 10)),
+                  Text('Live Detections: ${_liveDetections.length}',
+                      style: const TextStyle(
+                          color: Colors.greenAccent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold)),
+                  if (_liveDetections.isNotEmpty)
+                    Text(
+                        'Top Conf: ${(_liveDetections.first.confidence * 100).toStringAsFixed(0)}%',
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 10)),
+                  if (RecognitionService.instance.loadError != null)
+                    Text('ERROR: ${RecognitionService.instance.loadError}',
+                        style: const TextStyle(
+                            color: Colors.redAccent, fontSize: 9)),
+                ],
+              ),
+            ),
+          ),
 
         // Top bar
         Positioned(
@@ -217,24 +396,59 @@ class _CameraScreenState extends State<CameraScreen>
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         fontFamily: 'Georgia')),
+                if (widget.lockedLandmarkName != null) ...[
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.black45,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white30),
+                      ),
+                      child: Text(
+                        widget.lockedLandmarkName!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 11),
+                      ),
+                    ),
+                  ),
+                ],
                 const Spacer(),
                 if (_panelVisible && _detectedLandmark != null)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                    decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.85),
-                        borderRadius: BorderRadius.circular(20)),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      const Icon(Icons.check_circle_rounded,
-                          color: Colors.white, size: 14),
-                      const SizedBox(width: 4),
-                      Text('${(_confidence * 100).toStringAsFixed(0)}% match',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600)),
-                    ]),
+                  Flexible(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Container(
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.42,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 5),
+                        decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.85),
+                            borderRadius: BorderRadius.circular(20)),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.check_circle_rounded,
+                              color: Colors.white, size: 14),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              '${_detectedClassLabel ?? _detectedLandmark!.name} • ${(_confidence * 100).toStringAsFixed(0)}%',
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ]),
+                      ),
+                    ),
                   ),
               ]),
             )),
@@ -244,9 +458,14 @@ class _CameraScreenState extends State<CameraScreen>
 
         if (_panelVisible && _detectedLandmark != null) _buildArPanel(),
 
-        if (_arStatus != null && !_panelVisible)
+        if (widget.lockedLandmarkId != null &&
+            widget.lockedLandmarkId != 1 &&
+            !_panelVisible)
           Positioned(
-              top: 110, left: 20, right: 20, child: _buildArStatusBanner()),
+              top: 162,
+              left: 20,
+              right: 20,
+              child: _buildUnsupportedSiteBanner()),
 
         if (!_panelVisible)
           Positioned(
@@ -266,32 +485,21 @@ class _CameraScreenState extends State<CameraScreen>
     );
   }
 
-  Widget _buildArStatusBanner() {
-    final status = _arStatus!;
-    final ok = status.supported;
+  Widget _buildUnsupportedSiteBanner() {
+    final siteName = widget.lockedLandmarkName ?? 'this site';
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: ok
-            ? Colors.green.withOpacity(0.85)
-            : Colors.red.shade900.withOpacity(0.88),
+        color: Colors.amber.withOpacity(0.9),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: ok ? Colors.green.shade200 : Colors.red.shade300,
-            width: 0.8),
+        border: Border.all(color: Colors.amber.shade200, width: 0.8),
       ),
       child: Row(children: [
-        Icon(
-          ok ? Icons.view_in_ar_rounded : Icons.no_photography_outlined,
-          color: Colors.white,
-          size: 16,
-        ),
+        const Icon(Icons.info_outline_rounded, color: Colors.white, size: 16),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            ok
-                ? 'AR Supported – 3D overlays available'
-                : status.reason ?? 'AR not supported on this device',
+            'Live recognition currently supports Sigiriya only. $siteName is available in the app, but this camera flow will not auto-detect it.',
             style: const TextStyle(
                 color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
           ),
@@ -429,6 +637,30 @@ class _CameraScreenState extends State<CameraScreen>
                       )),
 
                   // History
+
+                  if (_activeDetection != null)
+                    Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                              color: const Color(0xFFF3E5AB),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                  color:
+                                      Color(colors[0].value).withOpacity(0.2))),
+                          child: Text(
+                            'Detected class: ${_detectedClassLabel ?? _activeDetection!.label}\n'
+                            'Confidence: ${(_confidence * 100).toStringAsFixed(1)}%\n'
+                            'BBox: ${_bboxText(_activeDetection!.boundingBox)}',
+                            style: const TextStyle(
+                                color: Color(0xFF4E342E),
+                                fontSize: 12.5,
+                                height: 1.6,
+                                fontWeight: FontWeight.w600),
+                          ),
+                        )),
                   Padding(
                       padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
                       child: Column(
@@ -569,15 +801,9 @@ class _CameraScreenState extends State<CameraScreen>
                                       builder: (_) => ArScreen(landmark: lm))),
                               icon: const Icon(Icons.view_in_ar_rounded,
                                   size: 18),
-                              label: Text(
-                                _arStatus?.supported == true
-                                    ? 'Launch AR'
-                                    : 'View AR Details',
-                              ),
+                              label: const Text('Launch AR'),
                               style: ElevatedButton.styleFrom(
-                                  backgroundColor: _arStatus?.supported == true
-                                      ? const Color(0xFF00695C)
-                                      : const Color(0xFF455A64),
+                                  backgroundColor: const Color(0xFF00695C),
                                   foregroundColor: Colors.white,
                                   padding:
                                       const EdgeInsets.symmetric(vertical: 15),
@@ -855,6 +1081,13 @@ class _CameraScreenState extends State<CameraScreen>
                     fontWeight: FontWeight.w500),
                 textAlign: TextAlign.center)),
       ]));
+
+  String _bboxText(Rect box) {
+    return 'x:${(box.left * 100).toStringAsFixed(0)}% '
+        'y:${(box.top * 100).toStringAsFixed(0)}% '
+        'w:${((box.right - box.left) * 100).toStringAsFixed(0)}% '
+        'h:${((box.bottom - box.top) * 100).toStringAsFixed(0)}%';
+  }
 }
 
 class _FactPill extends StatelessWidget {
@@ -897,4 +1130,151 @@ class _CornerPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter old) => false;
+}
+
+// ── Detection overlay painter ───────────────────────────────────────────────
+
+class _DetectionOverlayPainter extends CustomPainter {
+  final List<DetectionResult> detections;
+  final Size? previewSize; // CameraValue.previewSize (always landscape)
+  final int sensorOrientation; // degrees (0, 90, 180, 270)
+
+  const _DetectionOverlayPainter({
+    required this.detections,
+    required this.previewSize,
+    required this.sensorOrientation,
+  });
+
+  // Distinct colours per class index
+  static const _boxColours = [
+    Color(0xFF00E676), // green
+    Color(0xFF40C4FF), // light blue
+    Color(0xFFFF6D00), // orange
+    Color(0xFFE040FB), // purple
+    Color(0xFFFFD740), // amber
+  ];
+
+  @override
+  void paint(Canvas canvas, Size widgetSize) {
+    if (detections.isEmpty || previewSize == null) return;
+
+    // CameraValue.previewSize is always in landscape (width > height).
+    // When the sensor is rotated 90° or 270° (portrait device), the logical
+    // preview shown by CameraPreview is actually portrait, so we must swap
+    // width ↔ height to get the correct aspect ratio for the displayed frame.
+    final bool isRotated90 =
+        sensorOrientation == 90 || sensorOrientation == 270;
+    final double pvW = isRotated90 ? previewSize!.height : previewSize!.width;
+    final double pvH = isRotated90 ? previewSize!.width : previewSize!.height;
+
+    // Compute how CameraPreview scales the frame inside the widget
+    // (it uses BoxFit.cover – the preview fills the widget, cropping if needed).
+    final double scaleX = widgetSize.width / pvW;
+    final double scaleY = widgetSize.height / pvH;
+    final double scale = scaleX > scaleY ? scaleX : scaleY; // cover
+    final double scaledW = pvW * scale;
+    final double scaledH = pvH * scale;
+    final double offsetX = (widgetSize.width - scaledW) / 2;
+    final double offsetY = (widgetSize.height - scaledH) / 2;
+
+    for (final det in detections) {
+      final colour = _boxColours[det.classIndex % _boxColours.length];
+
+      // Map normalised [0..1] box to widget pixels
+      final x1 = offsetX + det.boundingBox.left * scaledW;
+      final y1 = offsetY + det.boundingBox.top * scaledH;
+      final x2 = offsetX + det.boundingBox.right * scaledW;
+      final y2 = offsetY + det.boundingBox.bottom * scaledH;
+      final box = Rect.fromLTRB(x1, y1, x2, y2);
+
+      // Semi-transparent fill
+      canvas.drawRect(
+          box,
+          Paint()
+            ..color = colour.withOpacity(0.15)
+            ..style = PaintingStyle.fill);
+
+      // Border
+      canvas.drawRect(
+          box,
+          Paint()
+            ..color = colour
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.5);
+
+      // Corner accents
+      _drawCorners(canvas, box, colour);
+
+      // Label chip: "<name>  <conf>%"
+      final labelText = '${det.label.replaceAll('_', ' ')}  '
+          '${(det.confidence * 100).toStringAsFixed(0)}%';
+
+      final tp = TextPainter(
+        text: TextSpan(
+          text: labelText,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.3,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: widgetSize.width - 24);
+
+      const padH = 6.0;
+      const padV = 4.0;
+      final chipW = tp.width + padH * 2;
+      final chipH = tp.height + padV * 2;
+
+      // Position chip above the box; flip below if out of bounds
+      double chipX = x1;
+      double chipY = y1 - chipH - 4;
+      if (chipY < 0) chipY = y2 + 4;
+      chipX = chipX.clamp(4.0, widgetSize.width - chipW - 4);
+
+      // Chip background
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(chipX, chipY, chipW, chipH),
+            const Radius.circular(6)),
+        Paint()..color = colour.withOpacity(0.88),
+      );
+
+      tp.paint(canvas, Offset(chipX + padH, chipY + padV));
+    }
+  }
+
+  void _drawCorners(Canvas canvas, Rect box, Color colour) {
+    const len = 14.0;
+    final paint = Paint()
+      ..color = colour
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.5
+      ..strokeCap = StrokeCap.round;
+
+    // Top-left
+    canvas.drawLine(
+        Offset(box.left, box.top), Offset(box.left + len, box.top), paint);
+    canvas.drawLine(
+        Offset(box.left, box.top), Offset(box.left, box.top + len), paint);
+    // Top-right
+    canvas.drawLine(
+        Offset(box.right, box.top), Offset(box.right - len, box.top), paint);
+    canvas.drawLine(
+        Offset(box.right, box.top), Offset(box.right, box.top + len), paint);
+    // Bottom-left
+    canvas.drawLine(Offset(box.left, box.bottom),
+        Offset(box.left + len, box.bottom), paint);
+    canvas.drawLine(Offset(box.left, box.bottom),
+        Offset(box.left, box.bottom - len), paint);
+    // Bottom-right
+    canvas.drawLine(Offset(box.right, box.bottom),
+        Offset(box.right - len, box.bottom), paint);
+    canvas.drawLine(Offset(box.right, box.bottom),
+        Offset(box.right, box.bottom - len), paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _DetectionOverlayPainter old) =>
+      old.detections != detections;
 }

@@ -1,4 +1,4 @@
-name: heritage_ar
+name: r26_it_122
 description: "HeritageAR – AI-Powered Offline AR Heritage Exploration System."
 publish_to: 'none'
 
@@ -16,8 +16,11 @@ dependencies:
   # Camera feed
   camera: ^0.10.5+9
 
-  # On-device TFLite inference (model integration pending – stubbed for UI demo)
-  # tflite_flutter: ^0.10.4
+  # On-device TFLite inference
+  tflite_flutter: ^0.10.4
+
+  # Image conversion for camera frames
+  image: ^4.2.0
 
   # Offline SQLite database
   sqflite: ^2.3.3+1
@@ -25,6 +28,9 @@ dependencies:
 
   # File-system path helper
   path_provider: ^2.1.4
+
+  # GPS/geofence-based landmark site lock
+  geolocator: ^11.1.0
 
   # AR engine (ARCore / ARKit) - disabled until NDK+AGP compat resolved
   # ar_flutter_plugin: ^0.7.3
@@ -41,9 +47,10 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/models/
+    - assets/models/landmark_model.tflite
     - assets/images/
     - assets/embeddings/
+    - assets/config/
   #         style: italic
   #   - family: Trajan Pro
   #     fonts:

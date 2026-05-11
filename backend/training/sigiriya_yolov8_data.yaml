@@ -1,0 +1,23 @@
+# YOLOv8 dataset config for Sigiriya-only sub-landmark detection.
+# Local training expects a Roboflow YOLOv8 export extracted to:
+# backend/dataset/sigiriya_dataset/
+#
+# Folder layout:
+# backend/dataset/sigiriya_dataset/
+# ├── train/images
+# ├── train/labels
+# ├── valid/images
+# ├── valid/labels
+# └── test/images
+#     └── test/labels
+path: ../dataset/sigiriya_dataset
+train: train/images
+val: valid/images
+test: test/images
+
+names:
+  0: sigiriya_entrance
+  1: sigiriya_lion_rock
+  2: sigiriya_mirror_wall
+  3: sigiriya_lion_staircase
+  4: sigiriya_throne
