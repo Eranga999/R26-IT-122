@@ -47,6 +47,7 @@ class RecognitionService {
   String? _loadError;
 
   int _inputWidth = 640;
+  int _inputWidth = 640;
   int _inputHeight = 640;
 
   /// Shape of the output tensor (without the batch dim).
@@ -54,7 +55,10 @@ class RecognitionService {
   List<int> _outputShape = [];
 
   bool get isLoaded => _interpreter != null;
+  bool get isLoaded => _interpreter != null;
   String? get loadError => _loadError;
+  int get inputWidth => _inputWidth;
+  int get inputHeight => _inputHeight;
   int get inputWidth => _inputWidth;
   int get inputHeight => _inputHeight;
 
@@ -75,6 +79,9 @@ class RecognitionService {
       debugPrint(
           '[RecognitionService] Model loaded. Inputs: ${inputTensors.length}, Outputs: ${_interpreter!.getOutputTensors().length}');
 
+      debugPrint(
+          '[RecognitionService] Model loaded. Inputs: ${inputTensors.length}, Outputs: ${_interpreter!.getOutputTensors().length}');
+
       final inTensor = _interpreter!.getInputTensor(0);
       final inShape = inTensor.shape;
       final inType = inTensor.type;
@@ -83,11 +90,14 @@ class RecognitionService {
       if (inShape.length >= 4) {
         _inputHeight = inShape[1];
         _inputWidth = inShape[2];
+        _inputWidth = inShape[2];
       }
 
       // Read output shape – strip the leading batch dim (1)
       final outTensor = _interpreter!.getOutputTensor(0);
       final outShape = outTensor.shape;
+      debugPrint(
+          '[RecognitionService] Default Output[0] shape: $outShape, type: ${outTensor.type}, name: ${outTensor.name}');
       debugPrint(
           '[RecognitionService] Default Output[0] shape: $outShape, type: ${outTensor.type}, name: ${outTensor.name}');
       _outputShape = outShape.length > 1 ? outShape.sublist(1) : outShape;
@@ -143,6 +153,7 @@ class RecognitionService {
     // 4. Allocate output buffer
     final outTensor = _interpreter!.getOutputTensor(0);
     final outShape = outTensor.shape;
+    final outShape = outTensor.shape;
     // Usually [1, numBoxFields, numAnchors]
     final dynamic rawOutput = _buildNestedOutputBuffer(outShape);
 
@@ -160,6 +171,8 @@ class RecognitionService {
     final nmsResults = _nms(detections, nmsIouThreshold);
 
     if (kDebugMode) {
+      debugPrint(
+          '[RecognitionService] Inference took ${stopwatch.elapsedMilliseconds}ms, found ${nmsResults.length} detections');
       debugPrint(
           '[RecognitionService] Inference took ${stopwatch.elapsedMilliseconds}ms, found ${nmsResults.length} detections');
     }
@@ -239,7 +252,9 @@ class RecognitionService {
     }
 
     final int numAnchors = cols;
+    final int numAnchors = cols;
     final int numBoxFields = rows;
+    final int numClasses = numBoxFields - 4; // cx,cy,w,h + class scores
     final int numClasses = numBoxFields - 4; // cx,cy,w,h + class scores
     final int effectiveClasses = numClasses;
 
@@ -285,6 +300,9 @@ class RecognitionService {
       final labelStr =
           (bestClass < labels.length) ? labels[bestClass] : 'CLASS_$bestClass';
 
+      final labelStr =
+          (bestClass < labels.length) ? labels[bestClass] : 'CLASS_$bestClass';
+
       // YOLOv8 boxes are in pixel space relative to input size (cx,cy,w,h)
       // Normalise to 0..1
       // HEURISTIC: If cx/cy are > 1, they are pixel-space. If < 1, they are already normalized.
@@ -312,6 +330,12 @@ class RecognitionService {
     }
 
     if (results.isNotEmpty && kDebugMode) {
+      debugPrint(
+          '[RecognitionService] Raw detections before NMS: ${results.length}');
+      for (var r in results.take(3)) {
+        debugPrint(
+            '  - ${r.label} conf=${r.confidence.toStringAsFixed(3)} box=${r.boundingBox}');
+      }
       debugPrint(
           '[RecognitionService] Raw detections before NMS: ${results.length}');
       for (var r in results.take(3)) {
@@ -349,6 +373,9 @@ class RecognitionService {
   }
 
   double _iou(Rect a, Rect b) {
+    final ix1 = max(a.left, b.left);
+    final iy1 = max(a.top, b.top);
+    final ix2 = min(a.right, b.right);
     final ix1 = max(a.left, b.left);
     final iy1 = max(a.top, b.top);
     final ix2 = min(a.right, b.right);
@@ -411,6 +438,12 @@ class RecognitionService {
     final yBytes = yPlane.bytes;
     final uBytes = uPlane.bytes;
     final vBytes = vPlane.bytes;
+    final yPlane = image.planes[0];
+    final uPlane = image.planes[1];
+    final vPlane = image.planes[2];
+    final yBytes = yPlane.bytes;
+    final uBytes = uPlane.bytes;
+    final vBytes = vPlane.bytes;
     final yStride = yPlane.bytesPerRow;
     final uvStride = uPlane.bytesPerRow;
     final uvPixelStride = uPlane.bytesPerPixel ?? 1;
@@ -421,11 +454,15 @@ class RecognitionService {
         final uvIdx = uvStride * (y >> 1) + (x >> 1) * uvPixelStride;
         final uVal = uBytes[uvIdx];
         final vVal = vBytes[uvIdx];
+        final uVal = uBytes[uvIdx];
+        final vVal = vBytes[uvIdx];
         final yf = yVal.toDouble();
         final uf = uVal.toDouble() - 128.0;
         final vf = vVal.toDouble() - 128.0;
         final r = (yf + 1.402 * vf).round().clamp(0, 255);
+        final r = (yf + 1.402 * vf).round().clamp(0, 255);
         final g = (yf - 0.344136 * uf - 0.714136 * vf).round().clamp(0, 255);
+        final b = (yf + 1.772 * uf).round().clamp(0, 255);
         final b = (yf + 1.772 * uf).round().clamp(0, 255);
         out.setPixelRgba(x, y, r, g, b, 255);
       }
@@ -446,6 +483,7 @@ class RecognitionService {
   /// Rotate image so that the top of frame matches portrait orientation.
   /// On Android the back camera is typically rotated 90°.
   img.Image _rotateForInference(img.Image src, int sensorOrientation) {
+    if (sensorOrientation == 90) return img.copyRotate(src, angle: 90);
     if (sensorOrientation == 90) return img.copyRotate(src, angle: 90);
     if (sensorOrientation == 180) return img.copyRotate(src, angle: 180);
     if (sensorOrientation == 270) return img.copyRotate(src, angle: 270);
