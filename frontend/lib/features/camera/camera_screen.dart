@@ -36,6 +36,11 @@ class _CameraScreenState extends State<CameraScreen>
   String? _cameraError;
   bool _isProcessing = false;
   int _lastProcessTime = 0; // for throttling
+  int _lastPanelUpdateTime = 0;
+  String? _lastPanelLabel;
+
+  static const int _frameThrottleMs = 500;
+  static const int _sameLabelPanelCooldownMs = 1200;
 
   // ── Live detection state (shown while scanning) ────────────────────────────
   List<DetectionResult> _liveDetections = []; // real-time boxes on camera
@@ -93,8 +98,7 @@ class _CameraScreenState extends State<CameraScreen>
 
   Future<void> _processFrame(CameraImage image) async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    if (_isProcessing || _panelVisible || (now - _lastProcessTime < 500))
-      return;
+    if (_isProcessing || (now - _lastProcessTime < _frameThrottleMs)) return;
     _isProcessing = true;
     _lastProcessTime = now;
     try {
@@ -138,6 +142,14 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> _onLandmarkDetected(DetectionResult detection) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    // Prevent rapid re-opening/updating for the same class on consecutive frames.
+    if (_lastPanelLabel == detection.label &&
+        (now - _lastPanelUpdateTime) < _sameLabelPanelCooldownMs) {
+      return;
+    }
+
     final id = _labelToId(detection.label);
     if (id == null) {
       if (kDebugMode) {
@@ -146,6 +158,19 @@ class _CameraScreenState extends State<CameraScreen>
       return;
     }
     if (widget.lockedLandmarkId != null && id != widget.lockedLandmarkId) {
+      return;
+    }
+
+    // If the same landmark is already on panel, just refresh confidence/box.
+    if (_panelVisible && _detectedLandmark?.id == id) {
+      if (!mounted) return;
+      setState(() {
+        _activeDetection = detection;
+        _detectedClassLabel = detection.label;
+        _confidence = detection.confidence;
+      });
+      _lastPanelLabel = detection.label;
+      _lastPanelUpdateTime = now;
       return;
     }
 
@@ -161,6 +186,8 @@ class _CameraScreenState extends State<CameraScreen>
       _confidence = detection.confidence;
       _panelVisible = true;
     });
+    _lastPanelLabel = detection.label;
+    _lastPanelUpdateTime = now;
   }
 
   int? _labelToId(String label) {
