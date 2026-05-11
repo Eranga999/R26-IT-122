@@ -8,6 +8,88 @@ import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import 'package:tflite_flutter/tflite_flutter.dart';
 
+// Top-level isolate entry for preprocessing camera frames off the main thread.
+// Accepts a Map with image metadata and plane bytes and returns a nested 4D
+// List matching [1, H, W, 3] with values normalized to [0,1].
+Future<List<List<List<List<double>>>>> _preprocessCameraFrameIsolate(
+    Map<String, dynamic> args) async {
+  // Local imports inside isolate are available since `image` is pure Dart.
+  final width = args['width'] as int;
+  final height = args['height'] as int;
+  final inputW = args['inputW'] as int;
+  final inputH = args['inputH'] as int;
+  final format = args['format'] as String; // 'yuv420' or 'bgra8888'
+  final sensorOrientation = args['sensorOrientation'] as int;
+
+  // Recreate planes
+  List<Map<String, dynamic>> planes = (args['planes'] as List)
+      .map((p) => Map<String, dynamic>.from(p as Map))
+      .toList();
+
+  img.Image buildImage() {
+    if (format == 'yuv420') {
+      final yBytes = planes[0]['bytes'] as Uint8List;
+      final uBytes = planes[1]['bytes'] as Uint8List;
+      final vBytes = planes[2]['bytes'] as Uint8List;
+      final yStride = planes[0]['bytesPerRow'] as int;
+      final uvStride = planes[1]['bytesPerRow'] as int;
+      final uvPixelStride = planes[1]['bytesPerPixel'] as int? ?? 1;
+
+      final out = img.Image(width: width, height: height);
+      for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+          final yVal = yBytes[yStride * y + x];
+          final uvIdx = uvStride * (y >> 1) + (x >> 1) * uvPixelStride;
+          final uVal = uBytes[uvIdx];
+          final vVal = vBytes[uvIdx];
+          final yf = yVal.toDouble();
+          final uf = uVal.toDouble() - 128.0;
+          final vf = vVal.toDouble() - 128.0;
+          final r = (yf + 1.402 * vf).round().clamp(0, 255);
+          final g = (yf - 0.344136 * uf - 0.714136 * vf).round().clamp(0, 255);
+          final b = (yf + 1.772 * uf).round().clamp(0, 255);
+          out.setPixelRgba(x, y, r, g, b, 255);
+        }
+      }
+      return out;
+    } else {
+      final bytes = planes[0]['bytes'] as Uint8List;
+      return img.Image.fromBytes(
+          width: width,
+          height: height,
+          bytes: bytes.buffer,
+          order: img.ChannelOrder.bgra);
+    }
+  }
+
+  img.Image src = buildImage();
+  if (sensorOrientation == 90) src = img.copyRotate(src, angle: 90);
+  if (sensorOrientation == 180) src = img.copyRotate(src, angle: 180);
+  if (sensorOrientation == 270) src = img.copyRotate(src, angle: 270);
+
+  final resized = img.copyResize(src,
+      width: inputW, height: inputH, interpolation: img.Interpolation.linear);
+
+  // Build nested list [1, H, W, 3]
+  final out = List<List<List<List<double>>>>.generate(
+    1,
+    (_) => List<List<List<double>>>.generate(
+      inputH,
+      (y) => List<List<double>>.generate(
+        inputW,
+        (x) {
+          final p = resized.getPixel(x, y);
+          return <double>[((p.r) / 255.0), ((p.g) / 255.0), ((p.b) / 255.0)];
+        },
+        growable: false,
+      ),
+      growable: false,
+    ),
+    growable: false,
+  );
+  return out;
+}
+
 class DetectionResult {
   final String label;
   final double confidence;
@@ -119,34 +201,46 @@ class RecognitionService {
     if (_interpreter == null) await loadModel();
     if (_interpreter == null) return [];
 
-    // 1. Convert camera frame → RGB image
+    // 1. Preprocess camera frame off the main thread to avoid jank.
     final stopwatch = Stopwatch()..start();
-    final decoded = _cameraImageToImage(image);
-    if (decoded == null) {
-      print('[RecognitionService] CameraImage conversion failed');
+
+    // Serialize planes and metadata to pass to the isolate.
+    final planesForIsolate = image.planes
+        .map((p) => {
+              'bytes': p.bytes,
+              'bytesPerRow': p.bytesPerRow,
+              'bytesPerPixel': p.bytesPerPixel,
+            })
+        .toList(growable: false);
+
+    final args = {
+      'width': image.width,
+      'height': image.height,
+      'inputW': _inputWidth,
+      'inputH': _inputHeight,
+      'format':
+          image.format.group == ImageFormatGroup.yuv420 ? 'yuv420' : 'bgra8888',
+      'sensorOrientation': sensorOrientation,
+      'planes': planesForIsolate,
+    };
+
+    List<List<List<List<double>>>> inputTensor;
+    try {
+      inputTensor = await compute(_preprocessCameraFrameIsolate, args);
+    } catch (e) {
+      debugPrint('[RecognitionService] Preprocess isolate failed: $e');
       return [];
     }
-
-    // 2. Rotate to correct orientation then resize to model input
-    final rotated = _rotateForInference(decoded, sensorOrientation);
-    final resized = img.copyResize(rotated,
-        width: _inputWidth,
-        height: _inputHeight,
-        interpolation: img.Interpolation.linear);
-
-    // 3. Build input tensor [1, H, W, 3] – values in [0, 1]
-    final inputTensor = _imageToFloat32([resized], _inputWidth, _inputHeight);
 
     // 4. Allocate output buffer
     final outTensor = _interpreter!.getOutputTensor(0);
     final outShape = outTensor.shape;
     // Usually [1, numBoxFields, numAnchors]
-    final int totalElements = outShape.reduce((a, b) => a * b);
-    final Float32List rawOutput = Float32List(totalElements);
+    final dynamic rawOutput = _buildNestedOutputBuffer(outShape);
 
     try {
       // Create a map for outputs if multi-output, but here we just have 1
-      final outputs = {0: rawOutput.buffer.asFloat32List()};
+      final Map<int, Object> outputs = {0: rawOutput as Object};
       _interpreter!.runForMultipleInputs([inputTensor], outputs);
     } catch (e) {
       debugPrint('[RecognitionService] Inference run failed: $e');
@@ -154,7 +248,7 @@ class RecognitionService {
     }
 
     // 5. Parse detections
-    final detections = _parseOutput(rawOutput, threshold);
+    final detections = _parseOutput(_flattenOutput(rawOutput), threshold);
     final nmsResults = _nms(detections, nmsIouThreshold);
 
     if (kDebugMode) {
@@ -162,6 +256,38 @@ class RecognitionService {
           '[RecognitionService] Inference took ${stopwatch.elapsedMilliseconds}ms, found ${nmsResults.length} detections');
     }
     return nmsResults;
+  }
+
+  dynamic _buildNestedOutputBuffer(List<int> shape) {
+    if (shape.isEmpty) {
+      return 0.0;
+    }
+    if (shape.length == 1) {
+      return List<double>.filled(shape[0], 0.0, growable: false);
+    }
+    return List.generate(
+      shape[0],
+      (_) => _buildNestedOutputBuffer(shape.sublist(1)),
+      growable: false,
+    );
+  }
+
+  Float32List _flattenOutput(dynamic value) {
+    final buffer = <double>[];
+    _collectOutputValues(value, buffer);
+    return Float32List.fromList(buffer);
+  }
+
+  void _collectOutputValues(dynamic value, List<double> buffer) {
+    if (value is num) {
+      buffer.add(value.toDouble());
+      return;
+    }
+    if (value is List) {
+      for (final item in value) {
+        _collectOutputValues(item, buffer);
+      }
+    }
   }
 
   /// Convenience: returns only the single best detection (highest confidence).
@@ -327,21 +453,31 @@ class RecognitionService {
   }
 
   // ── Tensor utilities ───────────────────────────────────────────────────────
-  /// Build a [1, H, W, 3] Float32List input tensor from a list of images.
-  Float32List _imageToFloat32(List<img.Image> images, int w, int h) {
-    final buffer = Float32List(images.length * h * w * 3);
-    int idx = 0;
-    for (final image in images) {
-      for (int y = 0; y < h; y++) {
-        for (int x = 0; x < w; x++) {
-          final p = image.getPixel(x, y);
-          buffer[idx++] = p.r / 255.0;
-          buffer[idx++] = p.g / 255.0;
-          buffer[idx++] = p.b / 255.0;
-        }
-      }
-    }
-    return buffer;
+  /// Build a [1, H, W, 3] tensor from a list of images.
+  ///
+  /// The interpreter expects the full 4D shape, so we preserve the nesting
+  /// rather than flattening the pixels into a 1D buffer.
+  List<List<List<List<double>>>> _imageToNestedFloat32(
+    List<img.Image> images,
+    int w,
+    int h,
+  ) {
+    return images
+        .map(
+          (image) => List.generate(
+            h,
+            (y) => List.generate(
+              w,
+              (x) {
+                final p = image.getPixel(x, y);
+                return <double>[p.r / 255.0, p.g / 255.0, p.b / 255.0];
+              },
+              growable: false,
+            ),
+            growable: false,
+          ),
+        )
+        .toList(growable: false);
   }
 
   // ── Image conversion ───────────────────────────────────────────────────────
