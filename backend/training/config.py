@@ -2,30 +2,36 @@
 #  config.py  –  Central configuration
 # ─────────────────────────────────────────────
 
-# Class labels (must match dataset folder names)
-CLASS_NAMES = ["sigiriya", "dambulla", "polonnaruwa"]
+# Class labels (must match the extracted Sigiriya dataset folder names)
+CLASS_NAMES = [
+	"sigiriya_entrance",
+	"sigiriya_lion_rock",
+	"sigiriya_mirror_wall",
+	"sigiriya_lion_staircase",
+	"sigiriya_throne",
+]
 NUM_CLASSES = len(CLASS_NAMES)
 
 # Dataset paths
-DATASET_DIR   = "../dataset"
-TRAIN_DIR     = "../dataset/train"
-VAL_DIR       = "../dataset/val"
-TEST_DIR      = "../dataset/test"
+DATASET_DIR   = "../dataset/sigiriya_dataset"
+TRAIN_DIR     = "../dataset/sigiriya_dataset/train"
+VAL_DIR       = "../dataset/sigiriya_dataset/valid"
+TEST_DIR      = "../dataset/sigiriya_dataset/test"
 
 # Model
-INPUT_SIZE    = 224          # MobileNetV2 input size
-BATCH_SIZE    = 32
-EPOCHS        = 30
+INPUT_SIZE    = 640          # YOLOv8 input size
+BATCH_SIZE    = 16
+EPOCHS        = 100
 LEARNING_RATE = 0.001
-PRETRAINED    = True         # Use ImageNet pretrained weights
+PRETRAINED    = True         # Use pretrained YOLOv8 weights
 
 # Output paths
-MODEL_SAVE_PATH         = "../output/landmark_model.pth"
-TFLITE_MODEL_PATH       = "../output/landmark_model.tflite"
-TFLITE_QUANT_PATH       = "../output/landmark_model_quantized.tflite"
-ONNX_MODEL_PATH         = "../output/landmark_model.onnx"
-CLASS_LABELS_JSON       = "../output/class_labels.json"
-TRAINING_RESULTS_DIR    = "../output/training_results"
+MODEL_SAVE_PATH         = "../output/sigiriya_best.pt"
+TFLITE_MODEL_PATH       = "../output/sigiriya_best.tflite"
+TFLITE_QUANT_PATH       = "../output/sigiriya_best_quantized.tflite"
+ONNX_MODEL_PATH         = "../output/sigiriya_best.onnx"
+CLASS_LABELS_JSON       = "../output/sigiriya_class_labels.json"
+TRAINING_RESULTS_DIR    = "../output/sigiriya_training_results"
 
 # Embeddings
 KNOWLEDGE_BASE_DIR      = "../embeddings/knowledge_base"

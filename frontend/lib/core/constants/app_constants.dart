@@ -10,6 +10,8 @@ class AppConstants {
   static const String modelPath = 'assets/models/landmark_model.tflite';
   static const String imagesPath = 'assets/images/';
   static const String embeddingsPath = 'assets/embeddings/';
+  static const String landmarkSitesConfigPath =
+      'assets/config/landmark_sites.json';
 
   // ── Database ──────────────────────────────────────────────────────────────
   static const String dbName = 'heritage_ar.db';
