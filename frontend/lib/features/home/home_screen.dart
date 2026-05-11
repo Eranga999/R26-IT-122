@@ -7,6 +7,7 @@ import '../../features/ar/ar_screen.dart';
 import '../../features/database/database_helper.dart';
 import '../../features/database/landmark_model.dart';
 import '../../features/database/sub_landmark_model.dart';
+import '../sigiriya_guide/screens/home_screen.dart' as sigiriya_home;
 import '../../widgets/landmark_info_card.dart';
 import '../camera/camera_screen.dart';
 import '../rag/rag_screen.dart';
@@ -170,7 +171,16 @@ class _HomeScreenState extends State<HomeScreen> {
     final active = _navIndex == index;
     return InkWell(
       borderRadius: BorderRadius.circular(12),
-      onTap: () => setState(() => _navIndex = index),
+      onTap: () {
+        if (index == 0) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const sigiriya_home.HomeScreen()),
+          );
+        } else {
+          setState(() => _navIndex = index);
+        }
+      },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
         child: Column(
@@ -333,6 +343,10 @@ class _HomeScreenState extends State<HomeScreen> {
           child: _buildSiteLockBanner(),
         ),
       ),
+
+      const SliverToBoxAdapter(child: SizedBox(height: 18)),
+
+      const SliverToBoxAdapter(child: SizedBox(height: 8)),
 
       // section label
       const SliverToBoxAdapter(

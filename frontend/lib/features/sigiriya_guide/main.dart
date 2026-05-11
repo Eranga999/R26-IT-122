@@ -1,60 +1,36 @@
+// lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'core/theme/app_theme.dart';
-import 'features/splash/splash_screen.dart';
-import 'features/sigiriya_guide/screens/splash_screen.dart' as sigiriya_guide;
+import 'screens/splash_screen.dart';
 
-Future<void> main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const HeritageArApp());
-}
 
-/// Optional bootstrap for the imported Sigiriya guide app.
-///
-/// This keeps the existing HeritageAR app as the default launch path while
-/// still making the Sigiriya standalone entrypoint available from the real
-/// `lib/main.dart` file.
-Future<void> runSigiriyaGuideApp() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  // llama_cpp_dart needs no global initialization — nothing to call here.
+  // (FlutterGemma.initialize() has been removed.)
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  runApp(const SigiriyaGuideApp());
+  runApp(const SigiriyaApp());
 }
 
-class HeritageArApp extends StatelessWidget {
-  const HeritageArApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'HeritageAR',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.system,
-      home: const SplashScreen(),
-    );
-  }
-}
-
-class SigiriyaGuideApp extends StatelessWidget {
-  const SigiriyaGuideApp({super.key});
+class SigiriyaApp extends StatelessWidget {
+  const SigiriyaApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Sigiriya Heritage',
       debugShowCheckedModeBanner: false,
-      theme: _buildSigiriyaTheme(),
-      home: const sigiriya_guide.SplashScreen(),
+      theme: _buildTheme(),
+      home: const SplashScreen(),
     );
   }
 
-  ThemeData _buildSigiriyaTheme() {
+  ThemeData _buildTheme() {
     const gold = Color(0xFFD4A017);
     const darkBrown = Color(0xFF1A0E00);
     const deepBrown = Color(0xFF2C1A0E);
