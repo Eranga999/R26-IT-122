@@ -97,7 +97,7 @@ class _CameraScreenState extends State<CameraScreen>
       final results = await RecognitionService.instance.predictAll(
         image,
         sensorOrientation: _controller?.description.sensorOrientation ?? 0,
-        threshold: 0.50, // keep weak empty-frame detections off the overlay
+        threshold: 0.55, // keep weak empty-frame detections off the overlay
       );
 
       if (!mounted) return;

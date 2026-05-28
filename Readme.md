@@ -60,7 +60,7 @@ Optional Offline RAG Assistant
 ## 📂 Project Structure
 
 ```
-heritage_ar/
+R26-IT-122/
 │
 ├── android/
 ├── ios/
@@ -117,8 +117,8 @@ Fix all reported issues before continuing.
 ### 2️⃣ Create Flutter Project
 
 ```
-flutter create heritage_ar
-cd heritage_ar
+flutter create R26-IT-122
+cd R26-IT-122
 ```
 
 ---
@@ -217,7 +217,7 @@ dataset/
  ├── polonnaruwa/
 ```
 
-3. Train model using PyTorch (MobileNetV2 recommended).
+3. Train model using PyTorch (YOLOV8).
 4. Convert trained model to TensorFlow Lite.
 5. Quantize model for mobile optimization.
 6. Place `.tflite` model inside assets folder.
