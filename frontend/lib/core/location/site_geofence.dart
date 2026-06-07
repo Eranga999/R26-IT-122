@@ -35,6 +35,7 @@ enum SiteLockStatus {
   outOfRange,
   permissionDenied,
   serviceDisabled,
+  timeout,
   error,
 }
 
@@ -58,6 +59,11 @@ class SiteLockResult {
   final String source;
 
   bool get isLocked => status == SiteLockStatus.locked && site != null;
+
+  bool get isGpsLocked => isLocked && source == 'gps';
+
+  bool get isDetectionEligible =>
+      isLocked && (source == 'gps' || source == 'manual');
 
   factory SiteLockResult.manual({
     required SiteGeofence site,
