@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -29,6 +30,7 @@ class SiteLockService {
 
   Future<SiteLockResult> lockSiteByGps() async {
     try {
+      // 1. Check if location services are enabled and permissions are granted.
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         return const SiteLockResult(
@@ -50,10 +52,26 @@ class SiteLockService {
         );
       }
 
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.best,
-        timeLimit: const Duration(seconds: 12),
-      );
+      // 2. Attempt to get the current position with a longer timeout.
+      Position? position;
+      try {
+        position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy
+              .high, // Use .high for a balance of accuracy and power.
+          timeLimit:
+              const Duration(seconds: 28), // Increased timeout to 28 seconds.
+        );
+      } on TimeoutException {
+        // 3. If getCurrentPosition times out, fall back to the last known position.
+        position = await Geolocator.getLastKnownPosition();
+        if (position == null) {
+          return const SiteLockResult(
+            status: SiteLockStatus.timeout,
+            message:
+                'GPS signal is weak. Please move to an open area and try again.',
+          );
+        }
+      }
 
       final sites = await loadSites();
       if (sites.isEmpty) {
@@ -74,7 +92,10 @@ class SiteLockService {
           lon2: site.centerLng,
         );
 
-        final withinGeofence = d <= site.radiusMeters;
+        // 4. Add GPS accuracy to the radius for a more lenient geofence check.
+        final effectiveRadius = site.radiusMeters + position.accuracy;
+        final withinGeofence = d <= effectiveRadius;
+
         if (!withinGeofence) {
           continue;
         }
@@ -91,10 +112,12 @@ class SiteLockService {
         return SiteLockResult(
           status: SiteLockStatus.outOfRange,
           gpsAccuracyMeters: position.accuracy,
-          message: 'You are outside configured heritage site zones.',
+          message:
+              'You are currently outside a supported heritage site. Please visit Sigiriya, Dambulla Cave Temple, or Polonnaruwa to use Heritage AR features.',
         );
       }
 
+      // 5. The confidence score provides false-positive protection.
       final confidence = _siteConfidence(
         distanceMeters: bestDistance,
         radiusMeters: best.radiusMeters,
@@ -109,9 +132,11 @@ class SiteLockService {
         confidenceScore: confidence,
       );
     } catch (e) {
+      // 6. Catch any other unexpected errors during the process.
       return SiteLockResult(
         status: SiteLockStatus.error,
-        message: 'Failed to detect site by GPS: $e',
+        message:
+            'An unexpected error occurred while detecting your location: $e',
       );
     }
   }
