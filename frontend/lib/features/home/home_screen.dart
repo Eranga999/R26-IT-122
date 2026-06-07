@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../core/location/site_geofence.dart';
 import '../../core/location/site_lock_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -58,6 +58,14 @@ class _HomeScreenState extends State<HomeScreen> {
       _siteLock = result;
       _siteLockLoading = false;
     });
+  }
+
+  Future<void> _launchCamera() async {
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CameraScreen()),
+    );
   }
 
   Future<void> _manualLockSitePicker() async {
@@ -197,17 +205,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return FloatingActionButton(
       backgroundColor: AppTheme.secondary,
       elevation: 6,
-      onPressed: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => CameraScreen(
-            lockedLandmarkId: _siteLock?.site?.landmarkDbId,
-            lockedLandmarkName: _siteLock?.site?.landmarkName,
-          ),
-        ),
-      ),
-      child:
-          const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 28),
+      onPressed: _launchCamera,
+      child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 28),
     );
   }
 
