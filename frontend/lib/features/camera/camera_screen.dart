@@ -1,9 +1,10 @@
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:camera/camera.dart';
+import '../../core/location/site_geofence.dart';
+import '../../core/location/site_lock_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../features/recognition/recognition_service.dart';
 import '../../features/database/database_helper.dart';
@@ -15,15 +16,11 @@ import '../rag/rag_screen.dart';
 import '../navigation/nav_screen.dart';
 import '../home/home_screen.dart';
 
-class CameraScreen extends StatefulWidget {
-  const CameraScreen({
-    super.key,
-    this.lockedLandmarkId,
-    this.lockedLandmarkName,
-  });
+/// Verification state of the GPS geofence check.
+enum _VerifyStatus { verifying, locked, outside, failed, manual }
 
-  final int? lockedLandmarkId;
-  final String? lockedLandmarkName;
+class CameraScreen extends StatefulWidget {
+  const CameraScreen({super.key});
 
   @override
   State<CameraScreen> createState() => _CameraScreenState();
@@ -37,9 +34,21 @@ class _CameraScreenState extends State<CameraScreen>
   int _lastProcessTime = 0; // for throttling
   int _lastPanelUpdateTime = 0;
   String? _lastPanelLabel;
+  final Map<int, LandmarkModel> _landmarkCache = {};
+  final Map<int, List<SubLandmarkModel>> _subCache = {};
 
-  static const int _frameThrottleMs = 500;
-  static const int _sameLabelPanelCooldownMs = 1200;
+  // ── GPS / site verification state ─────────────────────────────────────────
+  _VerifyStatus _verifyStatus = _VerifyStatus.verifying;
+  SiteLockResult? _siteLock;
+  List<String> _allowedLabels = const [];
+
+  bool get _canRunDetector =>
+      (_verifyStatus == _VerifyStatus.locked ||
+          _verifyStatus == _VerifyStatus.manual) &&
+      _allowedLabels.isNotEmpty;
+
+  // Frame throttling removed! Isolate worker handles processing smoothly.
+  static const int _sameLabelPanelCooldownMs = 1500;
 
   // ── Live detection state (shown while scanning) ────────────────────────────
   List<DetectionResult> _liveDetections = []; // real-time boxes on camera
@@ -60,10 +69,110 @@ class _CameraScreenState extends State<CameraScreen>
     _pulseAnim =
         AnimationController(vsync: this, duration: const Duration(seconds: 2))
           ..repeat(reverse: true);
+    // Always open camera immediately — do not wait for GPS.
     if (!_isDesktop) {
       _initCamera();
-      RecognitionService.instance.loadModel();
     }
+    // GPS verification runs concurrently in the background.
+    _verifyGpsInBackground();
+  }
+
+  /// Runs GPS geofencing in the background after the camera is already open.
+  Future<void> _verifyGpsInBackground() async {
+    final result = await SiteLockService.instance.lockSiteByGps();
+    if (!mounted) return;
+    final labels = RecognitionService.labelsForSite(result.site?.landmarkName);
+    setState(() {
+      _siteLock = result;
+      _allowedLabels = labels;
+      switch (result.status) {
+        case SiteLockStatus.locked:
+          _verifyStatus = _VerifyStatus.locked;
+        case SiteLockStatus.outOfRange:
+          _verifyStatus = _VerifyStatus.outside;
+        default:
+          // permissionDenied, serviceDisabled, timeout, error
+          _verifyStatus = _VerifyStatus.failed;
+      }
+    });
+    if (_canRunDetector) {
+      RecognitionService.instance.loadModel();
+      // Pre-warm DB cache once the site is confirmed.
+      Future.microtask(() async {
+        final all = await DatabaseHelper.instance.getAllLandmarks();
+        for (final lm in all) {
+          if (lm.id == null || !mounted) continue;
+          _landmarkCache[lm.id!] = lm;
+          _subCache[lm.id!] =
+              await DatabaseHelper.instance.getSubLandmarks(lm.id!);
+        }
+      });
+    }
+  }
+
+  /// Shows the manual site-selection bottom sheet from within the camera screen.
+  Future<void> _selectManualSite() async {
+    final sites = await SiteLockService.instance.loadSites();
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF1A0A00),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Center(
+              child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                      color: Colors.white30,
+                      borderRadius: BorderRadius.circular(2)))),
+          const Text('Select Your Current Site',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          const Text(
+              'GPS is unavailable — choose your heritage site manually.',
+              style: TextStyle(color: Colors.white54, fontSize: 12)),
+          const SizedBox(height: 16),
+          ...sites.map((site) => ListTile(
+                leading: const Icon(Icons.place_rounded,
+                    color: Color(0xFFFFB300)),
+                title: Text(site.landmarkName,
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w600)),
+                subtitle: Text(site.landmarkId,
+                    style:
+                        const TextStyle(color: Colors.white54, fontSize: 12)),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final labels =
+                      RecognitionService.labelsForSite(site.landmarkName);
+                  setState(() {
+                    _siteLock = SiteLockResult.manual(site: site);
+                    _allowedLabels = labels;
+                    _verifyStatus = _VerifyStatus.manual;
+                  });
+                  RecognitionService.instance.loadModel();
+                  final all = await DatabaseHelper.instance.getAllLandmarks();
+                  for (final lm in all) {
+                    if (lm.id == null || !mounted) continue;
+                    _landmarkCache[lm.id!] = lm;
+                    _subCache[lm.id!] =
+                        await DatabaseHelper.instance.getSubLandmarks(lm.id!);
+                  }
+                },
+              )),
+        ]),
+      ),
+    );
   }
 
   bool get _isDesktop =>
@@ -89,16 +198,22 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> _processFrame(CameraImage image) async {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    if (_isProcessing || (now - _lastProcessTime < _frameThrottleMs)) return;
+    if (!_canRunDetector) {
+      return;
+    }
+    if (!mounted) return;
+    if (_isProcessing) return;
     _isProcessing = true;
-    _lastProcessTime = now;
     try {
+      // 1. Get results from service
       final results = await RecognitionService.instance.predictAll(
         image,
         sensorOrientation: _controller?.description.sensorOrientation ?? 0,
-        threshold: 0.55, // keep weak empty-frame detections off the overlay
+        threshold: 0.70,
+        allowedLabels: _allowedLabels.toSet(),
       );
+
+      _isProcessing = false; // Release lock as soon as inference is done
 
       if (!mounted) return;
 
@@ -121,23 +236,37 @@ class _CameraScreenState extends State<CameraScreen>
           .toList(growable: false);
 
       if (!mounted) return;
-      setState(() {
-        _liveDetections = filtered;
-        if (filtered.isEmpty) {
-          // remove the active bounding box so overlay disappears
-          _activeDetection = null;
-        }
-      });
+      final currentFirstLabel =
+          _liveDetections.isNotEmpty ? _liveDetections.first.label : null;
+      final currentFirstBox =
+          _liveDetections.isNotEmpty ? _liveDetections.first.boundingBox : null;
+      final changed = filtered.length != _liveDetections.length ||
+          (filtered.isNotEmpty &&
+              (filtered.first.label != currentFirstLabel ||
+                  filtered.first.boundingBox != currentFirstBox));
+
+      if (changed) {
+        setState(() {
+          _liveDetections = filtered;
+          if (filtered.isEmpty) {
+            // remove the active bounding box so overlay disappears
+            _activeDetection = null;
+          }
+        });
+      }
 
       // Open the info panel only when confident enough (apply to filtered list)
       final highConf = filtered
-          .where((r) => r.confidence >= 0.50)
+          .where((r) => r.confidence >= 0.75)
           .fold<DetectionResult?>(
               null,
               (best, r) =>
                   best == null || r.confidence > best.confidence ? r : best);
 
-      if (highConf != null) await _onLandmarkDetected(highConf);
+      if (highConf != null) {
+        // Run this off-cycle to avoid blocking the frame stream
+        Future.microtask(() => _onLandmarkDetected(highConf));
+      }
     } catch (e) {
       if (kDebugMode) debugPrint('[Scan] frame error: $e');
     } finally {
@@ -148,20 +277,12 @@ class _CameraScreenState extends State<CameraScreen>
   Future<void> _onLandmarkDetected(DetectionResult detection) async {
     final now = DateTime.now().millisecondsSinceEpoch;
 
-    // Prevent rapid re-opening/updating for the same class on consecutive frames.
-    if (_lastPanelLabel == detection.label &&
-        (now - _lastPanelUpdateTime) < _sameLabelPanelCooldownMs) {
-      return;
-    }
-
     final id = _labelToId(detection.label);
-    if (id == null) {
-      if (kDebugMode) {
-        debugPrint('Ignoring unsupported detection label: ${detection.label}');
-      }
-      return;
-    }
-    if (widget.lockedLandmarkId != null && id != widget.lockedLandmarkId) {
+    if (id == null) return;
+
+    // Use current site lock if available to filter relevant detections
+    if (_siteLock?.site?.landmarkDbId != null &&
+        id != _siteLock!.site!.landmarkDbId) {
       return;
     }
 
@@ -178,9 +299,25 @@ class _CameraScreenState extends State<CameraScreen>
       return;
     }
 
-    final lm = await DatabaseHelper.instance.getLandmarkById(id);
-    if (lm == null || !mounted) return;
-    final subs = await DatabaseHelper.instance.getSubLandmarks(id);
+    // Prevent rapid re-opening for the same class on consecutive frames.
+    if (_lastPanelLabel == detection.label &&
+        (now - _lastPanelUpdateTime) < _sameLabelPanelCooldownMs) {
+      return;
+    }
+
+    LandmarkModel? lm;
+    List<SubLandmarkModel> subs;
+    if (_landmarkCache.containsKey(id)) {
+      lm = _landmarkCache[id];
+      subs = _subCache[id] ?? [];
+    } else {
+      lm = await DatabaseHelper.instance.getLandmarkById(id);
+      if (lm == null || !mounted) return;
+      subs = await DatabaseHelper.instance.getSubLandmarks(id);
+      if (!mounted) return;
+      _landmarkCache[id] = lm;
+      _subCache[id] = subs;
+    }
     if (!mounted) return;
     setState(() {
       _detectedLandmark = lm;
@@ -196,18 +333,13 @@ class _CameraScreenState extends State<CameraScreen>
 
   int? _labelToId(String label) {
     final normalized = label.trim().toLowerCase();
-    const m = {
-      'sigiriya_lion_paws': 1,
-      'sigiriya_lion_rock': 1,
-      'sigiriya_mirror_wall': 1,
-      'sigiriya_throne': 1,
-      'sigiriya_ticket_counter': 1,
-      'sigiriya': 1,
-      'dambulla': 2,
-      'dambulla cave temple': 2,
-      'polonnaruwa': 3,
-    };
-    return m[normalized];
+    // Broad matching: any class starting with 'sigiriya' belongs to ID 1
+    if (normalized.contains('sigiriya')) return 1;
+    if (normalized.contains('dambulla')) return 2;
+    if (normalized.contains('polonnaruwa')) return 3;
+    
+    // Fallback directly to the indices if labels are just numbers or generic
+    return null;
   }
 
   void _dismissPanel() => setState(() {
@@ -221,9 +353,11 @@ class _CameraScreenState extends State<CameraScreen>
 
   Future<void> _showDemoPicker() async {
     final landmarks = await DatabaseHelper.instance.getAllLandmarks();
-    final options = widget.lockedLandmarkId == null
+    final options = _siteLock?.site?.landmarkDbId == null
         ? landmarks
-        : landmarks.where((lm) => lm.id == widget.lockedLandmarkId).toList();
+        : landmarks
+            .where((lm) => lm.id == _siteLock?.site?.landmarkDbId)
+            .toList();
 
     if (!mounted) return;
     showModalBottomSheet(
@@ -254,9 +388,9 @@ class _CameraScreenState extends State<CameraScreen>
                     fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
             Text(
-                widget.lockedLandmarkName == null
+                _siteLock?.site?.landmarkName == null
                     ? 'Select a landmark to preview the AR overlay'
-                    : 'Site lock active: ${widget.lockedLandmarkName}',
+                    : 'Site lock active: ${_siteLock?.site?.landmarkName}',
                 style: const TextStyle(color: Colors.white54, fontSize: 12)),
             const SizedBox(height: 16),
             ...options.map((lm) => ListTile(
@@ -315,7 +449,7 @@ class _CameraScreenState extends State<CameraScreen>
         // Live bounding-box overlay – shown while scanning AND after panel opens
         if (_liveDetections.isNotEmpty || _activeDetection != null)
           Positioned.fill(
-            child: IgnorePointer(
+            child: RepaintBoundary(
               child: CustomPaint(
                 painter: _DetectionOverlayPainter(
                   detections: _panelVisible && _activeDetection != null
@@ -329,8 +463,11 @@ class _CameraScreenState extends State<CameraScreen>
             ),
           ),
 
-        // Debug Stats
-        if (kDebugMode)
+        // GPS / site verification status overlay (banners, spinner, manual pick)
+        if (!_panelVisible)
+          _buildGpsStatusOverlay(),
+
+        if (kDebugMode && _canRunDetector)
           Positioned(
             top: 100,
             left: 20,
@@ -396,7 +533,7 @@ class _CameraScreenState extends State<CameraScreen>
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         fontFamily: 'Georgia')),
-                if (widget.lockedLandmarkName != null) ...[
+                if (_siteLock?.site?.landmarkName != null) ...[
                   const SizedBox(width: 8),
                   Flexible(
                     child: Container(
@@ -408,7 +545,7 @@ class _CameraScreenState extends State<CameraScreen>
                         border: Border.all(color: Colors.white30),
                       ),
                       child: Text(
-                        widget.lockedLandmarkName!,
+                        _siteLock!.site!.landmarkName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style:
@@ -458,8 +595,9 @@ class _CameraScreenState extends State<CameraScreen>
 
         if (_panelVisible && _detectedLandmark != null) _buildArPanel(),
 
-        if (widget.lockedLandmarkId != null &&
-            widget.lockedLandmarkId != 1 &&
+        if (_canRunDetector &&
+            _siteLock?.site?.landmarkDbId != null &&
+            _siteLock?.site?.landmarkDbId != 1 &&
             !_panelVisible)
           Positioned(
               top: 162,
@@ -471,7 +609,8 @@ class _CameraScreenState extends State<CameraScreen>
           Positioned(
               bottom: 32, left: 24, right: 24, child: _buildBottomLabel()),
       ]),
-      floatingActionButton: (!_panelVisible &&
+      floatingActionButton: (_canRunDetector &&
+              !_panelVisible &&
               _cameraError == null &&
               _controller?.value.isInitialized == true)
           ? FloatingActionButton.extended(
@@ -486,7 +625,7 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Widget _buildUnsupportedSiteBanner() {
-    final siteName = widget.lockedLandmarkName ?? 'this site';
+    final siteName = _siteLock?.site?.landmarkName ?? 'this site';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
@@ -499,7 +638,7 @@ class _CameraScreenState extends State<CameraScreen>
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            'Live recognition currently supports Sigiriya only. $siteName is available in the app, but this camera flow will not auto-detect it.',
+            'Live recognition is limited to the locked site profile. $siteName is available in the app, but no detector is running for unsupported labels.',
             style: const TextStyle(
                 color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
           ),
@@ -507,6 +646,126 @@ class _CameraScreenState extends State<CameraScreen>
       ]),
     );
   }
+
+  // ── GPS status overlay ──────────────────────────────────────────────────────────────
+
+  /// Returns the correct top-of-screen overlay for the current GPS state.
+  /// Returns an empty [SizedBox] when no overlay is needed (e.g. locked state).
+  Widget _buildGpsStatusOverlay() {
+    switch (_verifyStatus) {
+      case _VerifyStatus.verifying:
+        return _statusBanner(
+          icon: Icons.gps_not_fixed_rounded,
+          color: Colors.blueGrey.shade700,
+          message: 'Verifying your heritage site...',
+          showSpinner: true,
+        );
+      case _VerifyStatus.failed:
+        return _statusBanner(
+          icon: Icons.gps_off_rounded,
+          color: Colors.orange.shade800,
+          message:
+              'Enable GPS or verify your site to start landmark detection.',
+          actionLabel: 'Select your current site',
+          onAction: _selectManualSite,
+        );
+      case _VerifyStatus.outside:
+        return _statusBanner(
+          icon: Icons.location_off_rounded,
+          color: Colors.red.shade700,
+          message: 'You are outside a supported heritage site.',
+          actionLabel: 'Select your current site',
+          onAction: _selectManualSite,
+        );
+      case _VerifyStatus.manual:
+        return _statusBanner(
+          icon: Icons.touch_app_rounded,
+          color: Colors.teal.shade700,
+          message:
+              'Manual Site Mode: ${_siteLock?.site?.landmarkName ?? ''}',
+        );
+      case _VerifyStatus.locked:
+        return const SizedBox.shrink(); // no banner in GPS-locked state
+    }
+  }
+
+  Widget _statusBanner({
+    required IconData icon,
+    required Color color,
+    required String message,
+    bool showSpinner = false,
+    String? actionLabel,
+    VoidCallback? onAction,
+  }) {
+    return Positioned(
+      top: 86,
+      left: 16,
+      right: 16,
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.92),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                if (showSpinner)
+                  const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white)))
+                else
+                  Icon(icon, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                    child: Text(message,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w500))),
+              ]),
+              if (actionLabel != null && onAction != null) ...[
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: onAction,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white38),
+                    ),
+                    child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.place_rounded,
+                              color: Colors.white, size: 14),
+                          const SizedBox(width: 6),
+                          Text(actionLabel,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600)),
+                        ]),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
 
   Widget _buildArPanel() {
     final lm = _detectedLandmark!;
@@ -1275,6 +1534,10 @@ class _DetectionOverlayPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _DetectionOverlayPainter old) =>
-      old.detections != detections;
+  bool shouldRepaint(covariant _DetectionOverlayPainter old) {
+    if (old.detections.length != detections.length) return true;
+    if (detections.isEmpty) return false;
+    return old.detections.first.label != detections.first.label ||
+        old.detections.first.boundingBox != detections.first.boundingBox;
+  }
 }
