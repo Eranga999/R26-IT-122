@@ -32,6 +32,9 @@ dependencies:
   # GPS/geofence-based landmark site lock
   geolocator: ^11.1.0
 
+  # Compass heading for AR navigation arrow
+  flutter_compass: ^0.8.0
+
   # AR engine (ARCore / ARKit) - disabled until NDK+AGP compat resolved
   # ar_flutter_plugin: ^0.7.3
 
