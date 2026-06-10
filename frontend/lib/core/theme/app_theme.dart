@@ -5,16 +5,12 @@ import 'package:flutter/services.dart';
 class AppTheme {
   AppTheme._();
 
-  static const Color primary = Color(0xFF6D4C41); // rich espresso brown
-  static const Color secondary = Color(0xFFFFB300); // golden amber
-  static const Color accent = Color(0xFFE64A19); // terracotta
-  static const Color surface = Color(0xFFFFF8F0); // warm ivory
-  static const Color darkBg = Color(0xFF1A0A00); // deep cocoa
-
-  // ─── Landmark brand colours ───────────────────────────────────────────────
-  static const Color sigiriyaColor = Color(0xFFB71C1C); // deep crimson
-  static const Color dambullaColor = Color(0xFFE65100); // deep orange
-  static const Color polonnaruwaColor = Color(0xFF1A237E); // indigo
+  // ─── Unified heritage palette ─────────────────────────────────────────────
+  static const Color primary   = Color(0xFF8B5E3C); // warm terracotta brown
+  static const Color secondary = Color(0xFFD4A017); // heritage gold
+  static const Color surface   = Color(0xFFF8F3EC); // warm parchment
+  static const Color textBase  = Color(0xFF2D1B0E); // deep espresso
+  static const Color darkBg    = Color(0xFF1A0A00); // deep cocoa
 
   // ── Light Theme ───────────────────────────────────────────────────────────
   static ThemeData get light => ThemeData(
@@ -26,7 +22,7 @@ class AppTheme {
         ),
         scaffoldBackgroundColor: surface,
         appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.transparent,
+          backgroundColor: primary,
           foregroundColor: Colors.white,
           elevation: 0,
           systemOverlayStyle: SystemUiOverlayStyle(
@@ -43,16 +39,16 @@ class AppTheme {
         textTheme: const TextTheme(
           displaySmall: TextStyle(
               fontFamily: 'Georgia',
-              color: Color(0xFF1A0A00),
+              color: textBase,
               fontWeight: FontWeight.bold),
           headlineMedium: TextStyle(
               fontFamily: 'Georgia',
-              color: Color(0xFF1A0A00),
+              color: textBase,
               fontWeight: FontWeight.bold),
           headlineSmall:
-              TextStyle(fontFamily: 'Georgia', color: Color(0xFF1A0A00)),
+              TextStyle(fontFamily: 'Georgia', color: textBase),
           titleLarge: TextStyle(
-              color: Color(0xFF1A0A00),
+              color: textBase,
               fontWeight: FontWeight.w700,
               fontSize: 18),
           bodyMedium: TextStyle(color: Color(0xFF4E342E), height: 1.55),
@@ -67,6 +63,16 @@ class AppTheme {
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             textStyle:
                 const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+          ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: primary,
+            side: const BorderSide(color: primary),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            textStyle: const TextStyle(fontWeight: FontWeight.w600),
           ),
         ),
         filledButtonTheme: FilledButtonThemeData(
