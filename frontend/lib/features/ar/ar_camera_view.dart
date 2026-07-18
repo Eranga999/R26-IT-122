@@ -662,7 +662,7 @@ List<Widget> _cornerBrackets(BuildContext ctx, Color color,
     {required bool scanning}) {
   final size = MediaQuery.of(ctx).size;
   const margin = 36.0;
-  final top = 88.0;
+  const top = 88.0;
   final bottom = size.height * 0.55;
   const len = 28.0;
   const thick = 2.5;

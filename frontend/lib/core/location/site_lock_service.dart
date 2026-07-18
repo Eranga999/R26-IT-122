@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../constants/app_constants.dart';
 import 'site_geofence.dart';
@@ -10,6 +10,8 @@ import 'site_geofence.dart';
 class SiteLockService {
   SiteLockService._();
   static final SiteLockService instance = SiteLockService._();
+  static const MethodChannel _locationChannel =
+      MethodChannel('com.example.r26_it_122/site_lock');
 
   List<SiteGeofence>? _cachedSites;
 
@@ -29,7 +31,18 @@ class SiteLockService {
 
   Future<SiteLockResult> lockSiteByGps() async {
     try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      final isEmulator =
+          await _locationChannel.invokeMethod<bool>('isEmulator') ?? false;
+      if (isEmulator) {
+        return const SiteLockResult(
+          status: SiteLockStatus.serviceDisabled,
+          message: 'GPS site lock is unavailable on the emulator.',
+        );
+      }
+
+      final serviceEnabled = await _locationChannel
+              .invokeMethod<bool>('isLocationServiceEnabled') ??
+          false;
       if (!serviceEnabled) {
         return const SiteLockResult(
           status: SiteLockStatus.serviceDisabled,
@@ -37,23 +50,33 @@ class SiteLockService {
         );
       }
 
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
+      var permission = await Permission.location.status;
+      if (permission.isDenied) {
+        permission = await Permission.location.request();
       }
 
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
+      if (permission.isDenied || permission.isPermanentlyDenied) {
         return const SiteLockResult(
           status: SiteLockStatus.permissionDenied,
           message: 'Location permission denied.',
         );
       }
 
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.best,
-        timeLimit: const Duration(seconds: 12),
+      final rawPosition =
+          await _locationChannel.invokeMapMethod<String, Object?>(
+        'getCurrentLocation',
       );
+      final latitude = rawPosition?['latitude'] as num?;
+      final longitude = rawPosition?['longitude'] as num?;
+      final accuracy = rawPosition?['accuracy'] as num?;
+      final error = rawPosition?['error'] as String?;
+
+      if (error != null || latitude == null || longitude == null) {
+        return SiteLockResult(
+          status: SiteLockStatus.error,
+          message: error ?? 'Unable to determine current location.',
+        );
+      }
 
       final sites = await loadSites();
       if (sites.isEmpty) {
@@ -68,8 +91,8 @@ class SiteLockService {
 
       for (final site in sites) {
         final d = _haversineMeters(
-          lat1: position.latitude,
-          lon1: position.longitude,
+          lat1: latitude.toDouble(),
+          lon1: longitude.toDouble(),
           lat2: site.centerLat,
           lon2: site.centerLng,
         );
@@ -90,7 +113,7 @@ class SiteLockService {
       if (best == null || bestDistance == null) {
         return SiteLockResult(
           status: SiteLockStatus.outOfRange,
-          gpsAccuracyMeters: position.accuracy,
+          gpsAccuracyMeters: accuracy?.toDouble(),
           message: 'You are outside configured heritage site zones.',
         );
       }
@@ -98,14 +121,14 @@ class SiteLockService {
       final confidence = _siteConfidence(
         distanceMeters: bestDistance,
         radiusMeters: best.radiusMeters,
-        gpsAccuracyMeters: position.accuracy,
+        gpsAccuracyMeters: accuracy?.toDouble() ?? best.radiusMeters,
       );
 
       return SiteLockResult(
         status: SiteLockStatus.locked,
         site: best,
         distanceMeters: bestDistance,
-        gpsAccuracyMeters: position.accuracy,
+        gpsAccuracyMeters: accuracy?.toDouble(),
         confidenceScore: confidence,
       );
     } catch (e) {

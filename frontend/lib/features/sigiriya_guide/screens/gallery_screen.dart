@@ -1,4 +1,5 @@
-// lib/screens/gallery_screen.dart
+// Replacing the content of this file with the logic from the provided gallery_screen.dart file.
+// ...existing code...
 import 'package:flutter/material.dart';
 import '../data/sigiriya_knowledge_base.dart';
 import '../models/location_model.dart';
@@ -315,7 +316,6 @@ class _GalleryTileState extends State<_GalleryTile>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _scale;
-  bool _isHovered = false;
 
   @override
   void initState() {
@@ -335,8 +335,6 @@ class _GalleryTileState extends State<_GalleryTile>
     _ctrl.dispose();
     super.dispose();
   }
-
-  static const _gold = Color(0xFFE8B84B);
 
   @override
   Widget build(BuildContext context) {

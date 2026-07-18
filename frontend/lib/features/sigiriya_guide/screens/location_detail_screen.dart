@@ -1,10 +1,12 @@
 // lib/screens/location_detail_screen.dart
 import 'package:flutter/material.dart';
 import '../models/location_model.dart';
+import '../services/rag_service.dart';
 
 class LocationDetailScreen extends StatefulWidget {
   final SigiriyaLocation location;
-  const LocationDetailScreen({super.key, required this.location});
+  final RagService? rag;
+  const LocationDetailScreen({super.key, required this.location, this.rag});
 
   @override
   State<LocationDetailScreen> createState() => _LocationDetailScreenState();
@@ -14,16 +16,80 @@ class _LocationDetailScreenState extends State<LocationDetailScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
+  String _briefContent = '';
+  String _detailedContent = '';
+  bool _summaryLoading = false;
+  bool _detailsLoading = false;
+  bool _summaryError = false;
+  bool _detailsError = false;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _loadRagContent();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadRagContent() async {
+    debugPrint('[LocationDetailScreen] _loadRagContent called');
+    debugPrint(
+        '[LocationDetailScreen] RagService: ${widget.rag != null ? "present" : "null"}');
+    if (widget.rag == null) return;
+
+    setState(() {
+      _summaryLoading = true;
+      _detailsLoading = true;
+      _summaryError = false;
+      _detailsError = false;
+    });
+
+    try {
+      // Load brief summary
+      final summary = await widget.rag!.ask(
+        widget.location.name,
+        'brief',
+      );
+      if (mounted) {
+        setState(() {
+          _briefContent = summary;
+          _summaryLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _summaryLoading = false;
+          _summaryError = true;
+        });
+      }
+    }
+
+    try {
+      // Load detailed info
+      final details = await widget.rag!.ask(
+        widget.location.name,
+        'detailed',
+      );
+      if (mounted) {
+        setState(() {
+          _detailedContent = details;
+          _detailsLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _detailsLoading = false;
+          _detailsError = true;
+        });
+      }
+    }
   }
 
   @override
@@ -92,8 +158,18 @@ class _LocationDetailScreenState extends State<LocationDetailScreen>
         body: TabBarView(
           controller: _tabController,
           children: [
-            _SummaryTab(location: loc),
-            _DetailsTab(location: loc),
+            _SummaryTab(
+              location: loc,
+              content: widget.rag != null ? _briefContent : null,
+              isLoading: _summaryLoading,
+              hasError: _summaryError,
+            ),
+            _DetailsTab(
+              location: loc,
+              content: widget.rag != null ? _detailedContent : null,
+              isLoading: _detailsLoading,
+              hasError: _detailsError,
+            ),
             _GalleryTab(location: loc),
           ],
         ),
@@ -105,7 +181,16 @@ class _LocationDetailScreenState extends State<LocationDetailScreen>
 // ─── Summary Tab ─────────────────────────────────────────────────────────────
 class _SummaryTab extends StatelessWidget {
   final SigiriyaLocation location;
-  const _SummaryTab({required this.location});
+  final String? content;
+  final bool isLoading;
+  final bool hasError;
+
+  const _SummaryTab({
+    required this.location,
+    this.content,
+    this.isLoading = false,
+    this.hasError = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +201,7 @@ class _SummaryTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionLabel('Quick Summary', Icons.summarize_outlined),
+          const _SectionLabel('Quick Summary', Icons.summarize_outlined),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(16),
@@ -125,15 +210,63 @@ class _SummaryTab extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: gold.withOpacity(0.25)),
             ),
-            child: Text(
-              location.briefSummary,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyLarge?.copyWith(height: 1.7),
-            ),
+            child: isLoading
+                ? Column(
+                    children: [
+                      Center(
+                        child: CircularProgressIndicator(
+                          color: gold,
+                          strokeWidth: 2,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Loading summary...',
+                        style: TextStyle(
+                          color: gold.withOpacity(0.7),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  )
+                : hasError
+                    ? Column(
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            color: Colors.redAccent,
+                            size: 32,
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Failed to load summary',
+                            style: TextStyle(
+                              color: Colors.redAccent,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            location.briefSummary,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyLarge
+                                ?.copyWith(height: 1.7),
+                          ),
+                        ],
+                      )
+                    : content != null
+                        ? _MarkdownRenderer(text: content!)
+                        : Text(
+                            location.briefSummary,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyLarge
+                                ?.copyWith(height: 1.7),
+                          ),
           ),
           const SizedBox(height: 24),
-          _SectionLabel('Tags', Icons.label_outline),
+          const _SectionLabel('Tags', Icons.label_outline),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
@@ -169,13 +302,67 @@ class _SummaryTab extends StatelessWidget {
 // ─── Details Tab ─────────────────────────────────────────────────────────────
 class _DetailsTab extends StatelessWidget {
   final SigiriyaLocation location;
-  const _DetailsTab({required this.location});
+  final String? content;
+  final bool isLoading;
+  final bool hasError;
+
+  const _DetailsTab({
+    required this.location,
+    this.content,
+    this.isLoading = false,
+    this.hasError = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final gold = Theme.of(context).colorScheme.primary;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
-      child: _MarkdownRenderer(text: location.detailedInfo),
+      child: isLoading
+          ? Column(
+              children: [
+                const SizedBox(height: 40),
+                Center(
+                  child: CircularProgressIndicator(
+                    color: gold,
+                    strokeWidth: 2,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Loading details...',
+                  style: TextStyle(
+                    color: gold.withOpacity(0.7),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            )
+          : hasError
+              ? Column(
+                  children: [
+                    const SizedBox(height: 40),
+                    const Icon(
+                      Icons.error_outline,
+                      color: Colors.redAccent,
+                      size: 32,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Failed to load details',
+                      style: TextStyle(
+                        color: Colors.redAccent,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _MarkdownRenderer(text: location.detailedInfo),
+                  ],
+                )
+              : content != null
+                  ? _MarkdownRenderer(text: content!)
+                  : _MarkdownRenderer(text: location.detailedInfo),
     );
   }
 }
@@ -196,7 +383,7 @@ class _GalleryTab extends StatelessWidget {
           children: [
             Text(location.emoji, style: const TextStyle(fontSize: 60)),
             const SizedBox(height: 16),
-            Text(
+            const Text(
               'No images yet.\n\nAdd images to:\nassets/images/locations/',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.white38, height: 1.6),

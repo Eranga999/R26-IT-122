@@ -1,5 +1,8 @@
 package com.example.r26_it_122
 
+import android.content.Context
+import android.location.Location
+import android.location.LocationManager
 import android.os.Build
 import com.google.ar.core.ArCoreApk
 import io.flutter.embedding.android.FlutterActivity
@@ -9,6 +12,7 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
 
     private val CHANNEL = "com.example.r26_it_122/ar_check"
+    private val LOCATION_CHANNEL = "com.example.r26_it_122/site_lock"
 
     // Tracks whether we have already asked to install ARCore this session.
     private var requestedArCoreInstall = false
@@ -50,6 +54,37 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, LOCATION_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "isEmulator" -> {
+                        result.success(isRunningOnEmulator())
+                    }
+                    "isLocationServiceEnabled" -> {
+                        result.success(isLocationServiceEnabled())
+                    }
+                    "getCurrentLocation" -> {
+                        val location = getCurrentLocation()
+                        if (location != null) {
+                            result.success(
+                                mapOf(
+                                    "latitude" to location.latitude,
+                                    "longitude" to location.longitude,
+                                    "accuracy" to location.accuracy,
+                                )
+                            )
+                        } else {
+                            result.success(
+                                mapOf<String, Any?>(
+                                    "error" to "Unable to determine current location."
+                                )
+                            )
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
     }
 
     private fun arCoreAvailability(): ArCoreApk.Availability {
@@ -79,5 +114,34 @@ class MainActivity : FlutterActivity() {
                 || Build.PRODUCT.startsWith("sdk")
                 || Build.HARDWARE.contains("ranchu")
                 || Build.HARDWARE.contains("goldfish"))
+    }
+
+    private fun isLocationServiceEnabled(): Boolean {
+        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        return try {
+            locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun getCurrentLocation(): Location? {
+        if (!hasLocationPermission()) return null
+
+        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        val candidates = listOfNotNull(
+            runCatching { locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER) }.getOrNull(),
+            runCatching { locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER) }.getOrNull()
+        )
+        return candidates.maxByOrNull { it.time }
+    }
+
+    private fun hasLocationPermission(): Boolean {
+        val fineGranted = checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        val coarseGranted = checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        return fineGranted || coarseGranted
     }
 }

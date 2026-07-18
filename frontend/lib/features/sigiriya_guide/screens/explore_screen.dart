@@ -2,10 +2,12 @@
 import 'package:flutter/material.dart';
 import '../data/sigiriya_knowledge_base.dart';
 import '../models/location_model.dart';
+import '../services/rag_service.dart';
 import 'location_detail_screen.dart';
 
 class ExploreScreen extends StatefulWidget {
-  const ExploreScreen({super.key});
+  final RagService? rag;
+  const ExploreScreen({super.key, this.rag});
 
   @override
   State<ExploreScreen> createState() => _ExploreScreenState();
@@ -63,7 +65,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   const SizedBox(height: 12),
                   Text(
                     'No locations found for "$_search"',
-                    style: TextStyle(color: Colors.white54),
+                    style: const TextStyle(color: Colors.white54),
                   ),
                 ],
               ),
@@ -78,7 +80,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => LocationDetailScreen(location: loc),
+                      builder: (_) => LocationDetailScreen(
+                        location: loc,
+                        rag: widget.rag,
+                      ),
                     ),
                   ),
                 );

@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:math';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:onnxruntime/onnxruntime.dart';
@@ -122,8 +121,12 @@ class EmbeddingService {
       }
     }
 
-    for (final v in inputs.values) v.release();
-    for (final o in outputs) o?.release();
+    for (final v in inputs.values) {
+      v.release();
+    }
+    for (final o in outputs) {
+      o?.release();
+    }
     runOptions.release();
 
     // L2-normalise — mirrors normalize_embeddings=True in Python
@@ -239,8 +242,9 @@ class EmbeddingService {
     if ((cp >= 33 && cp <= 47) ||
         (cp >= 58 && cp <= 64) ||
         (cp >= 91 && cp <= 96) ||
-        (cp >= 123 && cp <= 126))
+        (cp >= 123 && cp <= 126)) {
       return true;
+    }
     // Unicode category P / S (spot-check common ones)
     return (cp >= 0x2000 && cp <= 0x206F) || // General Punctuation block
         (cp >= 0x2E00 && cp <= 0x2E7F) || // Supplemental Punctuation
@@ -252,7 +256,9 @@ class EmbeddingService {
 
   List<double> _l2Normalise(List<double> v) {
     double norm = 0;
-    for (final x in v) norm += x * x;
+    for (final x in v) {
+      norm += x * x;
+    }
     norm = sqrt(norm);
     if (norm < 1e-10) return v;
     return v.map((x) => x / norm).toList();

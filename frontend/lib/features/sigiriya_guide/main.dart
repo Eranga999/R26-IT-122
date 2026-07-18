@@ -38,16 +38,14 @@ class SigiriyaApp extends StatelessWidget {
 
     return ThemeData(
       useMaterial3: true,
-      colorScheme: ColorScheme.dark(
+      colorScheme: const ColorScheme.dark(
         primary: gold,
-        secondary: const Color(0xFFB8860B),
+        secondary: Color(0xFFB8860B),
         surface: deepBrown,
-        background: darkBrown,
         onPrimary: darkBrown,
         onSecondary: lightCream,
         onSurface: lightCream,
-        onBackground: lightCream,
-        tertiary: const Color(0xFF8B4513),
+        tertiary: Color(0xFF8B4513),
       ),
       scaffoldBackgroundColor: darkBrown,
       appBarTheme: const AppBarTheme(

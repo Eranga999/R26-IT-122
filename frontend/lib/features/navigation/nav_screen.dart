@@ -106,6 +106,24 @@ class _NavScreenState extends State<NavScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_landmark == null) {
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: AppTheme.primary,
+          foregroundColor: Colors.white,
+          title: const Text('Navigation Error',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+        ),
+        body: Center(
+          child: Text(
+            'Landmark "${widget.landmarkName}" not found.',
+            style: const TextStyle(fontSize: 16, color: Colors.redAccent),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
     final waypoints = _waypoints;
 
     return Scaffold(

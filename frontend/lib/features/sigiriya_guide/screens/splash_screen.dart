@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import '../services/rag_service.dart';
 import 'home_screen.dart';
-import 'model_download_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -57,36 +56,26 @@ class _SplashScreenState extends State<SplashScreen>
 
     await _rag.init(
       onProgress: (step, progress) {
-        if (mounted)
+        if (mounted) {
           setState(() {
             _stepText = step;
             _progress = progress;
           });
+        }
       },
     );
 
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
 
-    if (!_rag.llmReady) {
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (_, __, ___) => ModelDownloadScreen(rag: _rag),
-          transitionsBuilder: (_, anim, __, child) =>
-              FadeTransition(opacity: anim, child: child),
-          transitionDuration: const Duration(milliseconds: 500),
-        ),
-      );
-    } else {
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (_, __, ___) => HomeScreen(rag: _rag),
-          transitionsBuilder: (_, anim, __, child) =>
-              FadeTransition(opacity: anim, child: child),
-          transitionDuration: const Duration(milliseconds: 500),
-        ),
-      );
-    }
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => HomeScreen(rag: _rag),
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
+        transitionDuration: const Duration(milliseconds: 500),
+      ),
+    );
   }
 
   @override
@@ -208,7 +197,6 @@ class _SplashScreenState extends State<SplashScreen>
           ),
         ),
         const SizedBox(height: 16),
-        
       ],
     );
   }
@@ -245,18 +233,17 @@ class _BackgroundPainter extends CustomPainter {
     final paint = Paint()..style = PaintingStyle.fill;
 
     // Soft radial glow top-center
-    paint.shader =
-        RadialGradient(
-          colors: [
-            const Color(0xFFD4A017).withOpacity(0.06),
-            Colors.transparent,
-          ],
-        ).createShader(
-          Rect.fromCircle(
-            center: Offset(size.width / 2, size.height * 0.3),
-            radius: size.width * 0.7,
-          ),
-        );
+    paint.shader = RadialGradient(
+      colors: [
+        const Color(0xFFD4A017).withOpacity(0.06),
+        Colors.transparent,
+      ],
+    ).createShader(
+      Rect.fromCircle(
+        center: Offset(size.width / 2, size.height * 0.3),
+        radius: size.width * 0.7,
+      ),
+    );
     canvas.drawCircle(
       Offset(size.width / 2, size.height * 0.3),
       size.width * 0.7,
@@ -264,18 +251,17 @@ class _BackgroundPainter extends CustomPainter {
     );
 
     // Bottom glow
-    paint.shader =
-        RadialGradient(
-          colors: [
-            const Color(0xFF4A2800).withOpacity(0.3),
-            Colors.transparent,
-          ],
-        ).createShader(
-          Rect.fromCircle(
-            center: Offset(size.width * 0.2, size.height * 0.85),
-            radius: size.width * 0.5,
-          ),
-        );
+    paint.shader = RadialGradient(
+      colors: [
+        const Color(0xFF4A2800).withOpacity(0.3),
+        Colors.transparent,
+      ],
+    ).createShader(
+      Rect.fromCircle(
+        center: Offset(size.width * 0.2, size.height * 0.85),
+        radius: size.width * 0.5,
+      ),
+    );
     canvas.drawCircle(
       Offset(size.width * 0.2, size.height * 0.85),
       size.width * 0.5,

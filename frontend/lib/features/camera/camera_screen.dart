@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -93,8 +92,9 @@ class _CameraScreenState extends State<CameraScreen>
 
   Future<void> _processFrame(CameraImage image) async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    if (_isProcessing || _panelVisible || (now - _lastProcessTime < 333))
+    if (_isProcessing || _panelVisible || (now - _lastProcessTime < 333)) {
       return;
+    }
     if (RecognitionService.instance.loadError != null) return;
     _isProcessing = true;
     _lastProcessTime = now;
@@ -246,7 +246,7 @@ class _CameraScreenState extends State<CameraScreen>
                   onTap: () {
                     Navigator.pop(context);
                     // Simulate a detection result centered on screen
-                    final simulatedBox = Rect.fromLTWH(0.25, 0.25, 0.5, 0.5);
+                    const simulatedBox = Rect.fromLTWH(0.25, 0.25, 0.5, 0.5);
                     final detection = DetectionResult(
                         label: lm.name.toLowerCase(),
                         confidence: 0.94,

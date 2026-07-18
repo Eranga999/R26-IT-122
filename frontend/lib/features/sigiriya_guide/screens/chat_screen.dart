@@ -1,10 +1,11 @@
 // lib/screens/chat_screen.dart
+import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../models/location_model.dart';
 import '../services/rag_service.dart';
 import '../data/sigiriya_knowledge_base.dart';
 import '../widgets/location_selector.dart';
-import 'model_download_screen.dart';
+import 'explore_screen.dart';
 
 // ═══════════════════════════════════════════════════════
 //  ENTRY POINT
@@ -117,6 +118,18 @@ class _SelectionPageState extends State<_SelectionPage>
     );
   }
 
+  void _goToExploreScreen() {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (_, anim, __) => FadeTransition(
+          opacity: anim,
+          child: ExploreScreen(rag: widget.rag),
+        ),
+        transitionDuration: const Duration(milliseconds: 380),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottomPad = MediaQuery.of(context).padding.bottom;
@@ -150,6 +163,8 @@ class _SelectionPageState extends State<_SelectionPage>
                     _modeRow(),
                     const SizedBox(height: 40),
                     _exploreBtn(),
+                    const SizedBox(height: 16),
+                    _browseAllBtn(),
                   ],
                 ),
               ),
@@ -169,12 +184,12 @@ class _SelectionPageState extends State<_SelectionPage>
           children: [
             _logoCircle(),
             const SizedBox(width: 10),
-            Flexible(
+            const Flexible(
               child: Text(
                 'Sigiriya Heritage',
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
-                style: const TextStyle(
+                style: TextStyle(
                   color: _gold,
                   fontWeight: FontWeight.w700,
                   fontSize: 15,
@@ -185,18 +200,6 @@ class _SelectionPageState extends State<_SelectionPage>
           ],
         ),
         actions: [
-          if (!widget.rag.llmReady)
-            IconButton(
-              icon: const Icon(Icons.download_rounded,
-                  color: Colors.orangeAccent),
-              tooltip: 'Download Phi-3 Mini LLM',
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ModelDownloadScreen(rag: widget.rag),
-                ),
-              ),
-            ),
           _PipelineDots(status: widget.rag.status),
           const SizedBox(width: 4),
           PopupMenuButton<String>(
@@ -365,6 +368,35 @@ class _SelectionPageState extends State<_SelectionPage>
           ),
         ),
       );
+
+  Widget _browseAllBtn() => SizedBox(
+        width: double.infinity,
+        child: OutlinedButton(
+          onPressed: _goToExploreScreen,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: _gold,
+            side: BorderSide(color: _gold.withOpacity(0.3)),
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            elevation: 0,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.list_rounded, size: 18),
+              SizedBox(width: 8),
+              Text(
+                'Browse All Locations',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
 }
 
 // ═══════════════════════════════════════════════════════
@@ -470,27 +502,50 @@ class _ResultsPage extends StatefulWidget {
   State<_ResultsPage> createState() => _ResultsPageState();
 }
 
-class _ResultsPageState extends State<_ResultsPage> {
+class _ResultsPageState extends State<_ResultsPage>
+    with SingleTickerProviderStateMixin {
   static const _gold = Color(0xFFE8B84B);
   static const _bg = Color(0xFF0D0800);
-  static const _surface = Color(0xFF160D00);
-  static const _border = Color(0xFF2C1A00);
+  static const _minLoadDuration = Duration(seconds: 8);
+  static const _phraseRotateDuration = Duration(seconds: 3);
+  static const _loadingPhrases = [
+    'Analyzing your request',
+    'Searching the local RAG index',
+    'Comparing heritage notes',
+    'Assembling the response',
+    'Finalizing details',
+  ];
 
   String _result = '';
   bool _loading = true;
   bool _streaming = false;
   String? _error;
+  int _phraseIndex = 0;
 
   final _scrollCtrl = ScrollController();
+  late final AnimationController _loaderCtrl;
+  Timer? _phraseTimer;
 
   @override
   void initState() {
     super.initState();
+    _loaderCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+    _phraseTimer = Timer.periodic(_phraseRotateDuration, (_) {
+      if (!mounted || !_loading) return;
+      setState(() {
+        _phraseIndex = (_phraseIndex + 1) % _loadingPhrases.length;
+      });
+    });
     _fetch();
   }
 
   @override
   void dispose() {
+    _phraseTimer?.cancel();
+    _loaderCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
   }
@@ -502,6 +557,9 @@ class _ResultsPageState extends State<_ResultsPage> {
       _error = null;
       _streaming = false;
     });
+
+    final minLoadFuture = Future<void>.delayed(_minLoadDuration);
+
     try {
       final answer = await widget.rag.ask(
         widget.location,
@@ -510,25 +568,28 @@ class _ResultsPageState extends State<_ResultsPage> {
           if (!mounted) return;
           setState(() {
             _result += token;
-            _loading = false;
             _streaming = true;
           });
           _scrollToBottom();
         },
       );
-      if (mounted)
+      await minLoadFuture;
+      if (mounted) {
         setState(() {
           _result = answer;
           _loading = false;
           _streaming = false;
         });
+      }
     } catch (e) {
-      if (mounted)
+      await minLoadFuture;
+      if (mounted) {
         setState(() {
           _error = e.toString();
           _loading = false;
           _streaming = false;
         });
+      }
     }
   }
 
@@ -649,39 +710,42 @@ class _ResultsPageState extends State<_ResultsPage> {
             constraints: BoxConstraints(
               maxWidth: isTablet ? 700 : double.infinity,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ① Status / mode row
-                _metaRow(),
+            child: _loading
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 40, 24, 24),
+                    child: _heavyLoadingPanel(animation: _loaderCtrl),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ① Status / mode row
+                      _metaRow(),
 
-                // ② ─────── FULL TEXT (prominent, no chrome) ──────
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(22, 4, 22, 0),
-                  child: _loading
-                      ? _shimmerBlock()
-                      : _error != null
-                          ? _errorCard()
-                          : _ResultText(text: _result),
-                ),
+                      // ② ─────── FULL TEXT (prominent, no chrome) ──────
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(22, 4, 22, 0),
+                        child: _error != null
+                            ? _errorCard()
+                            : _ResultText(text: _result),
+                      ),
 
-                // ③ ─────── PHOTOS SECTION (below all text) ───────
-                if (!_loading && _error == null) ...[
-                  const SizedBox(height: 44),
-                  _photoDivider(),
-                  const SizedBox(height: 20),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 22),
-                    child: _PhotoGrid(
-                      images: _images,
-                      locationName: widget.location,
-                    ),
+                      // ③ ─────── PHOTOS SECTION (below all text) ───────
+                      if (_error == null) ...[
+                        const SizedBox(height: 44),
+                        _photoDivider(),
+                        const SizedBox(height: 20),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 22),
+                          child: _PhotoGrid(
+                            images: _images,
+                            locationName: widget.location,
+                          ),
+                        ),
+                      ],
+
+                      SizedBox(height: 48 + bottomPad),
+                    ],
                   ),
-                ],
-
-                SizedBox(height: 48 + bottomPad),
-              ],
-            ),
           ),
         ),
       ),
@@ -737,7 +801,7 @@ class _ResultsPageState extends State<_ResultsPage> {
               ),
             )
           else if (_streaming)
-            _PulsingLabel(text: 'Generating…')
+            const _PulsingLabel(text: 'Generating…')
           else if (_error == null)
             Row(
               children: [
@@ -764,7 +828,7 @@ class _ResultsPageState extends State<_ResultsPage> {
   Widget _shimmerBlock() => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _Shimmer(width: 220, height: 24),
+          const _Shimmer(width: 220, height: 24),
           const SizedBox(height: 22),
           ...List.generate(
             7,
@@ -775,7 +839,7 @@ class _ResultsPageState extends State<_ResultsPage> {
             ),
           ),
           const SizedBox(height: 22),
-          _Shimmer(width: 160, height: 18),
+          const _Shimmer(width: 160, height: 18),
           const SizedBox(height: 14),
           ...List.generate(
             4,
@@ -787,6 +851,123 @@ class _ResultsPageState extends State<_ResultsPage> {
           ),
         ],
       );
+
+  Widget _heavyLoadingPanel({required Animation<double> animation}) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, _) {
+        final pulse =
+            0.94 + (math.sin(animation.value * math.pi * 2).abs() * 0.06);
+        final phrase = _loadingPhrases[_phraseIndex];
+        final dots = List.generate(3, (index) {
+          final phase = (animation.value + index * 0.18) % 1.0;
+          final glow = 0.35 + (math.sin(phase * math.pi).abs() * 0.65);
+          return Container(
+            width: 10,
+            height: 10,
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _gold.withOpacity(glow),
+              boxShadow: [
+                BoxShadow(
+                  color: _gold.withOpacity(glow * 0.45),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+          );
+        });
+
+        return Center(
+          child: Transform.scale(
+            scale: pulse,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 26),
+              decoration: BoxDecoration(
+                color: _gold.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: _gold.withOpacity(0.18)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.28),
+                    blurRadius: 24,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      SizedBox(
+                        width: 76,
+                        height: 76,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 3.2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                              _gold.withOpacity(0.85)),
+                          backgroundColor: Colors.white.withOpacity(0.08),
+                        ),
+                      ),
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _gold.withOpacity(0.14),
+                        ),
+                        child: Icon(
+                          Icons.auto_awesome_rounded,
+                          color: _gold.withOpacity(0.95),
+                          size: 22,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    phrase,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.92),
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Processing local knowledge and ranking the most relevant details.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.55),
+                      fontSize: 13,
+                      height: 1.45,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: dots,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'This is fast, but it still looks like heavy work.',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.32),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   Widget _errorCard() => Container(
         padding: const EdgeInsets.all(20),
@@ -1489,7 +1670,7 @@ class _PipelineDots extends StatelessWidget {
           const SizedBox(width: 3),
           _D('V', status.vectorStoreReady),
           const SizedBox(width: 3),
-          _D('L', status.llmReady),
+          _D('R', true),
           const SizedBox(width: 3),
           _D('C', status.cacheReady),
         ],

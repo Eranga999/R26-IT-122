@@ -1,6 +1,4 @@
 import 'dart:math';
-import 'dart:typed_data';
-import 'dart:ui';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/services.dart';
@@ -73,7 +71,7 @@ class RecognitionService {
         return;
       }
       final options = InterpreterOptions()..threads = 4;
-      _interpreter = await Interpreter.fromBuffer(
+      _interpreter = Interpreter.fromBuffer(
         modelBytes,
         options: options,
       );
