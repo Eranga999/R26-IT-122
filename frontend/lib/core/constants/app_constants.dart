@@ -15,7 +15,7 @@ class AppConstants {
 
   // ── Database ──────────────────────────────────────────────────────────────
   static const String dbName = 'heritage_ar.db';
-  static const int dbVersion = 2;
+  static const int dbVersion = 3;
   static const String landmarksTable = 'landmarks';
   static const String subLandmarksTable = 'sub_landmarks';
 

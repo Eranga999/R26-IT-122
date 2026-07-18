@@ -3,7 +3,10 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
+import '../../core/location/site_geofence.dart';
+import '../../core/location/site_lock_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../features/recognition/recognition_service.dart';
 import '../../features/database/database_helper.dart';
@@ -15,34 +18,72 @@ import '../rag/rag_screen.dart';
 import '../navigation/nav_screen.dart';
 import '../home/home_screen.dart';
 
-class CameraScreen extends StatefulWidget {
-  const CameraScreen({
-    super.key,
-    this.lockedLandmarkId,
-    this.lockedLandmarkName,
-  });
+/// Verification state of the GPS geofence check.
+enum _VerifyStatus { verifying, locked, outside, failed, manual }
 
-  final int? lockedLandmarkId;
-  final String? lockedLandmarkName;
+class CameraScreen extends StatefulWidget {
+  const CameraScreen({super.key});
 
   @override
   State<CameraScreen> createState() => _CameraScreenState();
 }
 
 class _CameraScreenState extends State<CameraScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   CameraController? _controller;
   String? _cameraError;
   bool _isProcessing = false;
   int _lastProcessTime = 0; // for throttling
   int _lastPanelUpdateTime = 0;
   String? _lastPanelLabel;
+  final Map<int, LandmarkModel> _landmarkCache = {};
+  final Map<int, List<SubLandmarkModel>> _subCache = {};
 
-  static const int _frameThrottleMs = 500;
-  static const int _sameLabelPanelCooldownMs = 1200;
+  // ── GPS / site verification state ─────────────────────────────────────────
+  _VerifyStatus _verifyStatus = _VerifyStatus.verifying;
+  SiteLockResult? _siteLock;
+  List<String> _allowedLabels = const [];
+
+  bool get _canRunDetector =>
+      (_verifyStatus == _VerifyStatus.locked ||
+          _verifyStatus == _VerifyStatus.manual) &&
+      _allowedLabels.isNotEmpty;
+
+  static const int _sameLabelPanelCooldownMs = 1500;
 
   // ── Live detection state (shown while scanning) ────────────────────────────
   List<DetectionResult> _liveDetections = []; // real-time boxes on camera
+
+  // ── Bounding-box smoothing ────────────────────────────────────────────────
+  Rect? _smoothedBoxRect; // exponentially smoothed box
+  static const double _boxAlpha = 0.6; // weight for new position (higher = faster tracking)
+
+  // ── False positive protection (Stable detection tracking) ──────────────────
+  String? _candidateLabel;
+  int _candidateCount = 0;
+  int _lastConfirmedTime = 0;
+  static const int _panelHoldMs = 2500;
+
+  bool get _isGpsLocked => _verifyStatus == _VerifyStatus.locked;
+  double get _modelThreshold => _isGpsLocked ? 0.75 : 0.80;
+  double get _cardThreshold => _isGpsLocked ? 0.80 : 0.85;
+  int get _requiredFrames => _isGpsLocked ? 3 : 4;
+
+  bool _isStableDetection(DetectionResult bestDetection) {
+    if (bestDetection.confidence < _cardThreshold) {
+      _candidateCount = 0;
+      return false;
+    }
+
+    if (bestDetection.label == _candidateLabel) {
+      _candidateCount++;
+    } else {
+      _candidateLabel = bestDetection.label;
+      _candidateCount = 1;
+    }
+
+    return _candidateCount >= _requiredFrames;
+  }
 
   // ── Info-panel state (opened when confident enough) ────────────────────────
   LandmarkModel? _detectedLandmark;
@@ -53,6 +94,9 @@ class _CameraScreenState extends State<CameraScreen>
   bool _panelVisible = false;
 
   late final AnimationController _pulseAnim;
+  late final AnimationController _cardAnim;
+  late final Animation<double> _cardFade;
+  late final Animation<Offset> _cardSlide;
 
   @override
   void initState() {
@@ -60,10 +104,116 @@ class _CameraScreenState extends State<CameraScreen>
     _pulseAnim =
         AnimationController(vsync: this, duration: const Duration(seconds: 2))
           ..repeat(reverse: true);
+    _cardAnim = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 350));
+    _cardFade = CurvedAnimation(parent: _cardAnim, curve: Curves.easeOut);
+    _cardSlide = Tween<Offset>(
+            begin: const Offset(0, 0.25), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _cardAnim, curve: Curves.easeOut));
+    // Always open camera immediately — do not wait for GPS.
     if (!_isDesktop) {
       _initCamera();
-      RecognitionService.instance.loadModel();
     }
+    // GPS verification runs concurrently in the background.
+    _verifyGpsInBackground();
+  }
+
+  /// Runs GPS geofencing in the background after the camera is already open.
+  Future<void> _verifyGpsInBackground() async {
+    final result = await SiteLockService.instance.lockSiteByGps();
+    if (!mounted) return;
+    final labels = RecognitionService.labelsForSite(result.site?.landmarkName);
+    setState(() {
+      _siteLock = result;
+      _allowedLabels = labels;
+      switch (result.status) {
+        case SiteLockStatus.locked:
+          _verifyStatus = _VerifyStatus.locked;
+        case SiteLockStatus.outOfRange:
+          _verifyStatus = _VerifyStatus.outside;
+        default:
+          // permissionDenied, serviceDisabled, timeout, error
+          _verifyStatus = _VerifyStatus.failed;
+      }
+    });
+    if (_canRunDetector) {
+      RecognitionService.instance.loadModel();
+      // Pre-warm DB cache once the site is confirmed.
+      Future.microtask(() async {
+        final all = await DatabaseHelper.instance.getAllLandmarks();
+        for (final lm in all) {
+          if (lm.id == null || !mounted) continue;
+          _landmarkCache[lm.id!] = lm;
+          _subCache[lm.id!] =
+              await DatabaseHelper.instance.getSubLandmarks(lm.id!);
+        }
+      });
+    }
+  }
+
+  /// Shows the manual site-selection bottom sheet from within the camera screen.
+  Future<void> _selectManualSite() async {
+    final sites = await SiteLockService.instance.loadSites();
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF1A0A00),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Center(
+              child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                      color: Colors.white30,
+                      borderRadius: BorderRadius.circular(2)))),
+          const Text('Select Your Current Site',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          const Text(
+              'GPS is unavailable — choose your heritage site manually.',
+              style: TextStyle(color: Colors.white54, fontSize: 12)),
+          const SizedBox(height: 16),
+          ...sites.map((site) => ListTile(
+                leading: const Icon(Icons.place_rounded,
+                    color: Color(0xFFFFB300)),
+                title: Text(site.landmarkName,
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w600)),
+                subtitle: Text(site.landmarkId,
+                    style:
+                        const TextStyle(color: Colors.white54, fontSize: 12)),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final labels =
+                      RecognitionService.labelsForSite(site.landmarkName);
+                  setState(() {
+                    _siteLock = SiteLockResult.manual(site: site);
+                    _allowedLabels = labels;
+                    _verifyStatus = _VerifyStatus.manual;
+                  });
+                  RecognitionService.instance.loadModel();
+                  final all = await DatabaseHelper.instance.getAllLandmarks();
+                  for (final lm in all) {
+                    if (lm.id == null || !mounted) continue;
+                    _landmarkCache[lm.id!] = lm;
+                    _subCache[lm.id!] =
+                        await DatabaseHelper.instance.getSubLandmarks(lm.id!);
+                  }
+                },
+              )),
+        ]),
+      ),
+    );
   }
 
   bool get _isDesktop =>
@@ -89,55 +239,82 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> _processFrame(CameraImage image) async {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    if (_isProcessing || (now - _lastProcessTime < _frameThrottleMs)) return;
+    if (!_canRunDetector) return;
+    if (!mounted) return;
+    if (_isProcessing) return;
     _isProcessing = true;
-    _lastProcessTime = now;
     try {
+      // 1. Get results from service
       final results = await RecognitionService.instance.predictAll(
         image,
         sensorOrientation: _controller?.description.sensorOrientation ?? 0,
-        threshold: 0.55, // keep weak empty-frame detections off the overlay
+        threshold: _modelThreshold,
+        allowedLabels: _allowedLabels.toSet(),
       );
-
+      _isProcessing = false;
       if (!mounted) return;
 
-      if (kDebugMode) {
-        debugPrint('[Scan] ${results.length} detections | '
-            'previewSize=${_controller?.value.previewSize} | '
-            'sensor=${_controller?.description.sensorOrientation}°');
-        for (final r in results) {
-          debugPrint(
-              '  -> ${r.label} ${(r.confidence * 100).toStringAsFixed(1)}% box=${r.boundingBox}');
-        }
-      }
-
-      // Filter out very small boxes (likely noise) before updating overlay.
-      // Also ensure the active detection is cleared when there are no live boxes
-      // so the previous overlay doesn't persist when pointing at empty space.
-      final minArea = 0.01; // normalised area (1% of frame)
+      // Filter out very small boxes (likely noise)
+      const minArea = 0.01; // normalised area (1% of frame)
       final filtered = results
           .where((r) => (r.boundingBox.width * r.boundingBox.height) >= minArea)
           .toList(growable: false);
 
-      if (!mounted) return;
-      setState(() {
-        _liveDetections = filtered;
-        if (filtered.isEmpty) {
-          // remove the active bounding box so overlay disappears
-          _activeDetection = null;
+      // ── Bounding-box smoothing ────────────────────────────────────────────
+      if (filtered.isNotEmpty) {
+        // Find the most confident current box
+        final bestBox = filtered.reduce((a, b) => a.confidence > b.confidence ? a : b).boundingBox;
+        
+        // Immediate exponential smoothing
+        final old = _smoothedBoxRect;
+        if (old == null) {
+          _smoothedBoxRect = bestBox;
+        } else {
+          _smoothedBoxRect = Rect.fromLTRB(
+            old.left * (1 - _boxAlpha) + bestBox.left * _boxAlpha,
+            old.top  * (1 - _boxAlpha) + bestBox.top  * _boxAlpha,
+            old.right  * (1 - _boxAlpha) + bestBox.right  * _boxAlpha,
+            old.bottom * (1 - _boxAlpha) + bestBox.bottom * _boxAlpha,
+          );
         }
-      });
+      } else {
+        _smoothedBoxRect = null;
+      }
 
-      // Open the info panel only when confident enough (apply to filtered list)
-      final highConf = filtered
-          .where((r) => r.confidence >= 0.50)
-          .fold<DetectionResult?>(
-              null,
-              (best, r) =>
-                  best == null || r.confidence > best.confidence ? r : best);
+      if (!mounted) return;
+      final now = DateTime.now().millisecondsSinceEpoch;
 
-      if (highConf != null) await _onLandmarkDetected(highConf);
+      if (filtered.isNotEmpty) {
+        final bestBox = filtered.reduce((a, b) => a.confidence > b.confidence ? a : b);
+        
+        if (_isStableDetection(bestBox)) {
+          _lastConfirmedTime = now;
+          if (!_panelVisible || _activeDetection?.label != bestBox.label) {
+             Future.microtask(() => _onLandmarkDetected(bestBox));
+          } else {
+             // Just implicitly update the UI state inside the active panel
+             setState(() {
+                _activeDetection = bestBox;
+                _confidence = bestBox.confidence;
+                _liveDetections = filtered;
+             });
+          }
+        } else if (_panelVisible) {
+           if (now - _lastConfirmedTime > _panelHoldMs) {
+             _dismissPanel();
+           } else {
+             setState(() => _liveDetections = filtered);
+           }
+        } else {
+           setState(() => _liveDetections = filtered);
+        }
+      } else {
+        if (_panelVisible && (now - _lastConfirmedTime > _panelHoldMs)) {
+           _dismissPanel();
+        } else {
+           setState(() => _liveDetections = []);
+        }
+      }
     } catch (e) {
       if (kDebugMode) debugPrint('[Scan] frame error: $e');
     } finally {
@@ -148,39 +325,33 @@ class _CameraScreenState extends State<CameraScreen>
   Future<void> _onLandmarkDetected(DetectionResult detection) async {
     final now = DateTime.now().millisecondsSinceEpoch;
 
-    // Prevent rapid re-opening/updating for the same class on consecutive frames.
-    if (_lastPanelLabel == detection.label &&
-        (now - _lastPanelUpdateTime) < _sameLabelPanelCooldownMs) {
-      return;
-    }
-
     final id = _labelToId(detection.label);
-    if (id == null) {
-      if (kDebugMode) {
-        debugPrint('Ignoring unsupported detection label: ${detection.label}');
-      }
-      return;
-    }
-    if (widget.lockedLandmarkId != null && id != widget.lockedLandmarkId) {
+    if (id == null) return;
+
+    // Use current site lock if available to filter relevant detections
+    if (_siteLock?.site?.landmarkDbId != null &&
+        id != _siteLock!.site!.landmarkDbId) {
       return;
     }
 
-    // If the same landmark is already on panel, just refresh confidence/box.
+    // Ignore repeat calls if we're already rendering this panel
     if (_panelVisible && _detectedLandmark?.id == id) {
-      if (!mounted) return;
-      setState(() {
-        _activeDetection = detection;
-        _detectedClassLabel = detection.label;
-        _confidence = detection.confidence;
-      });
-      _lastPanelLabel = detection.label;
-      _lastPanelUpdateTime = now;
-      return;
+       return;
     }
 
-    final lm = await DatabaseHelper.instance.getLandmarkById(id);
-    if (lm == null || !mounted) return;
-    final subs = await DatabaseHelper.instance.getSubLandmarks(id);
+    LandmarkModel? lm;
+    List<SubLandmarkModel> subs;
+    if (_landmarkCache.containsKey(id)) {
+      lm = _landmarkCache[id];
+      subs = _subCache[id] ?? [];
+    } else {
+      lm = await DatabaseHelper.instance.getLandmarkById(id);
+      if (lm == null || !mounted) return;
+      subs = await DatabaseHelper.instance.getSubLandmarks(id);
+      if (!mounted) return;
+      _landmarkCache[id] = lm;
+      _subCache[id] = subs;
+    }
     if (!mounted) return;
     setState(() {
       _detectedLandmark = lm;
@@ -190,40 +361,44 @@ class _CameraScreenState extends State<CameraScreen>
       _confidence = detection.confidence;
       _panelVisible = true;
     });
+    // Animate the floating card in
+    _cardAnim.forward(from: 0);
+    HapticFeedback.mediumImpact();
     _lastPanelLabel = detection.label;
     _lastPanelUpdateTime = now;
   }
 
   int? _labelToId(String label) {
     final normalized = label.trim().toLowerCase();
-    const m = {
-      'sigiriya_lion_paws': 1,
-      'sigiriya_lion_rock': 1,
-      'sigiriya_mirror_wall': 1,
-      'sigiriya_throne': 1,
-      'sigiriya_ticket_counter': 1,
-      'sigiriya': 1,
-      'dambulla': 2,
-      'dambulla cave temple': 2,
-      'polonnaruwa': 3,
-    };
-    return m[normalized];
+    // Broad matching: any class starting with 'sigiriya' belongs to ID 1
+    if (normalized.contains('sigiriya')) return 1;
+    if (normalized.contains('dambulla')) return 2;
+    if (normalized.contains('polonnaruwa')) return 3;
+    
+    // Fallback directly to the indices if labels are just numbers or generic
+    return null;
   }
 
-  void _dismissPanel() => setState(() {
-        _panelVisible = false;
-        _detectedLandmark = null;
-        _activeDetection = null;
-        _detectedClassLabel = null;
-        _subLandmarks = [];
-        _liveDetections = [];
-      });
+  void _dismissPanel() {
+    _cardAnim.reverse();
+    setState(() {
+      _panelVisible = false;
+      _detectedLandmark = null;
+      _activeDetection = null;
+      _detectedClassLabel = null;
+      _subLandmarks = [];
+      _candidateCount = 0;
+      _candidateLabel = null;
+    });
+  }
 
   Future<void> _showDemoPicker() async {
     final landmarks = await DatabaseHelper.instance.getAllLandmarks();
-    final options = widget.lockedLandmarkId == null
+    final options = _siteLock?.site?.landmarkDbId == null
         ? landmarks
-        : landmarks.where((lm) => lm.id == widget.lockedLandmarkId).toList();
+        : landmarks
+            .where((lm) => lm.id == _siteLock?.site?.landmarkDbId)
+            .toList();
 
     if (!mounted) return;
     showModalBottomSheet(
@@ -254,9 +429,9 @@ class _CameraScreenState extends State<CameraScreen>
                     fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
             Text(
-                widget.lockedLandmarkName == null
+                _siteLock?.site?.landmarkName == null
                     ? 'Select a landmark to preview the AR overlay'
-                    : 'Site lock active: ${widget.lockedLandmarkName}',
+                    : 'Site lock active: ${_siteLock?.site?.landmarkName}',
                 style: const TextStyle(color: Colors.white54, fontSize: 12)),
             const SizedBox(height: 16),
             ...options.map((lm) => ListTile(
@@ -294,6 +469,7 @@ class _CameraScreenState extends State<CameraScreen>
   @override
   void dispose() {
     _pulseAnim.dispose();
+    _cardAnim.dispose();
     _controller?.dispose();
     RecognitionService.instance.dispose();
     super.dispose();
@@ -315,7 +491,7 @@ class _CameraScreenState extends State<CameraScreen>
         // Live bounding-box overlay – shown while scanning AND after panel opens
         if (_liveDetections.isNotEmpty || _activeDetection != null)
           Positioned.fill(
-            child: IgnorePointer(
+            child: RepaintBoundary(
               child: CustomPaint(
                 painter: _DetectionOverlayPainter(
                   detections: _panelVisible && _activeDetection != null
@@ -329,48 +505,9 @@ class _CameraScreenState extends State<CameraScreen>
             ),
           ),
 
-        // Debug Stats
-        if (kDebugMode)
-          Positioned(
-            top: 100,
-            left: 20,
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('DEBUG SCANNER',
-                      style: TextStyle(
-                          color: Colors.yellow,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  Text(
-                      'Model Input: ${RecognitionService.instance.inputWidth}x${RecognitionService.instance.inputHeight}',
-                      style:
-                          const TextStyle(color: Colors.white, fontSize: 10)),
-                  Text('Live Detections: ${_liveDetections.length}',
-                      style: const TextStyle(
-                          color: Colors.greenAccent,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold)),
-                  if (_liveDetections.isNotEmpty)
-                    Text(
-                        'Top Conf: ${(_liveDetections.first.confidence * 100).toStringAsFixed(0)}%',
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 10)),
-                  if (RecognitionService.instance.loadError != null)
-                    Text('ERROR: ${RecognitionService.instance.loadError}',
-                        style: const TextStyle(
-                            color: Colors.redAccent, fontSize: 9)),
-                ],
-              ),
-            ),
-          ),
+        // GPS / site verification status overlay (banners, spinner, manual pick)
+        if (!_panelVisible)
+          _buildGpsStatusOverlay(),
 
         // Top bar
         Positioned(
@@ -396,7 +533,7 @@ class _CameraScreenState extends State<CameraScreen>
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         fontFamily: 'Georgia')),
-                if (widget.lockedLandmarkName != null) ...[
+                if (_siteLock?.site?.landmarkName != null) ...[
                   const SizedBox(width: 8),
                   Flexible(
                     child: Container(
@@ -408,7 +545,7 @@ class _CameraScreenState extends State<CameraScreen>
                         border: Border.all(color: Colors.white30),
                       ),
                       child: Text(
-                        widget.lockedLandmarkName!,
+                        _siteLock!.site!.landmarkName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style:
@@ -418,48 +555,18 @@ class _CameraScreenState extends State<CameraScreen>
                   ),
                 ],
                 const Spacer(),
-                if (_panelVisible && _detectedLandmark != null)
-                  Flexible(
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: Container(
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.42,
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 5),
-                        decoration: BoxDecoration(
-                            color: Colors.green.withOpacity(0.85),
-                            borderRadius: BorderRadius.circular(20)),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          const Icon(Icons.check_circle_rounded,
-                              color: Colors.white, size: 14),
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Text(
-                              '${_detectedClassLabel ?? _detectedLandmark!.name} • ${(_confidence * 100).toStringAsFixed(0)}%',
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                        ]),
-                      ),
-                    ),
-                  ),
+                const Spacer(),
               ]),
             )),
 
         if (_controller?.value.isInitialized == true && !_panelVisible)
           _buildScanFrame(),
 
-        if (_panelVisible && _detectedLandmark != null) _buildArPanel(),
+        if (_panelVisible && _detectedLandmark != null) _buildFloatingDetectionCard(),
 
-        if (widget.lockedLandmarkId != null &&
-            widget.lockedLandmarkId != 1 &&
+        if (_canRunDetector &&
+            _siteLock?.site?.landmarkDbId != null &&
+            _siteLock?.site?.landmarkDbId != 1 &&
             !_panelVisible)
           Positioned(
               top: 162,
@@ -471,7 +578,8 @@ class _CameraScreenState extends State<CameraScreen>
           Positioned(
               bottom: 32, left: 24, right: 24, child: _buildBottomLabel()),
       ]),
-      floatingActionButton: (!_panelVisible &&
+      floatingActionButton: (_canRunDetector &&
+              !_panelVisible &&
               _cameraError == null &&
               _controller?.value.isInitialized == true)
           ? FloatingActionButton.extended(
@@ -486,7 +594,7 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Widget _buildUnsupportedSiteBanner() {
-    final siteName = widget.lockedLandmarkName ?? 'this site';
+    final siteName = _siteLock?.site?.landmarkName ?? 'this site';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
@@ -499,7 +607,7 @@ class _CameraScreenState extends State<CameraScreen>
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            'Live recognition currently supports Sigiriya only. $siteName is available in the app, but this camera flow will not auto-detect it.',
+            'Live recognition is limited to the locked site profile. $siteName is available in the app, but no detector is running for unsupported labels.',
             style: const TextStyle(
                 color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
           ),
@@ -508,360 +616,297 @@ class _CameraScreenState extends State<CameraScreen>
     );
   }
 
-  Widget _buildArPanel() {
-    final lm = _detectedLandmark!;
-    final idx = ((lm.id ?? 1) - 1);
-    const gs = [
-      [Color(0xFFB71C1C), Color(0xFFE53935)],
-      [Color(0xFFE65100), Color(0xFFFF8F00)],
-      [Color(0xFF1A237E), Color(0xFF3949AB)],
-    ];
-    final colors = gs[idx % gs.length];
-    final histSnip = lm.history.isNotEmpty
-        ? '${lm.history.split('. ').take(2).join('. ')}.'
-        : lm.description;
+  // ── GPS status overlay ──────────────────────────────────────────────────────────────
 
+  /// Returns the correct top-of-screen overlay for the current GPS state.
+  /// Returns an empty [SizedBox] when no overlay is needed (e.g. locked state).
+  Widget _buildGpsStatusOverlay() {
+    switch (_verifyStatus) {
+      case _VerifyStatus.verifying:
+        return _statusBanner(
+          icon: Icons.gps_not_fixed_rounded,
+          color: Colors.blueGrey.shade700,
+          message: 'Verifying your heritage site...',
+          showSpinner: true,
+        );
+      case _VerifyStatus.failed:
+        return _statusBanner(
+          icon: Icons.gps_off_rounded,
+          color: Colors.orange.shade800,
+          message:
+              'Enable GPS or verify your site to start landmark detection.',
+          actionLabel: 'Select your current site',
+          onAction: _selectManualSite,
+        );
+      case _VerifyStatus.outside:
+        return _statusBanner(
+          icon: Icons.location_off_rounded,
+          color: Colors.red.shade700,
+          message: 'You are outside a supported heritage site.',
+          actionLabel: 'Select your current site',
+          onAction: _selectManualSite,
+        );
+      case _VerifyStatus.manual:
+        return _statusBanner(
+          icon: Icons.touch_app_rounded,
+          color: Colors.teal.shade700,
+          message:
+              'Manual Site Mode: ${_siteLock?.site?.landmarkName ?? ''}',
+        );
+      case _VerifyStatus.locked:
+        return const SizedBox.shrink(); // no banner in GPS-locked state
+    }
+  }
+
+  Widget _statusBanner({
+    required IconData icon,
+    required Color color,
+    required String message,
+    bool showSpinner = false,
+    String? actionLabel,
+    VoidCallback? onAction,
+  }) {
     return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: DraggableScrollableSheet(
-        initialChildSize: 0.52,
-        minChildSize: 0.30,
-        maxChildSize: 0.92,
-        snap: true,
-        snapSizes: const [0.30, 0.52, 0.92],
-        builder: (context, sc) => Container(
-          decoration: const BoxDecoration(
-              color: Color(0xFFFFF8F0),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-              boxShadow: [
-                BoxShadow(
-                    blurRadius: 24,
-                    color: Colors.black54,
-                    offset: Offset(0, -4))
-              ]),
-          child: SingleChildScrollView(
-              controller: sc,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                      child: Container(
-                          width: 40,
-                          height: 4,
-                          margin: const EdgeInsets.only(top: 12),
-                          decoration: BoxDecoration(
-                              color: Colors.grey.shade400,
-                              borderRadius: BorderRadius.circular(2)))),
-
-                  // Header
-                  Container(
-                    margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                        gradient: LinearGradient(colors: colors),
-                        borderRadius: BorderRadius.circular(20)),
-                    child: Row(children: [
-                      Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
-                              shape: BoxShape.circle),
-                          child: const Icon(Icons.account_balance_rounded,
-                              color: Colors.white, size: 28)),
-                      const SizedBox(width: 14),
-                      Expanded(
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                            Text(lm.name,
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontFamily: 'Georgia',
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 4),
-                            Row(children: [
-                              const Icon(Icons.location_on_rounded,
-                                  color: Colors.white70, size: 13),
-                              const SizedBox(width: 3),
-                              const Text('Sri Lanka',
-                                  style: TextStyle(
-                                      color: Colors.white70, fontSize: 12)),
-                              const SizedBox(width: 10),
-                              Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 7, vertical: 2),
-                                  decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(8)),
-                                  child: const Text('UNESCO',
-                                      style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600))),
-                            ]),
-                          ])),
-                      IconButton(
-                          icon: const Icon(Icons.close_rounded,
-                              color: Colors.white70),
-                          onPressed: _dismissPanel),
-                    ]),
-                  ),
-
-                  // Quick facts
-                  Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 12),
-                        decoration: BoxDecoration(
+      top: 86,
+      left: 16,
+      right: 16,
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.92),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                if (showSpinner)
+                  const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white)))
+                else
+                  Icon(icon, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                    child: Text(message,
+                        style: const TextStyle(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2))
-                            ]),
-                        child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: _quickFacts(lm.id ?? 1)
-                                .map((f) => _FactPill(
-                                    label: f[0],
-                                    value: f[1],
-                                    color: Color(colors[0].value)))
-                                .toList()),
-                      )),
-
-                  // History
-
-                  if (_activeDetection != null)
-                    Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                              color: const Color(0xFFF3E5AB),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color:
-                                      Color(colors[0].value).withOpacity(0.2))),
-                          child: Text(
-                            'Detected class: ${_detectedClassLabel ?? _activeDetection!.label}\n'
-                            'Confidence: ${(_confidence * 100).toStringAsFixed(1)}%\n'
-                            'BBox: ${_bboxText(_activeDetection!.boundingBox)}',
-                            style: const TextStyle(
-                                color: Color(0xFF4E342E),
-                                fontSize: 12.5,
-                                height: 1.6,
-                                fontWeight: FontWeight.w600),
-                          ),
-                        )),
-                  Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(children: [
-                              Icon(Icons.history_edu_rounded,
-                                  color: Color(colors[0].value), size: 18),
-                              const SizedBox(width: 6),
-                              const Text('History',
-                                  style: TextStyle(
-                                      fontFamily: 'Georgia',
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF1A0A00))),
-                            ]),
-                            const SizedBox(height: 8),
-                            Text(histSnip,
-                                style: const TextStyle(
-                                    color: Color(0xFF4E342E),
-                                    fontSize: 13.5,
-                                    height: 1.65)),
-                          ])),
-
-                  // Sub-landmarks
-                  if (_subLandmarks.isNotEmpty) ...[
-                    Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
-                        child: Row(children: [
-                          Icon(Icons.place_rounded,
-                              color: Color(colors[0].value), size: 18),
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w500))),
+              ]),
+              if (actionLabel != null && onAction != null) ...[
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: onAction,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white38),
+                    ),
+                    child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.place_rounded,
+                              color: Colors.white, size: 14),
                           const SizedBox(width: 6),
-                          const Text('Points of Interest',
-                              style: TextStyle(
-                                  fontFamily: 'Georgia',
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1A0A00))),
-                          const Spacer(),
-                          Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                  color:
-                                      Color(colors[0].value).withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(10)),
-                              child: Text('${_subLandmarks.length} stops',
-                                  style: TextStyle(
-                                      color: Color(colors[0].value),
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600))),
-                        ])),
-                    const SizedBox(height: 10),
-                    ..._subLandmarks.take(4).map((sub) => Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                    color: Colors.black.withOpacity(0.04),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2))
-                              ]),
-                          child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                    width: 34,
-                                    height: 34,
-                                    decoration: BoxDecoration(
-                                        color: Color(colors[0].value)
-                                            .withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(8)),
-                                    child: Icon(_subTypeIcon(sub.type),
-                                        color: Color(colors[0].value),
-                                        size: 18)),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                    child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                      Text(sub.name,
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 13,
-                                              color: Color(0xFF2D1B0E))),
-                                      const SizedBox(height: 2),
-                                      Text(sub.description,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                              color: Color(0xFF6D4C41),
-                                              fontSize: 12,
-                                              height: 1.5)),
-                                    ])),
-                              ]),
-                        ))),
-                  ],
-
-                  // Action buttons
-                  Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                      child: SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                              onPressed: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) =>
-                                          LandmarkDetailScreen(landmark: lm))),
-                              icon: const Icon(Icons.open_in_full_rounded,
-                                  size: 18),
-                              label: const Text('View Full Details'),
-                              style: ElevatedButton.styleFrom(
-                                  backgroundColor: Color(colors[0].value),
-                                  foregroundColor: Colors.white,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 15),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14)),
-                                  textStyle: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w700))))),
-
-                  // View AR button – reflects device capability
-                  Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                      child: SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                              onPressed: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => ArScreen(landmark: lm))),
-                              icon: const Icon(Icons.view_in_ar_rounded,
-                                  size: 18),
-                              label: const Text('Launch AR'),
-                              style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF00695C),
-                                  foregroundColor: Colors.white,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 15),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14)),
-                                  textStyle: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w700))))),
-
-                  Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                      child: Row(children: [
-                        Expanded(
-                            child: ElevatedButton.icon(
-                                onPressed: () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) =>
-                                            RagScreen(landmarkName: lm.name))),
-                                icon: const Icon(Icons.smart_toy_rounded,
-                                    size: 17),
-                                label: const Text('Ask AI'),
-                                style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFFFFB300),
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 13),
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12))))),
-                        const SizedBox(width: 10),
-                        Expanded(
-                            child: ElevatedButton.icon(
-                                onPressed: () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) =>
-                                            NavScreen(landmarkName: lm.name))),
-                                icon:
-                                    const Icon(Icons.explore_rounded, size: 17),
-                                label: const Text('Navigate'),
-                                style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF37474F),
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 13),
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12))))),
-                      ])),
-
-                  const SizedBox(height: 24),
-                ],
-              )),
+                          Text(actionLabel,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600)),
+                        ]),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
   }
+
+
+
+  /// Compact glassmorphism floating card — slides up from bottom on detection.
+  Widget _buildFloatingDetectionCard() {
+    final lm = _detectedLandmark!;
+    return Positioned(
+      bottom: 24,
+      left: 16,
+      right: 16,
+      child: FadeTransition(
+        opacity: _cardFade,
+        child: SlideTransition(
+          position: _cardSlide,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                      color: Colors.white.withOpacity(0.25), width: 1),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8)),
+                  ],
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header row
+                    Row(children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withOpacity(0.3),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: AppTheme.secondary.withOpacity(0.5)),
+                        ),
+                        child: const Icon(Icons.account_balance_rounded,
+                            color: Colors.white, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '🏛 ${lm.name}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontFamily: 'Georgia',
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Confidence: ${(_confidence * 100).toStringAsFixed(0)}%',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.75),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: _dismissPanel,
+                        child: Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.close_rounded,
+                              color: Colors.white70, size: 16),
+                        ),
+                      ),
+                    ]),
+                    const SizedBox(height: 14),
+                    // Action buttons
+                    Row(children: [
+                      Expanded(
+                        child: _glassButton(
+                          label: '  Details',
+                          icon: Icons.open_in_full_rounded,
+                          onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      LandmarkDetailScreen(landmark: lm))),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _glassButton(
+                          label: '  Navigate',
+                          icon: Icons.explore_rounded,
+                          onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      NavScreen(landmarkName: lm.name))),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _glassButton(
+                          label: '  Ask AI',
+                          icon: Icons.smart_toy_rounded,
+                          color: AppTheme.secondary,
+                          onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      RagScreen(landmarkName: lm.name))),
+                        ),
+                      ),
+                    ]),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _glassButton({
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+    Color? color,
+  }) {
+    final bg = (color ?? Colors.white).withOpacity(0.18);
+    final fg = color ?? Colors.white;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: fg.withOpacity(0.35)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: fg, size: 15),
+            Text(label,
+                style: TextStyle(
+                    color: fg,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+    );
+  }
+
+
 
   List<List<String>> _quickFacts(int id) {
     const f1 = [
@@ -1275,6 +1320,10 @@ class _DetectionOverlayPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _DetectionOverlayPainter old) =>
-      old.detections != detections;
+  bool shouldRepaint(covariant _DetectionOverlayPainter old) {
+    if (old.detections.length != detections.length) return true;
+    if (detections.isEmpty) return false;
+    return old.detections.first.label != detections.first.label ||
+        old.detections.first.boundingBox != detections.first.boundingBox;
+  }
 }
