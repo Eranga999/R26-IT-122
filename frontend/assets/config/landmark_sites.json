@@ -1,0 +1,29 @@
+[
+  {
+    "landmark_id": "LM_SIGIRIYA",
+    "landmark_name": "Sigiriya",
+    "landmark_db_id": 1,
+    "center_lat": 7.957,
+    "center_lng": 80.7603,
+    "radius_m": 700,
+    "priority": 1
+  },
+  {
+    "landmark_id": "LM_DAMBULLA",
+    "landmark_name": "Dambulla Cave Temple",
+    "landmark_db_id": 2,
+    "center_lat": 7.8567,
+    "center_lng": 80.6499,
+    "radius_m": 800,
+    "priority": 1
+  },
+  {
+    "landmark_id": "LM_POLONNARUWA",
+    "landmark_name": "Polonnaruwa",
+    "landmark_db_id": 3,
+    "center_lat": 7.9403,
+    "center_lng": 81.0188,
+    "radius_m": 1200,
+    "priority": 1
+  }
+]

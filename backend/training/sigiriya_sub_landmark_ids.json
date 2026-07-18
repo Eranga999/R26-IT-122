@@ -1,0 +1,12 @@
+{
+  "LM_SIGIRIYA": {
+    "landmark_name": "Sigiriya",
+    "sub_landmarks": {
+      "sigiriya_entrance": "SLM_SIG_001",
+      "sigiriya_lion_rock": "SLM_SIG_002",
+      "sigiriya_mirror_wall": "SLM_SIG_003",
+      "sigiriya_lion_staircase": "SLM_SIG_004",
+      "sigiriya_throne": "SLM_SIG_005"
+    }
+  }
+}

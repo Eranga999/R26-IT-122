@@ -1,50 +1,82 @@
 """
 onnx_to_tflite.py
-─────────────────
-Converts the ONNX model → TensorFlow SavedModel → TensorFlow Lite.
+-----------------
+YOLOv8 export: PyTorch checkpoint (.pt) -> TensorFlow Lite (.tflite).
 
-Dependencies:
-    pip install onnx-tf tensorflow
+Note: script name is kept for backward compatibility in docs, but YOLO export
+works best directly from .pt rather than converting from .onnx.
 
 Usage:
-    python conversion/onnx_to_tflite.py
+    python conversion/onnx_to_tflite.py \
+        --input_model runs/detect/sigiriya_v1/weights/best.pt \
+        --output_model backend/output/sigiriya_best.tflite
 """
 
-import os
+import argparse
+import shutil
 from pathlib import Path
-import sys
-sys.path.append(str(Path(__file__).resolve().parents[1]))
-from training.config import ONNX_MODEL_PATH, TFLITE_MODEL_PATH
 
-TF_SAVED_MODEL_DIR = str(Path(TFLITE_MODEL_PATH).parent / "tf_saved_model")
+from ultralytics import YOLO
 
 
-def convert_onnx_to_tflite():
-    # ── Step 1: ONNX → TensorFlow SavedModel ─────────────────────────────
-    print("Step 1: Converting ONNX → TensorFlow SavedModel …")
-    import onnx
-    from onnx_tf.backend import prepare
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Export YOLOv8 .pt to TFLite")
+    parser.add_argument(
+        "--input_model",
+        type=str,
+        default="runs/detect/sigiriya_v1/weights/best.pt",
+        help="Path to YOLO .pt model",
+    )
+    parser.add_argument(
+        "--output_model",
+        type=str,
+        default="backend/output/sigiriya_best.tflite",
+        help="Target TFLite path",
+    )
+    parser.add_argument(
+        "--imgsz",
+        type=int,
+        default=640,
+        help="Export image size",
+    )
+    return parser.parse_args()
 
-    onnx_model = onnx.load(ONNX_MODEL_PATH)
-    tf_rep     = prepare(onnx_model)
-    Path(TF_SAVED_MODEL_DIR).mkdir(parents=True, exist_ok=True)
-    tf_rep.export_graph(TF_SAVED_MODEL_DIR)
-    print(f"  SavedModel → {TF_SAVED_MODEL_DIR}")
 
-    # ── Step 2: TensorFlow SavedModel → TFLite ────────────────────────────
-    print("Step 2: Converting TensorFlow SavedModel → TFLite …")
-    import tensorflow as tf
+def convert_to_tflite(input_model: str, output_model: str, imgsz: int) -> Path:
+    input_path = Path(input_model)
+    if not input_path.exists():
+        raise FileNotFoundError(f"Input model not found: {input_model}")
+    if input_path.suffix.lower() != ".pt":
+        raise ValueError(
+            "YOLO TFLite export expects a .pt model file. "
+            "Use runs/detect/.../best.pt as --input_model."
+        )
 
-    converter = tf.lite.TFLiteConverter.from_saved_model(TF_SAVED_MODEL_DIR)
-    tflite_model = converter.convert()
+    print(f"Loading YOLO model: {input_path}")
+    model = YOLO(str(input_path))
 
-    Path(TFLITE_MODEL_PATH).parent.mkdir(parents=True, exist_ok=True)
-    with open(TFLITE_MODEL_PATH, "wb") as f:
-        f.write(tflite_model)
+    exported_path = Path(
+        model.export(
+            format="tflite",
+            imgsz=imgsz,
+            int8=False,
+            nms=True,
+        )
+    )
 
-    size_kb = Path(TFLITE_MODEL_PATH).stat().st_size / 1024
-    print(f"✅ TFLite model saved → {TFLITE_MODEL_PATH}  ({size_kb:.1f} KB)")
+    target_path = Path(output_model)
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if exported_path.resolve() != target_path.resolve():
+        shutil.copy2(exported_path, target_path)
+    else:
+        target_path = exported_path
+
+    size_mb = target_path.stat().st_size / (1024 * 1024)
+    print(f"✅ TFLite model saved -> {target_path} ({size_mb:.2f} MB)")
+    return target_path
 
 
 if __name__ == "__main__":
-    convert_onnx_to_tflite()
+    args = parse_args()
+    convert_to_tflite(args.input_model, args.output_model, args.imgsz)

@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.heritage_ar"
+    namespace = "com.example.r26_it_122"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"
 
@@ -23,7 +23,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.heritage_ar"
+        applicationId = "com.example.r26_it_122"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 26  // tflite_flutter requires minimum API 26
@@ -39,11 +39,19 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    aaptOptions {
+        noCompress("tflite")
+        noCompress("lite")
+    }
 }
 
 dependencies {
     // ARCore (Google Play Services for AR)
     implementation("com.google.ar:core:1.44.0")
+    
+    // TFLite Select TF Ops (required for many YOLOv8 exports)
+    implementation("org.tensorflow:tensorflow-lite-select-tf-ops:2.14.0")
 }
 
 flutter {

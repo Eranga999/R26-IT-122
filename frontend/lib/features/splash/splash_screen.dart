@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../home/home_screen.dart';
 
@@ -16,6 +18,7 @@ class _SplashScreenState extends State<SplashScreen>
   late final AnimationController _ctrl;
   late final Animation<double> _fadeAnim;
   late final Animation<double> _scaleAnim;
+  Timer? _redirectTimer;
 
   @override
   void initState() {
@@ -35,7 +38,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     _ctrl.forward();
 
-    Future.delayed(const Duration(milliseconds: 2600), () {
+    _redirectTimer = Timer(const Duration(milliseconds: 2600), () {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
@@ -50,6 +53,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
+    _redirectTimer?.cancel();
     _ctrl.dispose();
     super.dispose();
   }

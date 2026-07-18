@@ -1,0 +1,5 @@
+sigiriya_entrance
+sigiriya_lion_rock
+sigiriya_mirror_wall
+sigiriya_lion_staircase
+sigiriya_throne
