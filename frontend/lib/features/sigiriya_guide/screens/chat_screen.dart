@@ -180,6 +180,12 @@ class _SelectionPageState extends State<_SelectionPage>
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         titleSpacing: 16,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, size: 20),
+          color: _gold,
+          splashRadius: 20,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         title: Row(
           children: [
             _logoCircle(),
