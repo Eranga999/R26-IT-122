@@ -258,11 +258,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           child: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(72, 12, 24, 12),
+              padding: const EdgeInsets.fromLTRB(24, 56, 24, 28),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  const SizedBox(height: 6),
                   const Text(
                     'HeritageAR',
                     style: TextStyle(
