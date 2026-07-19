@@ -62,6 +62,8 @@ class _ArCameraViewState extends State<ArCameraView>
   bool _isProcessingFrame = false;
   int _lastFrameMs = 0;
   static const int _frameThrottleMs = 500;
+  List<DetectionResult> _liveDetections = [];
+
 
   // GPS accuracy warning
   double? _gpsAccuracyM;
@@ -211,10 +213,21 @@ class _ArCameraViewState extends State<ArCameraView>
         sensorOrientation: _controller?.description.sensorOrientation ?? 0,
         threshold: 0.70,
         nmsIouThreshold: 0.45,
-        allowedLabels: {wp.detectionLabel!},
+        allowedLabels: {
+          'sigiriya_ticket_counter',
+          'sigiriya_water_gardens', 
+          'sigiriya_mirror_wall',
+          'sigiriya_lion_paws',
+          'sigiriya_lion_rock',
+          'sigiriya_throne'
+        },
       );
 
       if (!mounted) return;
+
+      setState(() {
+        _liveDetections = results;
+      });
 
       if (results.isEmpty) {
         final s = _navService.onDetectionUpdate(
@@ -240,7 +253,9 @@ class _ArCameraViewState extends State<ArCameraView>
     } catch (_) {
       // ignore inference errors; keep navigating
     } finally {
-      _isProcessingFrame = false;
+      if (mounted) {
+        _isProcessingFrame = false;
+      }
     }
   }
 
@@ -318,7 +333,21 @@ class _ArCameraViewState extends State<ArCameraView>
     }
 
     return Stack(
+      fit: StackFit.expand,
       children: [
+        // Live detection overlay HUD
+        if (_liveDetections.isNotEmpty)
+          Positioned.fill(
+            child: RepaintBoundary(
+              child: CustomPaint(
+                painter: _DetectionOverlayPainter(
+                  detections: _liveDetections,
+                  previewSize: _controller?.value.previewSize,
+                  sensorOrientation: _controller?.description.sensorOrientation ?? 0,
+                ),
+              ),
+            ),
+          ),
         // Arrived banner (brief)
         if (snap.hasArrived && snap.justArrivedFlash) _buildArrivedBanner(snap.waypointTitle),
 
@@ -334,7 +363,109 @@ class _ArCameraViewState extends State<ArCameraView>
           _buildGpsWarningBanner('GPS signal lost. Using last known location.', Colors.amber.shade800)
         else if (snap.gpsStatus == ArGpsStatus.degraded)
           _buildGpsWarningBanner('GPS accuracy reduced. Waiting for GPS signal.', Colors.deepOrange),
+          
+        // Manual Selection (Simulation) if user is far away
+        if (snap.distanceMeters > 500 && snap.gpsStatus != ArGpsStatus.unavailable)
+          _buildManualSelectionBanner(),
       ],
+    );
+  }
+
+  Widget _buildManualSelectionBanner() {
+    return Positioned(
+      top: 150,
+      left: 16,
+      right: 16,
+      child: GestureDetector(
+        onTap: _showManualWaypointSelector,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.teal.shade700.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.tealAccent.withOpacity(0.5)),
+            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6)],
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.touch_app_rounded, color: Colors.white, size: 20),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Outside heritage site? Tap here to manually simulate navigating to waypoints.',
+                  style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14)
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showManualWaypointSelector() {
+    final route = _navService.route;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => Container(
+        height: MediaQuery.of(context).size.height * 0.6,
+        decoration: const BoxDecoration(
+          color: Color(0xFF1A0A00),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        child: Column(
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white30,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const Text(
+              'Manual Navigation Simulation',
+              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Select a waypoint to instantly simulate arriving near it.',
+              style: TextStyle(color: Colors.white60, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView.builder(
+                itemCount: route.length,
+                itemBuilder: (context, i) {
+                  final wp = route[i];
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Colors.teal.shade700,
+                      child: Text('${i + 1}', style: const TextStyle(color: Colors.white)),
+                    ),
+                    title: Text(wp.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                    subtitle: Text(wp.description, style: const TextStyle(color: Colors.white54, fontSize: 12), maxLines: 1),
+                    onTap: () {
+                      Navigator.pop(context);
+                      // Simulate location just 10 meters away from the waypoint
+                      _navService.simulateLocation(wp.latitude + 0.0001, wp.longitude + 0.0001);
+                      if (mounted) setState(() {});
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1626,3 +1757,133 @@ class _LoadingCamera extends StatelessWidget {
     );
   }
 }
+
+// ── Detection overlay painter ───────────────────────────────────────────────
+
+class _DetectionOverlayPainter extends CustomPainter {
+  final List<DetectionResult> detections;
+  final Size? previewSize;
+  final int sensorOrientation;
+
+  const _DetectionOverlayPainter({
+    required this.detections,
+    required this.previewSize,
+    required this.sensorOrientation,
+  });
+
+  @override
+  void paint(Canvas canvas, Size widgetSize) {
+    if (detections.isEmpty || previewSize == null) return;
+
+    final bool isRotated90 = sensorOrientation == 90 || sensorOrientation == 270;
+    final double pvW = isRotated90 ? previewSize!.height : previewSize!.width;
+    final double pvH = isRotated90 ? previewSize!.width : previewSize!.height;
+
+    final double scaleX = widgetSize.width / pvW;
+    final double scaleY = widgetSize.height / pvH;
+    final double scale = scaleX > scaleY ? scaleX : scaleY; // cover
+    final double scaledW = pvW * scale;
+    final double scaledH = pvH * scale;
+    final double offsetX = (widgetSize.width - scaledW) / 2;
+    final double offsetY = (widgetSize.height - scaledH) / 2;
+
+    for (final det in detections) {
+      final colour = const Color(0xFFFFB300);
+
+      final x1 = offsetX + det.boundingBox.left * scaledW;
+      final y1 = offsetY + det.boundingBox.top * scaledH;
+      final x2 = offsetX + det.boundingBox.right * scaledW;
+      final y2 = offsetY + det.boundingBox.bottom * scaledH;
+      final box = Rect.fromLTRB(x1, y1, x2, y2);
+
+      canvas.drawRect(
+          box,
+          Paint()
+            ..color = colour.withOpacity(0.12)
+            ..style = PaintingStyle.fill);
+
+      canvas.drawRect(
+          box,
+          Paint()
+            ..color = colour
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.0);
+
+      _drawCorners(canvas, box, colour);
+
+      final formattedLabel = det.label.split('_').map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}' : '').join(' ');
+      final labelText = '$formattedLabel ${(det.confidence * 100).toStringAsFixed(0)}%';
+
+      final tp = TextPainter(
+        text: TextSpan(
+          text: labelText,
+          style: TextStyle(
+            color: colour,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.3,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: widgetSize.width - 24);
+
+      const padH = 10.0;
+      const padV = 6.0;
+      final chipW = tp.width + padH * 2;
+      final chipH = tp.height + padV * 2;
+
+      double chipX = x1;
+      double chipY = y1 - chipH - 6;
+      if (chipY < 0) chipY = y2 + 6;
+      chipX = chipX.clamp(4.0, widgetSize.width - chipW - 4);
+
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(chipX, chipY, chipW, chipH), const Radius.circular(10)),
+        Paint()..color = Colors.black.withOpacity(0.75),
+      );
+      
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(chipX, chipY, chipW, chipH), const Radius.circular(10)),
+        Paint()
+          ..color = colour.withOpacity(0.4)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.0,
+      );
+
+      tp.paint(canvas, Offset(chipX + padH, chipY + padV));
+    }
+  }
+
+  void _drawCorners(Canvas canvas, Rect box, Color colour) {
+    const len = 14.0;
+    final paint = Paint()
+      ..color = colour
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.5
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawLine(Offset(box.left, box.top), Offset(box.left + len, box.top), paint);
+    canvas.drawLine(Offset(box.left, box.top), Offset(box.left, box.top + len), paint);
+    canvas.drawLine(Offset(box.right, box.top), Offset(box.right - len, box.top), paint);
+    canvas.drawLine(Offset(box.right, box.top), Offset(box.right, box.top + len), paint);
+    canvas.drawLine(Offset(box.left, box.bottom), Offset(box.left + len, box.bottom), paint);
+    canvas.drawLine(Offset(box.left, box.bottom), Offset(box.left, box.bottom - len), paint);
+    canvas.drawLine(Offset(box.right, box.bottom), Offset(box.right - len, box.bottom), paint);
+    canvas.drawLine(Offset(box.right, box.bottom), Offset(box.right, box.bottom - len), paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _DetectionOverlayPainter old) {
+    if (old.detections.length != detections.length) return true;
+    if (detections.isEmpty && old.detections.isEmpty) return false;
+    for (int i = 0; i < detections.length; i++) {
+      if (old.detections[i].label != detections[i].label ||
+          old.detections[i].confidence != detections[i].confidence ||
+          old.detections[i].boundingBox != detections[i].boundingBox) {
+        return true;
+      }
+    }
+    return false;
+  }
+}
+

@@ -240,6 +240,14 @@ class ArNavigationService {
     _gpsLive = false;
   }
 
+  /// Manually set the device location to simulate being at a specific spot.
+  void simulateLocation(double lat, double lon) {
+    _deviceLat = lat;
+    _deviceLon = lon;
+    _gpsLive = true;
+    _lastGpsUpdateMs = DateTime.now().millisecondsSinceEpoch;
+  }
+
   // ── Heading update ────────────────────────────────────────────────────────
   ArNavigationSnapshot onHeadingUpdate(double headingDeg) {
     _headingDeg = headingDeg;
