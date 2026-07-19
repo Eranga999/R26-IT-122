@@ -54,18 +54,35 @@ class _CameraScreenState extends State<CameraScreen>
 
   // ── Bounding-box smoothing ────────────────────────────────────────────────
   Rect? _smoothedBoxRect; // exponentially smoothed box
-  static const double _boxAlpha = 0.85; // Faster visual tracking
+  static const double _boxAlpha = 0.75; // Smoother tracking (less jitter)
 
   // ── False positive protection (Stable detection tracking) ──────────────────
   String? _candidateLabel;
   int _candidateCount = 0;
   int _lastConfirmedTime = 0;
-  static const int _panelHoldMs = 4000; // Increased hold time
+  // Hold the info panel for 6 s after the last confirmed frame.
+  static const int _panelHoldMs = 6000;
+
+  // ── Frame-rate throttle ───────────────────────────────────────────────────
+  // Limit inference to ~8 fps to prevent a processing backlog (lag).
+  static const int _minFrameIntervalMs = 125;
+
+  // ── Stale bounding-box protection ────────────────────────────────────────
+  // The bounding box clears quickly (1.2 s or 6 empty frames), but the
+  // info card can stay visible for much longer (_panelHoldMs).
+  static const int _boxHoldMs = 1200;       // box disappears after 1.2 s with no detection
+  static const int _maxEmptyFrames = 6;     // OR after 6 consecutive empty frames
+  int _emptyFrameCount = 0;                 // consecutive frames with no detections
+  int _lastDetectionTime = 0;               // last ms we saw any detection
+  bool _boxVisible = false;                 // guard: prevents stale painter data
 
   bool get _isGpsLocked => _verifyStatus == _VerifyStatus.locked;
-  double get _modelThreshold => _isGpsLocked ? 0.65 : 0.70;
-  double get _cardThreshold => _isGpsLocked ? 0.75 : 0.80;
-  int get _requiredFrames => _isGpsLocked ? 1 : 2; // Needs less frames to trigger
+  // GPS-locked: lower thresholds – the site is confirmed by GPS.
+  // Manual mode: slightly higher to reduce noise, but still detectable.
+  double get _modelThreshold => _isGpsLocked ? 0.60 : 0.72;
+  double get _cardThreshold  => _isGpsLocked ? 0.72 : 0.78;
+  // GPS-locked: 2 consecutive frames; manual: 3 frames for stability.
+  int get _requiredFrames => _isGpsLocked ? 2 : 3;
 
   bool _isStableDetection(DetectionResult bestDetection) {
     if (bestDetection.confidence < _cardThreshold) {
@@ -224,8 +241,11 @@ class _CameraScreenState extends State<CameraScreen>
         if (mounted) setState(() => _cameraError = 'No camera found.');
         return;
       }
-      _controller = CameraController(cameras.first, ResolutionPreset.low,
-          enableAudio: false);
+      // Use medium resolution – gives the YOLO model better input without
+      // the heavy overhead of high/veryHigh on mid-range devices.
+      _controller = CameraController(cameras.first, ResolutionPreset.medium,
+          enableAudio: false,
+          imageFormatGroup: ImageFormatGroup.yuv420);
       await _controller!.initialize();
       if (mounted) setState(() {});
       _controller!.startImageStream(_processFrame);
@@ -240,90 +260,105 @@ class _CameraScreenState extends State<CameraScreen>
     if (!_canRunDetector) return;
     if (!mounted) return;
     if (_isProcessing) return;
+
+    // ── Frame-rate throttle ──────────────────────────────────────────────────
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (nowMs - _lastProcessTime < _minFrameIntervalMs) return;
+    _lastProcessTime = nowMs;
+
     _isProcessing = true;
     try {
-      // 1. Get results from service
       final results = await RecognitionService.instance.predictAll(
         image,
         sensorOrientation: _controller?.description.sensorOrientation ?? 0,
         threshold: _modelThreshold,
         allowedLabels: _allowedLabels.toSet(),
       );
-      _isProcessing = false;
       if (!mounted) return;
 
-      // Filter out very small boxes (likely noise)
-      const minArea = 0.01; // normalised area (1% of frame)
+      // ── Noise filter ────────────────────────────────────────────────────────
+      final minArea = _isGpsLocked ? 0.012 : 0.02;
       final filtered = results
           .where((r) => (r.boundingBox.width * r.boundingBox.height) >= minArea)
           .toList();
 
-      // ── Bounding-box smoothing ────────────────────────────────────────────
-      if (filtered.isNotEmpty) {
-        // Find the most confident current box
-        final originalBestBox = filtered.reduce((a, b) => a.confidence > b.confidence ? a : b);
-        final bestBoxRef = originalBestBox.boundingBox;
-        
-        // Immediate exponential smoothing
-        final old = _smoothedBoxRect;
-        if (old == null) {
-          _smoothedBoxRect = bestBoxRef;
-        } else {
-          _smoothedBoxRect = Rect.fromLTRB(
-            old.left * (1 - _boxAlpha) + bestBoxRef.left * _boxAlpha,
-            old.top  * (1 - _boxAlpha) + bestBoxRef.top  * _boxAlpha,
-            old.right  * (1 - _boxAlpha) + bestBoxRef.right  * _boxAlpha,
-            old.bottom * (1 - _boxAlpha) + bestBoxRef.bottom * _boxAlpha,
-          );
-        }
-        
-        final smoothedBestBox = DetectionResult(
-           label: originalBestBox.label,
-           confidence: originalBestBox.confidence,
-           boundingBox: _smoothedBoxRect!,
-           classIndex: originalBestBox.classIndex,
-        );
-        
-        final bestBoxIdx = filtered.indexOf(originalBestBox);
-        if (bestBoxIdx != -1) {
-           filtered[bestBoxIdx] = smoothedBestBox;
-        }
-      } else {
-        _smoothedBoxRect = null;
-      }
-
-      if (!mounted) return;
       final now = DateTime.now().millisecondsSinceEpoch;
 
       if (filtered.isNotEmpty) {
-        final bestBox = filtered.reduce((a, b) => a.confidence > b.confidence ? a : b);
-        
-        if (_isStableDetection(bestBox)) {
+        // ── Active detection path ──────────────────────────────────────────
+        _emptyFrameCount = 0;           // reset miss counter
+        _lastDetectionTime = now;       // stamp the last live frame
+
+        // Exponential smoothing on the best box
+        final originalBest =
+            filtered.reduce((a, b) => a.confidence > b.confidence ? a : b);
+        final ref = originalBest.boundingBox;
+        final old = _smoothedBoxRect;
+        _smoothedBoxRect = old == null
+            ? ref
+            : Rect.fromLTRB(
+                old.left   * (1 - _boxAlpha) + ref.left   * _boxAlpha,
+                old.top    * (1 - _boxAlpha) + ref.top    * _boxAlpha,
+                old.right  * (1 - _boxAlpha) + ref.right  * _boxAlpha,
+                old.bottom * (1 - _boxAlpha) + ref.bottom * _boxAlpha,
+              );
+
+        final smoothedBest = DetectionResult(
+          label:       originalBest.label,
+          confidence:  originalBest.confidence,
+          boundingBox: _smoothedBoxRect!,
+          classIndex:  originalBest.classIndex,
+        );
+        final idx = filtered.indexOf(originalBest);
+        if (idx != -1) filtered[idx] = smoothedBest;
+
+        if (_isStableDetection(smoothedBest)) {
           _lastConfirmedTime = now;
-          if (!_panelVisible || _activeDetection?.label != bestBox.label) {
-             Future.microtask(() => _onLandmarkDetected(bestBox));
+          if (!_panelVisible || _activeDetection?.label != smoothedBest.label) {
+            Future.microtask(() => _onLandmarkDetected(smoothedBest));
           } else {
-             // Just implicitly update the UI state inside the active panel
-             setState(() {
-                _activeDetection = bestBox;
-                _confidence = bestBox.confidence;
-                _liveDetections = filtered;
-             });
+            setState(() {
+              _activeDetection  = smoothedBest;
+              _confidence       = smoothedBest.confidence;
+              _liveDetections   = filtered;
+              _boxVisible       = true;
+            });
           }
-        } else if (_panelVisible) {
-           if (now - _lastConfirmedTime > _panelHoldMs) {
-             _dismissPanel();
-           } else {
-             setState(() => _liveDetections = filtered);
-           }
         } else {
-           setState(() => _liveDetections = filtered);
+          // Unstable / below card threshold — show box but not card
+          setState(() {
+            _liveDetections = filtered;
+            _boxVisible     = true;
+          });
+          // Panel still open from a previous stable detection: dismiss if
+          // hold time has expired.
+          if (_panelVisible && now - _lastConfirmedTime > _panelHoldMs) {
+            _dismissPanel();
+          }
         }
+
       } else {
-        if (_panelVisible && (now - _lastConfirmedTime > _panelHoldMs)) {
-           _dismissPanel();
-        } else {
-           setState(() => _liveDetections = []);
+        // ── No detection path ─────────────────────────────────────────────
+        _emptyFrameCount++;
+
+        final boxExpiredByTime  = now - _lastDetectionTime > _boxHoldMs;
+        final boxExpiredByCount = _emptyFrameCount >= _maxEmptyFrames;
+
+        if (boxExpiredByTime || boxExpiredByCount) {
+          // Clear the bounding box immediately — do not wait for the card.
+          if (_boxVisible || _liveDetections.isNotEmpty || _smoothedBoxRect != null) {
+            setState(() {
+              _liveDetections  = const [];
+              _smoothedBoxRect = null;
+              _boxVisible      = false;
+            });
+          }
+          _candidateCount = 0;          // reset stability counter
+          _candidateLabel = null;
+        }
+        // The info card lives independently — only dismiss it after _panelHoldMs.
+        if (_panelVisible && now - _lastConfirmedTime > _panelHoldMs) {
+          _dismissPanel();
         }
       }
     } catch (e) {
@@ -381,25 +416,59 @@ class _CameraScreenState extends State<CameraScreen>
 
   int? _labelToId(String label) {
     final normalized = label.trim().toLowerCase();
-    // Broad matching: any class starting with 'sigiriya' belongs to ID 1
-    if (normalized.contains('sigiriya')) return 1;
+
+    // ── Sigiriya sub-landmarks ─────────────────────────────────────────────
+    // The model's 5 classes all belong to the Sigiriya parent landmark (DB id=1).
+    // Matching by the full class name avoids false mapping of unrelated labels.
+    const sigiriyaClasses = {
+      'sigiriya_lion_paws',
+      'sigiriya_lion_rock',
+      'sigiriya_mirror_wall',
+      'sigiriya_throne',
+      'sigiriya_ticket_counter',
+    };
+    if (sigiriyaClasses.contains(normalized)) return 1;
+
+    // ── Other sites ───────────────────────────────────────────────────────
     if (normalized.contains('dambulla')) return 2;
     if (normalized.contains('polonnaruwa')) return 3;
-    
-    // Fallback directly to the indices if labels are just numbers or generic
+
     return null;
+  }
+
+  /// Converts a raw model class label into a human-readable sub-landmark name.
+  /// e.g. 'sigiriya_lion_rock' → 'Lion Rock'
+  String _classLabelToDisplayName(String label) {
+    final normalized = label.trim().toLowerCase();
+    const nameMap = {
+      'sigiriya_lion_paws':      'Lion Paws',
+      'sigiriya_lion_rock':      'Lion Rock',
+      'sigiriya_mirror_wall':    'Mirror Wall',
+      'sigiriya_throne':         'Throne',
+      'sigiriya_ticket_counter': 'Ticket Counter',
+    };
+    if (nameMap.containsKey(normalized)) return nameMap[normalized]!;
+    // Fallback: title-case the parts after the first underscore segment.
+    final parts = normalized.split('_');
+    return parts.map((w) => w.isNotEmpty
+        ? '${w[0].toUpperCase()}${w.substring(1)}'
+        : '').join(' ');
   }
 
   void _dismissPanel() {
     _cardAnim.reverse();
     setState(() {
-      _panelVisible = false;
-      _detectedLandmark = null;
-      _activeDetection = null;
-      _detectedClassLabel = null;
-      _subLandmarks = [];
-      _candidateCount = 0;
-      _candidateLabel = null;
+      _panelVisible        = false;
+      _detectedLandmark    = null;
+      _activeDetection     = null;
+      _detectedClassLabel  = null;
+      _subLandmarks        = [];
+      _candidateCount      = 0;
+      _candidateLabel      = null;
+      // Also clear any residual bounding box when the panel closes.
+      _liveDetections      = const [];
+      _smoothedBoxRect     = null;
+      _boxVisible          = false;
     });
   }
 
@@ -499,8 +568,11 @@ class _CameraScreenState extends State<CameraScreen>
         else
           CameraPreview(_controller!),
 
-        // Live bounding-box overlay – shown while scanning AND after panel opens
-        if (_liveDetections.isNotEmpty || _activeDetection != null)
+        // Live bounding-box overlay – only shown when _boxVisible is true.
+        // This is a strict gate: the painter never receives stale data after
+        // detection loss, even if the info card is still visible.
+        if (_boxVisible &&
+            (_liveDetections.isNotEmpty || _activeDetection != null))
           Positioned.fill(
             child: RepaintBoundary(
               child: CustomPaint(
@@ -526,47 +598,59 @@ class _CameraScreenState extends State<CameraScreen>
             left: 0,
             right: 0,
             child: Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                   gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [Colors.black87, Colors.transparent])),
+                      colors: [Colors.black.withOpacity(0.85), Colors.transparent])),
               padding: const EdgeInsets.only(
-                  top: 48, bottom: 20, left: 8, right: 16),
-              child: Row(children: [
-                IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new,
-                        color: Colors.white),
-                    onPressed: () => Navigator.pop(context)),
-                const Text('Scan Landmark',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Georgia')),
-                if (_siteLock?.site?.landmarkName != null) ...[
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.black45,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white30),
+                  top: 54, bottom: 20, left: 16, right: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.15),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white30)
+                          ),
+                          child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
                       ),
-                      child: Text(
-                        _siteLock!.site!.landmarkName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 11),
-                      ),
-                    ),
                   ),
-                ],
-                const Spacer(),
-                const Spacer(),
+                  const Text('Scan Landmark',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                          fontFamily: 'Georgia')),
+                  if (_canRunDetector && !_panelVisible && _cameraError == null && _controller?.value.isInitialized == true)
+                    GestureDetector(
+                        onTap: _showDemoPicker,
+                        child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(
+                                color: AppTheme.secondary.withOpacity(0.9),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: AppTheme.secondary, width: 1.0),
+                                boxShadow: [
+                                  BoxShadow(color: AppTheme.secondary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))
+                                ]
+                            ),
+                            child: const Row(
+                                children: [
+                                  Icon(Icons.science_rounded, color: Colors.white, size: 16),
+                                  SizedBox(width: 6),
+                                  Text('Demo', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold))
+                                ]
+                            )
+                        ),
+                    )
+                  else
+                    const SizedBox(width: 48),
               ]),
             )),
 
@@ -587,20 +671,8 @@ class _CameraScreenState extends State<CameraScreen>
 
         if (!_panelVisible)
           Positioned(
-              bottom: 32, left: 24, right: 24, child: _buildBottomLabel()),
+              bottom: 40, left: 0, right: 0, child: Center(child: _buildBottomLabel())),
       ]),
-      floatingActionButton: (_canRunDetector &&
-              !_panelVisible &&
-              _cameraError == null &&
-              _controller?.value.isInitialized == true)
-          ? FloatingActionButton.extended(
-              onPressed: _showDemoPicker,
-              backgroundColor: AppTheme.secondary,
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.science_rounded),
-              label: const Text('Demo',
-                  style: TextStyle(fontWeight: FontWeight.w600)))
-          : null,
     );
   }
 
@@ -678,68 +750,78 @@ class _CameraScreenState extends State<CameraScreen>
     VoidCallback? onAction,
   }) {
     return Positioned(
-      top: 86,
+      top: 120,
       left: 16,
       right: 16,
-      child: Material(
-        color: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.92),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                if (showSpinner)
-                  const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white)))
-                else
-                  Icon(icon, color: Colors.white, size: 16),
-                const SizedBox(width: 8),
-                Expanded(
-                    child: Text(message,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w500))),
-              ]),
-              if (actionLabel != null && onAction != null) ...[
-                const SizedBox(height: 8),
-                GestureDetector(
-                  onTap: onAction,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white38),
+      child: Center(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.75),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.white.withOpacity(0.2)),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black38, blurRadius: 10, offset: Offset(0, 4))
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    if (showSpinner)
+                      const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white)))
+                    else
+                      Icon(icon, color: Colors.white, size: 18),
+                    const SizedBox(width: 10),
+                    Flexible(
+                        child: Text(message,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.2))),
+                  ]),
+                  if (actionLabel != null && onAction != null) ...[
+                    const SizedBox(height: 10),
+                    GestureDetector(
+                      onTap: onAction,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.25),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.white.withOpacity(0.4)),
+                        ),
+                        child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.touch_app_rounded,
+                                  color: Colors.white, size: 14),
+                              const SizedBox(width: 6),
+                              Text(actionLabel,
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold)),
+                            ]),
+                      ),
                     ),
-                    child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.place_rounded,
-                              color: Colors.white, size: 14),
-                          const SizedBox(width: 6),
-                          Text(actionLabel,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600)),
-                        ]),
-                  ),
-                ),
-              ],
-            ],
+                  ],
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -834,13 +916,26 @@ class _CameraScreenState extends State<CameraScreen>
                                 lm.name,
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontFamily: 'Georgia', // Elegant heritage font
+                                  fontFamily: 'Georgia',
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 0.2,
                                   height: 1.2,
                                 ),
                               ),
+                              // Show the specific detected sub-landmark
+                              if (_detectedClassLabel != null) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  _classLabelToDisplayName(_detectedClassLabel!),
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.65),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ],
                               const SizedBox(height: 6),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -1149,23 +1244,33 @@ class _CameraScreenState extends State<CameraScreen>
           height: 20,
           child: CustomPaint(painter: _CornerPainter(alignment: a, thick: 3))));
 
-  Widget _buildBottomLabel() => Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.65),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white12)),
-      child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(Icons.search_rounded, color: Color(0xFFFFB300), size: 18),
-        SizedBox(width: 8),
-        Flexible(
-            child: Text('Point camera at a heritage landmark...',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500),
-                textAlign: TextAlign.center)),
-      ]));
+  Widget _buildBottomLabel() => ClipRRect(
+        borderRadius: BorderRadius.circular(30),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                      colors: [Colors.black.withOpacity(0.7), Colors.black.withOpacity(0.4)],
+                      begin: Alignment.topLeft, end: Alignment.bottomRight),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: Colors.white.withOpacity(0.2)),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 15, spreadRadius: 2)
+                  ]),
+              child: const Row(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.document_scanner_rounded, color: Color(0xFFFFB300), size: 18),
+                SizedBox(width: 10),
+                Text('Point camera at a heritage landmark',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.3)),
+              ])),
+        ),
+      );
 
 }
 
@@ -1340,9 +1445,17 @@ class _DetectionOverlayPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _DetectionOverlayPainter old) {
+    // Always repaint when the list size changes.
     if (old.detections.length != detections.length) return true;
-    if (detections.isEmpty) return false;
-    return old.detections.first.label != detections.first.label ||
-        old.detections.first.boundingBox != detections.first.boundingBox;
+    if (detections.isEmpty && old.detections.isEmpty) return false;
+    // Repaint when any detection's label, confidence, or box changes.
+    for (int i = 0; i < detections.length; i++) {
+      if (old.detections[i].label != detections[i].label ||
+          old.detections[i].confidence != detections[i].confidence ||
+          old.detections[i].boundingBox != detections[i].boundingBox) {
+        return true;
+      }
+    }
+    return false;
   }
 }
