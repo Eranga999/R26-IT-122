@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../constants/app_constants.dart';
 import 'site_geofence.dart';
@@ -87,8 +88,8 @@ class SiteLockService {
 
       for (final site in sites) {
         final d = _haversineMeters(
-          lat1: latitude.toDouble(),
-          lon1: longitude.toDouble(),
+          lat1: position.latitude,
+          lon1: position.longitude,
           lat2: site.centerLat,
           lon2: site.centerLng,
         );
@@ -122,14 +123,14 @@ class SiteLockService {
       final confidence = _siteConfidence(
         distanceMeters: bestDistance,
         radiusMeters: best.radiusMeters,
-        gpsAccuracyMeters: accuracy?.toDouble() ?? best.radiusMeters,
+        gpsAccuracyMeters: position.accuracy ?? best.radiusMeters,
       );
 
       return SiteLockResult(
         status: SiteLockStatus.locked,
         site: best,
         distanceMeters: bestDistance,
-        gpsAccuracyMeters: accuracy?.toDouble(),
+        gpsAccuracyMeters: position.accuracy,
         confidenceScore: confidence,
       );
     } catch (e) {
