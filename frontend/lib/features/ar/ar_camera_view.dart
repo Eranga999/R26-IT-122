@@ -13,6 +13,8 @@ import '../recognition/recognition_service.dart';
 import '../../core/theme/app_theme.dart';
 import 'ar_navigation_service.dart';
 
+enum ArGpsFailure { none, serviceDisabled, permissionDenied, permissionDeniedForever }
+
 /// Live-camera AR overlay view.
 ///
 /// For Sigiriya: provides full camera-based AR waypoint navigation
@@ -63,6 +65,7 @@ class _ArCameraViewState extends State<ArCameraView>
 
   // GPS accuracy warning
   double? _gpsAccuracyM;
+  ArGpsFailure _gpsFailure = ArGpsFailure.none;
 
   @override
   void initState() {
@@ -119,11 +122,21 @@ class _ArCameraViewState extends State<ArCameraView>
 
   // ── Navigation Startup ────────────────────────────────────────────────────
 
+  void _retryGps() {
+    if (mounted) {
+      setState(() => _gpsFailure = ArGpsFailure.none);
+      _startNavigation();
+    }
+  }
+
   Future<void> _startNavigation() async {
+    if (!mounted) return;
+    setState(() => _gpsFailure = ArGpsFailure.none);
+
     // --- GPS stream ---
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      if (mounted) setState(() => _navSnapshot = _navSnapshot);
+      if (mounted) setState(() => _gpsFailure = ArGpsFailure.serviceDisabled);
       return;
     }
 
@@ -131,8 +144,12 @@ class _ArCameraViewState extends State<ArCameraView>
     if (perm == LocationPermission.denied) {
       perm = await Geolocator.requestPermission();
     }
-    if (perm == LocationPermission.denied ||
-        perm == LocationPermission.deniedForever) {
+    
+    if (perm == LocationPermission.denied) {
+      if (mounted) setState(() => _gpsFailure = ArGpsFailure.permissionDenied);
+      return;
+    } else if (perm == LocationPermission.deniedForever) {
+      if (mounted) setState(() => _gpsFailure = ArGpsFailure.permissionDeniedForever);
       return;
     }
 
@@ -141,11 +158,21 @@ class _ArCameraViewState extends State<ArCameraView>
         accuracy: LocationAccuracy.bestForNavigation,
         distanceFilter: 1,
       ),
-    ).listen((pos) {
-      _gpsAccuracyM = pos.accuracy;
-      final snap = _navService.onGpsUpdate(pos.latitude, pos.longitude);
-      if (mounted) setState(() => _navSnapshot = snap);
-    });
+    ).listen(
+      (pos) {
+        _gpsAccuracyM = pos.accuracy;
+        final snap = _navService.onGpsUpdate(pos.latitude, pos.longitude);
+        if (mounted) setState(() => _navSnapshot = snap);
+      },
+      onError: (dynamic error) {
+        _navService.onGpsLost();
+        if (mounted) {
+          setState(() {
+            _gpsFailure = ArGpsFailure.serviceDisabled;
+          });
+        }
+      },
+    );
 
     // --- Compass stream ---
     _compassSub = FlutterCompass.events?.listen((event) {
@@ -269,6 +296,10 @@ class _ArCameraViewState extends State<ArCameraView>
   }
 
   Widget _buildNavOverlay() {
+    if (_gpsFailure != ArGpsFailure.none) {
+      return _buildGpsFailureOverlay();
+    }
+
     final snap = _navSnapshot;
 
     // Waiting for GPS
@@ -289,15 +320,101 @@ class _ArCameraViewState extends State<ArCameraView>
     return Stack(
       children: [
         // Arrived banner (brief)
-        if (snap.hasArrived) _buildArrivedBanner(snap.waypointTitle),
+        if (snap.hasArrived && snap.justArrivedFlash) _buildArrivedBanner(snap.waypointTitle),
 
         // Main HUD (always shown)
         if (!snap.hasArrived) _buildArNavHud(snap),
 
-        // GPS weak warning
-        if (_gpsAccuracyM != null && _gpsAccuracyM! > 20)
+        // GPS weak accuracy warning
+        if (_gpsAccuracyM != null && _gpsAccuracyM! > 20 && snap.gpsStatus == ArGpsStatus.live)
           _buildGpsWarning(),
+
+        // GPS disconnected warnings
+        if (snap.gpsStatus == ArGpsStatus.stale)
+          _buildGpsWarningBanner('GPS signal lost. Using last known location.', Colors.amber.shade800)
+        else if (snap.gpsStatus == ArGpsStatus.degraded)
+          _buildGpsWarningBanner('GPS accuracy reduced. Waiting for GPS signal.', Colors.deepOrange),
       ],
+    );
+  }
+
+  Widget _buildGpsFailureOverlay() {
+    IconData icon;
+    String title;
+    String subtitle;
+    String btnLabel;
+    VoidCallback onBtn;
+
+    switch (_gpsFailure) {
+      case ArGpsFailure.serviceDisabled:
+        icon = Icons.location_off_rounded;
+        title = 'Location Services Disabled';
+        subtitle = 'Turn on GPS to use AR navigation.';
+        btnLabel = 'Open location settings';
+        onBtn = () async {
+          await Geolocator.openLocationSettings();
+        };
+        break;
+      case ArGpsFailure.permissionDenied:
+        icon = Icons.gps_off_rounded;
+        title = 'Location Permission Denied';
+        subtitle = 'Allow location access to place AR waypoints.';
+        btnLabel = 'Try again';
+        onBtn = _retryGps;
+        break;
+      case ArGpsFailure.permissionDeniedForever:
+        icon = Icons.error_outline_rounded;
+        title = 'Location Permission Denied';
+        subtitle = 'Please enable location permissions in your device settings.';
+        btnLabel = 'Open app settings';
+        onBtn = () async {
+          await Geolocator.openAppSettings();
+        };
+        break;
+      default:
+        return const SizedBox.shrink();
+    }
+
+    return Container(
+      color: Colors.black.withOpacity(0.85),
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.orange, size: 48),
+          const SizedBox(height: 14),
+          Text(title,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Text(subtitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white70, fontSize: 14)),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () {
+              onBtn();
+              if (_gpsFailure != ArGpsFailure.permissionDenied) {
+                Future.delayed(const Duration(milliseconds: 1500), _retryGps);
+              }
+            },
+            icon: const Icon(Icons.settings_rounded),
+            label: Text(btnLabel),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -305,15 +422,23 @@ class _ArCameraViewState extends State<ArCameraView>
     final size = MediaQuery.of(context).size;
     return Stack(
       children: [
-        // ── Big directional arrow ──────────────────────────────────────────
+        // ── AR Virtual Breadcrumbs (Footsteps) ─────────────────────────────
         Positioned(
-          top: size.height * 0.22,
+          top: size.height * 0.35, 
+          left: 0,
+          right: 0,
+          child: _buildFootstepsOverlay(snap),
+        ),
+
+        // ── Big directional arrow (3D Perspective Hologram) ────────────────
+        Positioned(
+          top: size.height * 0.35, // Moved down to simulate ground projection
           left: 0,
           right: 0,
           child: Column(
             children: [
               _buildDirectionArrow(snap),
-              const SizedBox(height: 10),
+              const SizedBox(height: 24),
               if (!snap.hasCompassFix)
                 _buildCalibrationHint(),
             ],
@@ -331,40 +456,150 @@ class _ArCameraViewState extends State<ArCameraView>
     );
   }
 
+  Widget _buildFootstepsOverlay(ArNavigationSnapshot snap) {
+    if (snap.footsteps.isEmpty) return const SizedBox.shrink();
+    
+    return SizedBox(
+      height: 220, // Match the arrow's anchor box
+      child: Stack(
+        alignment: Alignment.center,
+        children: snap.footsteps.map((step) {
+          // Normalize distance: translating negatively in Y moves "forward" in the ground plane
+          final double depthShift = -(step.distanceMeters * 12.0); // 1 meter = 12 virtual pixels
+          
+          final angle = snap.hasCompassFix
+              ? step.relativeAngleDeg * math.pi / 180.0
+              : 0.0;
+
+          final matrix = Matrix4.identity()
+            ..setEntry(3, 2, 0.0025) // Ground perspective tilt
+            ..rotateX(1.1)           // Lay flat
+            ..rotateZ(angle)         // Swivel to target bearing
+            ..translate(0.0, depthShift, 0.0); // Move "forward" away from player
+
+          // Fade out based on distance so they vanish beautifully into the distance
+          final double rawOpacity = 1.0 - (step.distanceMeters / 40.0);
+          final double opacity = rawOpacity.clamp(0.0, 0.5); // Max 50% opacity
+          
+          if (opacity <= 0.0) return const SizedBox.shrink();
+
+          return Transform(
+            transform: matrix,
+            alignment: Alignment.center,
+            child: Icon(
+              Icons.keyboard_arrow_up_rounded, // Chevron footprint
+              size: 54,
+              color: const Color(0xFFFFB300).withOpacity(opacity),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
   Widget _buildDirectionArrow(ArNavigationSnapshot snap) {
+    // 0 means straight ahead.
     final angle = snap.hasCompassFix
         ? snap.relativeAngleDeg * math.pi / 180.0
         : 0.0;
 
+    final isConfirmed = snap.detectionConfirmed;
+    final primaryColor = isConfirmed ? const Color(0xFFFFB300) : Colors.greenAccent;
+
     return AnimatedBuilder(
       animation: _pulseAnim,
-      builder: (_, __) => Transform.rotate(
-        angle: angle,
-        child: Container(
-          width: 110,
-          height: 110,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.black.withOpacity(0.55),
-            border: Border.all(
-              color: Colors.greenAccent.withOpacity(0.55 + _pulseAnim.value * 0.35),
-              width: 2.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.greenAccent.withOpacity(0.2 + _pulseAnim.value * 0.15),
-                blurRadius: 24,
-                spreadRadius: 4,
+      builder: (_, __) {
+        // Perspective 3D Tilt for realistic AR arrow floating on the ground
+        final matrix = Matrix4.identity()
+          ..setEntry(3, 2, 0.0025) // depth perspective
+          ..rotateX(1.1)           // Tilt backward into the screen
+          ..rotateZ(angle);        // Swivel based on compass bearing
+
+        return SizedBox(
+          height: 220,
+          child: Transform(
+            transform: matrix,
+            alignment: Alignment.center,
+            child: Container(
+              width: 240,
+              height: 240,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: primaryColor.withOpacity(0.08),
+                border: Border.all(
+                  color: primaryColor.withOpacity(0.4 + _pulseAnim.value * 0.4),
+                  width: 3,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: primaryColor.withOpacity(0.15 + _pulseAnim.value * 0.25),
+                    blurRadius: 45,
+                    spreadRadius: 10,
+                  ),
+                ],
               ),
-            ],
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Outer dashed glowing ring / compass ticks
+                  for (int i = 0; i < 12; i++)
+                    Transform.rotate(
+                      angle: i * math.pi / 6,
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        child: Container(
+                          width: i % 3 == 0 ? 4 : 2,
+                          height: i % 3 == 0 ? 16 : 8,
+                          decoration: BoxDecoration(
+                            color: primaryColor.withOpacity(0.7),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                          margin: const EdgeInsets.only(top: 8),
+                        ),
+                      ),
+                    ),
+                  // Inner concentric radar circle
+                  Container(
+                    width: 140,
+                    height: 140,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: primaryColor.withOpacity(0.2), width: 2),
+                    ),
+                  ),
+                  // Inner target tick
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: primaryColor.withOpacity(0.4), width: 1.5),
+                    ),
+                  ),
+                  // The 3D navigational wedge / arrow
+                  Align(
+                    alignment: Alignment.topCenter,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: Icon(
+                        Icons.change_history_rounded, // Better futuristic arrow shape
+                        color: primaryColor,
+                        size: 90,
+                        shadows: [
+                          Shadow(
+                            color: primaryColor,
+                            blurRadius: 20,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          child: Icon(
-            Icons.navigation_rounded,
-            color: Colors.greenAccent,
-            size: 60,
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -603,6 +838,34 @@ class _ArCameraViewState extends State<ArCameraView>
                     fontSize: 15, fontWeight: FontWeight.w700),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGpsWarningBanner(String message, Color bgColor) {
+    return Positioned(
+      top: 115,
+      left: 16,
+      right: 16,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: bgColor.withOpacity(0.92),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.white.withOpacity(0.3)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.gps_off_rounded, color: Colors.white, size: 14),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500),
               ),
             ),
           ],

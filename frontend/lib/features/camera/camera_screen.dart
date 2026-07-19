@@ -49,25 +49,23 @@ class _CameraScreenState extends State<CameraScreen>
           _verifyStatus == _VerifyStatus.manual) &&
       _allowedLabels.isNotEmpty;
 
-  static const int _sameLabelPanelCooldownMs = 1500;
-
   // ── Live detection state (shown while scanning) ────────────────────────────
   List<DetectionResult> _liveDetections = []; // real-time boxes on camera
 
   // ── Bounding-box smoothing ────────────────────────────────────────────────
   Rect? _smoothedBoxRect; // exponentially smoothed box
-  static const double _boxAlpha = 0.6; // weight for new position (higher = faster tracking)
+  static const double _boxAlpha = 0.85; // Faster visual tracking
 
   // ── False positive protection (Stable detection tracking) ──────────────────
   String? _candidateLabel;
   int _candidateCount = 0;
   int _lastConfirmedTime = 0;
-  static const int _panelHoldMs = 2500;
+  static const int _panelHoldMs = 4000; // Increased hold time
 
   bool get _isGpsLocked => _verifyStatus == _VerifyStatus.locked;
-  double get _modelThreshold => _isGpsLocked ? 0.75 : 0.80;
-  double get _cardThreshold => _isGpsLocked ? 0.80 : 0.85;
-  int get _requiredFrames => _isGpsLocked ? 3 : 4;
+  double get _modelThreshold => _isGpsLocked ? 0.65 : 0.70;
+  double get _cardThreshold => _isGpsLocked ? 0.75 : 0.80;
+  int get _requiredFrames => _isGpsLocked ? 1 : 2; // Needs less frames to trigger
 
   bool _isStableDetection(DetectionResult bestDetection) {
     if (bestDetection.confidence < _cardThreshold) {
@@ -258,24 +256,37 @@ class _CameraScreenState extends State<CameraScreen>
       const minArea = 0.01; // normalised area (1% of frame)
       final filtered = results
           .where((r) => (r.boundingBox.width * r.boundingBox.height) >= minArea)
-          .toList(growable: false);
+          .toList();
 
       // ── Bounding-box smoothing ────────────────────────────────────────────
       if (filtered.isNotEmpty) {
         // Find the most confident current box
-        final bestBox = filtered.reduce((a, b) => a.confidence > b.confidence ? a : b).boundingBox;
+        final originalBestBox = filtered.reduce((a, b) => a.confidence > b.confidence ? a : b);
+        final bestBoxRef = originalBestBox.boundingBox;
         
         // Immediate exponential smoothing
         final old = _smoothedBoxRect;
         if (old == null) {
-          _smoothedBoxRect = bestBox;
+          _smoothedBoxRect = bestBoxRef;
         } else {
           _smoothedBoxRect = Rect.fromLTRB(
-            old.left * (1 - _boxAlpha) + bestBox.left * _boxAlpha,
-            old.top  * (1 - _boxAlpha) + bestBox.top  * _boxAlpha,
-            old.right  * (1 - _boxAlpha) + bestBox.right  * _boxAlpha,
-            old.bottom * (1 - _boxAlpha) + bestBox.bottom * _boxAlpha,
+            old.left * (1 - _boxAlpha) + bestBoxRef.left * _boxAlpha,
+            old.top  * (1 - _boxAlpha) + bestBoxRef.top  * _boxAlpha,
+            old.right  * (1 - _boxAlpha) + bestBoxRef.right  * _boxAlpha,
+            old.bottom * (1 - _boxAlpha) + bestBoxRef.bottom * _boxAlpha,
           );
+        }
+        
+        final smoothedBestBox = DetectionResult(
+           label: originalBestBox.label,
+           confidence: originalBestBox.confidence,
+           boundingBox: _smoothedBoxRect!,
+           classIndex: originalBestBox.classIndex,
+        );
+        
+        final bestBoxIdx = filtered.indexOf(originalBestBox);
+        if (bestBoxIdx != -1) {
+           filtered[bestBoxIdx] = smoothedBestBox;
         }
       } else {
         _smoothedBoxRect = null;
@@ -741,7 +752,7 @@ class _CameraScreenState extends State<CameraScreen>
   Widget _buildFloatingDetectionCard() {
     final lm = _detectedLandmark!;
     return Positioned(
-      bottom: 24,
+      bottom: 28,
       left: 16,
       right: 16,
       child: FadeTransition(
@@ -749,87 +760,134 @@ class _CameraScreenState extends State<CameraScreen>
         child: SlideTransition(
           position: _cardSlide,
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(28),
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(24),
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.black.withOpacity(0.65),
+                      Colors.black.withOpacity(0.45),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(28),
                   border: Border.all(
-                      color: Colors.white.withOpacity(0.25), width: 1),
+                      color: Colors.white.withOpacity(0.18), width: 1.0),
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8)),
+                        color: Colors.black.withOpacity(0.5),
+                        blurRadius: 32,
+                        offset: const Offset(0, 12)),
                   ],
                 ),
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Header row
-                    Row(children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: AppTheme.primary.withOpacity(0.3),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                              color: AppTheme.secondary.withOpacity(0.5)),
-                        ),
-                        child: const Icon(Icons.account_balance_rounded,
-                            color: Colors.white, size: 22),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Stack(
+                          alignment: Alignment.center,
                           children: [
-                            Text(
-                              '🏛 ${lm.name}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontFamily: 'Georgia',
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
+                            SizedBox(
+                              width: 60,
+                              height: 60,
+                              child: CircularProgressIndicator(
+                                value: _confidence,
+                                strokeWidth: 4.0,
+                                backgroundColor: Colors.white.withOpacity(0.06),
+                                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFFB300)),
                               ),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Confidence: ${(_confidence * 100).toStringAsFixed(0)}%',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.75),
-                                fontSize: 12,
+                            Container(
+                              width: 46,
+                              height: 46,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    const Color(0xFFFFB300).withOpacity(0.2),
+                                    const Color(0xFFFF8F00).withOpacity(0.05),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                shape: BoxShape.circle,
                               ),
+                              child: const Icon(Icons.account_balance_rounded,
+                                  color: Color(0xFFFFB300), size: 24),
                             ),
                           ],
                         ),
-                      ),
-                      GestureDetector(
-                        onTap: _dismissPanel,
-                        child: Container(
-                          width: 30,
-                          height: 30,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
-                            shape: BoxShape.circle,
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                lm.name,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontFamily: 'Georgia', // Elegant heritage font
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.2,
+                                  height: 1.2,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFB300).withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xFFFFB300).withOpacity(0.35)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.auto_awesome_rounded, color: Color(0xFFFFB300), size: 12),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${(_confidence * 100).toStringAsFixed(0)}% AI Match',
+                                      style: const TextStyle(
+                                        color: Color(0xFFFFB300),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                          child: const Icon(Icons.close_rounded,
-                              color: Colors.white70, size: 16),
                         ),
-                      ),
-                    ]),
-                    const SizedBox(height: 14),
+                        GestureDetector(
+                          onTap: _dismissPanel,
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.close_rounded,
+                                color: Colors.white, size: 18),
+                          ),
+                        ),
+                      ]),
+                    const SizedBox(height: 18),
                     // Action buttons
                     Row(children: [
                       Expanded(
                         child: _glassButton(
-                          label: '  Details',
+                          label: 'Details',
                           icon: Icons.open_in_full_rounded,
                           onTap: () => Navigator.push(
                               context,
@@ -838,10 +896,10 @@ class _CameraScreenState extends State<CameraScreen>
                                       LandmarkDetailScreen(landmark: lm))),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: _glassButton(
-                          label: '  Navigate',
+                          label: 'Navigate',
                           icon: Icons.explore_rounded,
                           onTap: () => Navigator.push(
                               context,
@@ -850,12 +908,13 @@ class _CameraScreenState extends State<CameraScreen>
                                       NavScreen(landmarkName: lm.name))),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: _glassButton(
-                          label: '  Ask AI',
+                          label: 'Ask AI',
                           icon: Icons.smart_toy_rounded,
                           color: AppTheme.secondary,
+                          isHighlight: true,
                           onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -879,27 +938,56 @@ class _CameraScreenState extends State<CameraScreen>
     required IconData icon,
     required VoidCallback onTap,
     Color? color,
+    bool isHighlight = false,
   }) {
-    final bg = (color ?? Colors.white).withOpacity(0.18);
     final fg = color ?? Colors.white;
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: fg.withOpacity(0.35)),
+          gradient: isHighlight
+              ? const LinearGradient(
+                  colors: [Color(0xFFFFB300), Color(0xFFFF8F00)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : LinearGradient(
+                  colors: [
+                    Colors.white.withOpacity(0.12),
+                    Colors.white.withOpacity(0.04),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isHighlight
+                ? Colors.transparent
+                : Colors.white.withOpacity(0.18),
+            width: 1,
+          ),
+          boxShadow: isHighlight
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFFFFB300).withOpacity(0.35),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  )
+                ]
+              : null,
         ),
-        child: Row(
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: fg, size: 15),
+            Icon(icon, color: isHighlight ? const Color(0xFF1A1A1A) : fg, size: 22),
+            const SizedBox(height: 6),
             Text(label,
                 style: TextStyle(
-                    color: fg,
+                    color: isHighlight ? const Color(0xFF1A1A1A) : fg,
                     fontSize: 12,
-                    fontWeight: FontWeight.w600)),
+                    fontWeight: isHighlight ? FontWeight.w800 : FontWeight.w600)),
           ],
         ),
       ),
@@ -907,54 +995,6 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
 
-
-  List<List<String>> _quickFacts(int id) {
-    const f1 = [
-      ['Founded', '477 AD'],
-      ['Type', 'Fortress'],
-      ['UNESCO', '1982']
-    ];
-    const f2 = [
-      ['Founded', '1st c BC'],
-      ['Type', 'Cave Temple'],
-      ['UNESCO', '1991']
-    ];
-    const f3 = [
-      ['Founded', '1070 AD'],
-      ['Type', 'Ancient City'],
-      ['UNESCO', '1982']
-    ];
-    if (id == 1) return f1;
-    if (id == 2) return f2;
-    return f3;
-  }
-
-  IconData _subTypeIcon(String type) {
-    switch (type) {
-      case 'fresco':
-        return Icons.palette_rounded;
-      case 'gate':
-        return Icons.door_front_door_rounded;
-      case 'wall':
-        return Icons.format_paint_rounded;
-      case 'pool':
-        return Icons.water_rounded;
-      case 'palace':
-        return Icons.castle_rounded;
-      case 'cave':
-        return Icons.terrain_rounded;
-      case 'stupa':
-        return Icons.architecture_rounded;
-      case 'sculpture':
-        return Icons.image_rounded;
-      case 'temple':
-        return Icons.temple_hindu_rounded;
-      case 'reservoir':
-        return Icons.waves_rounded;
-      default:
-        return Icons.place_rounded;
-    }
-  }
 
   Widget _buildDesktopUnsupported() => Scaffold(
       backgroundColor: const Color(0xFF1A0A00),
@@ -1127,28 +1167,6 @@ class _CameraScreenState extends State<CameraScreen>
                 textAlign: TextAlign.center)),
       ]));
 
-  String _bboxText(Rect box) {
-    return 'x:${(box.left * 100).toStringAsFixed(0)}% '
-        'y:${(box.top * 100).toStringAsFixed(0)}% '
-        'w:${((box.right - box.left) * 100).toStringAsFixed(0)}% '
-        'h:${((box.bottom - box.top) * 100).toStringAsFixed(0)}%';
-  }
-}
-
-class _FactPill extends StatelessWidget {
-  final String label, value;
-  final Color color;
-  const _FactPill(
-      {required this.label, required this.value, required this.color});
-
-  @override
-  Widget build(BuildContext context) => Column(children: [
-        Text(value,
-            style: TextStyle(
-                fontWeight: FontWeight.w800, fontSize: 12, color: color)),
-        const SizedBox(height: 2),
-        Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-      ]);
 }
 
 class _CornerPainter extends CustomPainter {
@@ -1190,15 +1208,6 @@ class _DetectionOverlayPainter extends CustomPainter {
     required this.sensorOrientation,
   });
 
-  // Distinct colours per class index
-  static const _boxColours = [
-    Color(0xFF00E676), // green
-    Color(0xFF40C4FF), // light blue
-    Color(0xFFFF6D00), // orange
-    Color(0xFFE040FB), // purple
-    Color(0xFFFFD740), // amber
-  ];
-
   @override
   void paint(Canvas canvas, Size widgetSize) {
     if (detections.isEmpty || previewSize == null) return;
@@ -1223,7 +1232,7 @@ class _DetectionOverlayPainter extends CustomPainter {
     final double offsetY = (widgetSize.height - scaledH) / 2;
 
     for (final det in detections) {
-      final colour = _boxColours[det.classIndex % _boxColours.length];
+      final colour = const Color(0xFFFFB300); // Standardized AR Yellow
 
       // Map normalised [0..1] box to widget pixels
       final x1 = offsetX + det.boundingBox.left * scaledW;
@@ -1236,7 +1245,7 @@ class _DetectionOverlayPainter extends CustomPainter {
       canvas.drawRect(
           box,
           Paint()
-            ..color = colour.withOpacity(0.15)
+            ..color = colour.withOpacity(0.12)
             ..style = PaintingStyle.fill);
 
       // Border
@@ -1245,44 +1254,54 @@ class _DetectionOverlayPainter extends CustomPainter {
           Paint()
             ..color = colour
             ..style = PaintingStyle.stroke
-            ..strokeWidth = 2.5);
+            ..strokeWidth = 2.0);
 
       // Corner accents
       _drawCorners(canvas, box, colour);
 
       // Label chip: "<name>  <conf>%"
-      final labelText = '${det.label.replaceAll('_', ' ')}  '
-          '${(det.confidence * 100).toStringAsFixed(0)}%';
+      final formattedLabel = det.label.split('_').map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}' : '').join(' ');
+      final labelText = '$formattedLabel ${(det.confidence * 100).toStringAsFixed(0)}%';
 
       final tp = TextPainter(
         text: TextSpan(
           text: labelText,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
+          style: TextStyle(
+            color: colour,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
             letterSpacing: 0.3,
           ),
         ),
         textDirection: TextDirection.ltr,
       )..layout(maxWidth: widgetSize.width - 24);
 
-      const padH = 6.0;
-      const padV = 4.0;
+      const padH = 10.0;
+      const padV = 6.0;
       final chipW = tp.width + padH * 2;
       final chipH = tp.height + padV * 2;
 
       // Position chip above the box; flip below if out of bounds
       double chipX = x1;
-      double chipY = y1 - chipH - 4;
-      if (chipY < 0) chipY = y2 + 4;
+      double chipY = y1 - chipH - 6;
+      if (chipY < 0) chipY = y2 + 6;
       chipX = chipX.clamp(4.0, widgetSize.width - chipW - 4);
 
-      // Chip background
+      // Chip background (Dark Frosted Glass)
       canvas.drawRRect(
         RRect.fromRectAndRadius(Rect.fromLTWH(chipX, chipY, chipW, chipH),
-            const Radius.circular(6)),
-        Paint()..color = colour.withOpacity(0.88),
+            const Radius.circular(10)),
+        Paint()..color = Colors.black.withOpacity(0.75),
+      );
+      
+      // Chip subtle border
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(chipX, chipY, chipW, chipH),
+            const Radius.circular(10)),
+        Paint()
+          ..color = colour.withOpacity(0.4)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.0,
       );
 
       tp.paint(canvas, Offset(chipX + padH, chipY + padV));
