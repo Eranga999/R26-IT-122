@@ -24,7 +24,17 @@ class ArNavigationWaypoint {
   });
 }
 
+// ── AR Visual Components ───────────────────────────────────────────────────────
+
+class ArFootstep {
+  final double distanceMeters;
+  final double relativeAngleDeg;
+  const ArFootstep({required this.distanceMeters, required this.relativeAngleDeg});
+}
+
 // ── Navigation Snapshot (emitted per update) ───────────────────────────────────
+
+enum ArGpsStatus { live, stale, degraded, unavailable }
 
 class ArNavigationSnapshot {
   final int waypointIndex;      // 0-based current waypoint index
@@ -39,6 +49,9 @@ class ArNavigationSnapshot {
   final bool routeComplete;
   final String? detectionGuidance; // shown when waiting for YOLO
   final bool detectionConfirmed;   // true when centered + confident
+  final bool justArrivedFlash;
+  final ArGpsStatus gpsStatus;
+  final List<ArFootstep> footsteps;
 
   const ArNavigationSnapshot({
     required this.waypointIndex,
@@ -53,6 +66,9 @@ class ArNavigationSnapshot {
     required this.routeComplete,
     this.detectionGuidance,
     required this.detectionConfirmed,
+    this.justArrivedFlash = false,
+    this.gpsStatus = ArGpsStatus.unavailable,
+    this.footsteps = const [],
   });
 
   ArNavigationSnapshot copyWith({
@@ -68,6 +84,9 @@ class ArNavigationSnapshot {
     bool? routeComplete,
     String? detectionGuidance,
     bool? detectionConfirmed,
+    bool? justArrivedFlash,
+    ArGpsStatus? gpsStatus,
+    List<ArFootstep>? footsteps,
   }) {
     return ArNavigationSnapshot(
       waypointIndex: waypointIndex ?? this.waypointIndex,
@@ -82,6 +101,9 @@ class ArNavigationSnapshot {
       routeComplete: routeComplete ?? this.routeComplete,
       detectionGuidance: detectionGuidance ?? this.detectionGuidance,
       detectionConfirmed: detectionConfirmed ?? this.detectionConfirmed,
+      justArrivedFlash: justArrivedFlash ?? this.justArrivedFlash,
+      gpsStatus: gpsStatus ?? this.gpsStatus,
+      footsteps: footsteps ?? this.footsteps,
     );
   }
 }
@@ -89,6 +111,17 @@ class ArNavigationSnapshot {
 // ── Navigation Service ─────────────────────────────────────────────────────────
 
 class ArNavigationService {
+  final double detectionThreshold;
+  final double centerTolerance;
+  final int gpsStaleTimeoutMs;
+  final int gpsDegradedTimeoutMs;
+
+  ArNavigationService({
+    this.detectionThreshold = 0.70,
+    this.centerTolerance = 0.22,
+    this.gpsStaleTimeoutMs = 30000,
+    this.gpsDegradedTimeoutMs = 60000,
+  });
   // ── Sigiriya Waypoints ────────────────────────────────────────────────────
   // Coordinates: verified from satellite imagery; refine on-site for best accuracy.
   static const List<ArNavigationWaypoint> sigiriyaRoute = [
@@ -118,7 +151,8 @@ class ArNavigationService {
       latitude: 7.9562,
       longitude: 80.7572,
       arrivalRadiusMeters: 35,
-      requiresDetection: false,
+      requiresDetection: true,
+      detectionLabel: 'sigiriya_lion_rock',
     ),
     ArNavigationWaypoint(
       title: 'Lion Paws',
@@ -157,15 +191,14 @@ class ArNavigationService {
   double? _deviceLat;
   double? _deviceLon;
   double? _headingDeg;      // degrees from true north
-  bool _gpsReady = false;
   bool _compassReady = false;
+  int _lastGpsUpdateMs = 0;     // epoch ms of last GPS update
+  bool _gpsLive = true;         // false when GPS stream lost / timed out
 
   // Arrived / completion
-  bool _waitingForDetection = false;
   bool _detectionConfirmed = false;
   bool _routeComplete = false;
-  bool _justArrived = false;         // triggers "Arrived" message for one emit
-
+  
   // Arrow smoothing
   double? _smoothedAngle;
   static const double _smoothingAlpha = 0.25; // weight of new angle
@@ -176,20 +209,35 @@ class ArNavigationService {
   double? _lastBboxCenterX;  // normalised 0..1
   double? _lastBboxCenterY;
 
-  // Detection threshold
-  static const double _detectionThreshold = 0.70;
-  static const double _centerTolerance = 0.22;
-
   List<ArNavigationWaypoint> get route => sigiriyaRoute;
   ArNavigationWaypoint get current => sigiriyaRoute[_currentIndex];
   bool get routeComplete => _routeComplete;
+
+  /// Returns the current multi-stage status of the GPS signal.
+  ArGpsStatus get _currentGpsStatus {
+    if (_deviceLat == null || _deviceLon == null) return ArGpsStatus.unavailable;
+    if (_gpsLive) return ArGpsStatus.live;
+    if (_lastGpsUpdateMs == 0) return ArGpsStatus.unavailable;
+    
+    final elapsed = DateTime.now().millisecondsSinceEpoch - _lastGpsUpdateMs;
+    if (elapsed <= gpsStaleTimeoutMs) return ArGpsStatus.stale;
+    if (elapsed <= gpsDegradedTimeoutMs) return ArGpsStatus.degraded;
+    
+    return ArGpsStatus.unavailable;
+  }
 
   // ── GPS update ────────────────────────────────────────────────────────────
   ArNavigationSnapshot onGpsUpdate(double lat, double lon) {
     _deviceLat = lat;
     _deviceLon = lon;
-    _gpsReady = true;
+    _gpsLive = true;
+    _lastGpsUpdateMs = DateTime.now().millisecondsSinceEpoch;
     return _compute();
+  }
+
+  /// Called by the view when the GPS stream errors out or is explicitly lost.
+  void onGpsLost() {
+    _gpsLive = false;
   }
 
   // ── Heading update ────────────────────────────────────────────────────────
@@ -211,6 +259,29 @@ class ArNavigationService {
     _lastDetectedConfidence = confidence;
     _lastBboxCenterX = bboxCenterX;
     _lastBboxCenterY = bboxCenterY;
+
+    // ── YOLO Relocalization (Optical Anchor) ────────────────────────────────
+    // If we confidently detect a known landmark and our GPS is currently stale 
+    // or degraded, we instantly snap our coordinates to the landmark's location,
+    // essentially getting a perfect fix without satellites!
+    if (label != null && confidence >= 0.85 && _deviceLat != null && _deviceLon != null) {
+      try {
+        final matchedWp = sigiriyaRoute.firstWhere(
+            (wp) => wp.detectionLabel != null && wp.detectionLabel == label);
+            
+        final status = _currentGpsStatus;
+        if (status == ArGpsStatus.stale || status == ArGpsStatus.degraded) {
+           _deviceLat = matchedWp.latitude;
+           _deviceLon = matchedWp.longitude;
+           // Reset tracking timer so we enter 'live' status again optically
+           _lastGpsUpdateMs = DateTime.now().millisecondsSinceEpoch;
+           _gpsLive = true;
+        }
+      } catch (e) {
+        // Label not in route, ignore
+      }
+    }
+
     return _compute();
   }
 
@@ -224,49 +295,86 @@ class ArNavigationService {
         instruction: 'You have completed the Sigiriya AR Navigation route.',
         distanceMeters: 0,
         relativeAngleDeg: 0,
-        hasGpsFix: _gpsReady,
+        hasGpsFix: _gpsLive,
         hasCompassFix: _compassReady,
         hasArrived: false,
         routeComplete: true,
         detectionGuidance: null,
         detectionConfirmed: false,
+        justArrivedFlash: false,
+        gpsStatus: _currentGpsStatus,
+        footsteps: const [],
       );
     }
 
     final wp = current;
 
-    // Distance
-    final dist = (_gpsReady && _deviceLat != null && _deviceLon != null)
-        ? _haversineMeters(_deviceLat!, _deviceLon!, wp.latitude, wp.longitude)
-        : double.infinity;
+    final gpsStatus = _currentGpsStatus;
 
-    // Bearing & relative angle
-    double relAngle = 0.0;
-    if (_gpsReady && _deviceLat != null && _deviceLon != null && _compassReady && _headingDeg != null) {
+    // No GPS data available at all (never received a fix or timed out completely).
+    if (gpsStatus == ArGpsStatus.unavailable) {
+      return ArNavigationSnapshot(
+        waypointIndex: _currentIndex,
+        totalWaypoints: sigiriyaRoute.length,
+        waypointTitle: wp.title,
+        instruction: 'Waiting for GPS signal…',
+        distanceMeters: 0,
+        relativeAngleDeg: 0,
+        hasGpsFix: false,
+        hasCompassFix: _compassReady,
+        hasArrived: false,
+        routeComplete: false,
+        detectionGuidance: null,
+        detectionConfirmed: false,
+        justArrivedFlash: false,
+        gpsStatus: gpsStatus,
+        footsteps: const [],
+      );
+    }
+
+    // Distance — computed from live or last-known GPS position.
+    final dist = _haversineMeters(_deviceLat!, _deviceLon!, wp.latitude, wp.longitude);
+
+    // Bearing & relative angle — compass gates only the arrow rotation, not arrival.
+    double relAngle = _smoothedAngle ?? 0.0; // keep last known if no compass
+    if (_compassReady && _deviceLat != null && _deviceLon != null && _headingDeg != null) {
       final bearing = _bearing(_deviceLat!, _deviceLon!, wp.latitude, wp.longitude);
       relAngle = _normalizeAngle(bearing - _headingDeg!);
+      // Smooth the angle (handle 179→-179 wrap-around)
+      if (_smoothedAngle == null) {
+        _smoothedAngle = relAngle;
+      } else {
+        final diff = _normalizeAngle(relAngle - _smoothedAngle!);
+        _smoothedAngle = _normalizeAngle(
+            _smoothedAngle! * (1 - _smoothingAlpha) +
+                (_smoothedAngle! + diff) * _smoothingAlpha);
+      }
+      relAngle = _smoothedAngle!;
     }
 
-    // Smooth the angle (handle 179→-179 wrap-around)
-    if (_smoothedAngle == null) {
-      _smoothedAngle = relAngle;
-    } else {
-      double diff = _normalizeAngle(relAngle - _smoothedAngle!);
-      _smoothedAngle = _normalizeAngle(_smoothedAngle! * (1 - _smoothingAlpha) + (_smoothedAngle! + diff) * _smoothingAlpha);
+    // ── Footstep Generation ────────────────────────────────────────────────
+    // Generate virtual breadcrumbs along the bearing to the current waypoint.
+    // They are placed every 5 meters between the user and the waypoint.
+    List<ArFootstep> steps = [];
+    if (dist.isFinite && dist > 5.0) {
+      for (double d = 5.0; d < dist; d += 5.0) {
+        // Stop generating steps if there are too many (e.g., max 10 steps visible at once)
+        if (steps.length >= 10) break;
+        steps.add(ArFootstep(distanceMeters: d, relativeAngleDeg: relAngle));
+      }
     }
 
-    // ── Arrival logic ──────────────────────────────────────────────────────
-    bool withinRadius = dist.isFinite && dist <= wp.arrivalRadiusMeters;
+    // ── Arrival logic — compass NOT required ───────────────────────────────
+    final bool withinRadius = dist.isFinite && dist <= wp.arrivalRadiusMeters;
 
     if (_detectionConfirmed && withinRadius && wp.requiresDetection) {
-      // Detection + proximity = fully arrived
       _advance();
-      return _buildArrived(wp.title, dist);
+      return _buildArrived(wp.title, dist, gpsStatus);
     }
 
     if (withinRadius && !wp.requiresDetection) {
       _advance();
-      return _buildArrived(wp.title, dist);
+      return _buildArrived(wp.title, dist, gpsStatus);
     }
 
     // ── Detection guidance ─────────────────────────────────────────────────
@@ -278,20 +386,19 @@ class ArNavigationService {
         final labelMatch = _lastDetectedLabel != null &&
             _lastDetectedLabel!.toLowerCase().trim() ==
                 wp.detectionLabel!.toLowerCase().trim();
-        final confOk = _lastDetectedConfidence >= _detectionThreshold;
+        final confOk = _lastDetectedConfidence >= detectionThreshold;
         final hasBbox = _lastBboxCenterX != null && _lastBboxCenterY != null;
 
         if (labelMatch && confOk && hasBbox) {
           final dx = (_lastBboxCenterX! - 0.5).abs();
           final dy = (_lastBboxCenterY! - 0.5).abs();
-          final centered = dx <= _centerTolerance && dy <= _centerTolerance;
+          final centered = dx <= centerTolerance && dy <= centerTolerance;
 
           if (centered) {
             _detectionConfirmed = true;
             detGuidance = '✅ Target centered and locked';
-            // advance immediately
             _advance();
-            return _buildArrived(wp.title, dist);
+            return _buildArrived(wp.title, dist, gpsStatus);
           } else {
             detGuidance = '🎯 Target detected — center it in the viewfinder';
           }
@@ -305,19 +412,33 @@ class ArNavigationService {
       detGuidance = '🧭 Follow the waypoint direction';
     }
 
+    // Compass calibration notice — only when far from waypoint (not already arrived).
+    String instructionText = (!_compassReady && !withinRadius)
+        ? 'Waiting for compass calibration…'
+        : wp.instruction;
+
+    if (gpsStatus == ArGpsStatus.stale) {
+      instructionText = 'GPS signal lost. Using last known location.';
+    } else if (gpsStatus == ArGpsStatus.degraded) {
+      instructionText = 'GPS accuracy reduced. Waiting for GPS signal.';
+    }
+
     return ArNavigationSnapshot(
       waypointIndex: _currentIndex,
       totalWaypoints: sigiriyaRoute.length,
       waypointTitle: wp.title,
-      instruction: wp.instruction,
+      instruction: instructionText,
       distanceMeters: dist.isInfinite ? 0 : dist,
-      relativeAngleDeg: _smoothedAngle ?? 0.0,
-      hasGpsFix: _gpsReady,
+      relativeAngleDeg: relAngle,
+      hasGpsFix: _gpsLive,
       hasCompassFix: _compassReady,
       hasArrived: false,
       routeComplete: false,
       detectionGuidance: detGuidance,
       detectionConfirmed: _detectionConfirmed,
+      justArrivedFlash: false,
+      gpsStatus: gpsStatus,
+      footsteps: steps,
     );
   }
 
@@ -329,14 +450,12 @@ class ArNavigationService {
     _lastBboxCenterX = null;
     _lastBboxCenterY = null;
     _smoothedAngle = null; // reset arrow for new target
-    _justArrived = true;
     if (_currentIndex >= sigiriyaRoute.length) {
       _routeComplete = true;
     }
   }
 
-  ArNavigationSnapshot _buildArrived(String title, double dist) {
-    _justArrived = false;
+  ArNavigationSnapshot _buildArrived(String title, double dist, ArGpsStatus gpsStatus) {
     if (_routeComplete) {
       return ArNavigationSnapshot(
         waypointIndex: _currentIndex,
@@ -345,12 +464,15 @@ class ArNavigationService {
         instruction: 'You have completed the full Sigiriya AR tour.',
         distanceMeters: 0,
         relativeAngleDeg: 0,
-        hasGpsFix: _gpsReady,
+        hasGpsFix: _gpsLive,
         hasCompassFix: _compassReady,
         hasArrived: true,
         routeComplete: true,
         detectionGuidance: null,
         detectionConfirmed: true,
+        justArrivedFlash: true,
+        gpsStatus: gpsStatus,
+        footsteps: const [],
       );
     }
     return ArNavigationSnapshot(
@@ -360,12 +482,15 @@ class ArNavigationService {
       instruction: 'Continuing to next waypoint…',
       distanceMeters: 0,
       relativeAngleDeg: 0,
-      hasGpsFix: _gpsReady,
+      hasGpsFix: _gpsLive,
       hasCompassFix: _compassReady,
       hasArrived: true,
       routeComplete: false,
       detectionGuidance: null,
       detectionConfirmed: true,
+      justArrivedFlash: true,
+      gpsStatus: gpsStatus,
+      footsteps: const [],
     );
   }
 
@@ -417,8 +542,9 @@ class ArNavigationService {
   /// Reset the service back to step 0 (useful for re-entry).
   void reset() {
     _currentIndex = 0;
-    _gpsReady = false;
     _compassReady = false;
+    _lastGpsUpdateMs = 0;
+    _gpsLive = true;
     _deviceLat = null;
     _deviceLon = null;
     _headingDeg = null;
