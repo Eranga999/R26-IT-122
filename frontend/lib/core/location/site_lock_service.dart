@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -31,18 +32,8 @@ class SiteLockService {
 
   Future<SiteLockResult> lockSiteByGps() async {
     try {
-      final isEmulator =
-          await _locationChannel.invokeMethod<bool>('isEmulator') ?? false;
-      if (isEmulator) {
-        return const SiteLockResult(
-          status: SiteLockStatus.serviceDisabled,
-          message: 'GPS site lock is unavailable on the emulator.',
-        );
-      }
-
-      final serviceEnabled = await _locationChannel
-              .invokeMethod<bool>('isLocationServiceEnabled') ??
-          false;
+      // 1. Check if location services are enabled and permissions are granted.
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         return const SiteLockResult(
           status: SiteLockStatus.serviceDisabled,
@@ -62,20 +53,25 @@ class SiteLockService {
         );
       }
 
-      final rawPosition =
-          await _locationChannel.invokeMapMethod<String, Object?>(
-        'getCurrentLocation',
-      );
-      final latitude = rawPosition?['latitude'] as num?;
-      final longitude = rawPosition?['longitude'] as num?;
-      final accuracy = rawPosition?['accuracy'] as num?;
-      final error = rawPosition?['error'] as String?;
-
-      if (error != null || latitude == null || longitude == null) {
-        return SiteLockResult(
-          status: SiteLockStatus.error,
-          message: error ?? 'Unable to determine current location.',
+      // 2. Attempt to get the current position with a longer timeout.
+      Position? position;
+      try {
+        position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy
+              .high, // Use .high for a balance of accuracy and power.
+          timeLimit:
+              const Duration(seconds: 28), // Increased timeout to 28 seconds.
         );
+      } on TimeoutException {
+        // 3. If getCurrentPosition times out, fall back to the last known position.
+        position = await Geolocator.getLastKnownPosition();
+        if (position == null) {
+          return const SiteLockResult(
+            status: SiteLockStatus.timeout,
+            message:
+                'GPS signal is weak. Please move to an open area and try again.',
+          );
+        }
       }
 
       final sites = await loadSites();
@@ -97,7 +93,10 @@ class SiteLockService {
           lon2: site.centerLng,
         );
 
-        final withinGeofence = d <= site.radiusMeters;
+        // 4. Add GPS accuracy to the radius for a more lenient geofence check.
+        final effectiveRadius = site.radiusMeters + position.accuracy;
+        final withinGeofence = d <= effectiveRadius;
+
         if (!withinGeofence) {
           continue;
         }
@@ -113,11 +112,13 @@ class SiteLockService {
       if (best == null || bestDistance == null) {
         return SiteLockResult(
           status: SiteLockStatus.outOfRange,
-          gpsAccuracyMeters: accuracy?.toDouble(),
-          message: 'You are outside configured heritage site zones.',
+          gpsAccuracyMeters: position.accuracy,
+          message:
+              'You are currently outside a supported heritage site. Please visit Sigiriya, Dambulla Cave Temple, or Polonnaruwa to use Heritage AR features.',
         );
       }
 
+      // 5. The confidence score provides false-positive protection.
       final confidence = _siteConfidence(
         distanceMeters: bestDistance,
         radiusMeters: best.radiusMeters,
@@ -132,9 +133,11 @@ class SiteLockService {
         confidenceScore: confidence,
       );
     } catch (e) {
+      // 6. Catch any other unexpected errors during the process.
       return SiteLockResult(
         status: SiteLockStatus.error,
-        message: 'Failed to detect site by GPS: $e',
+        message:
+            'An unexpected error occurred while detecting your location: $e',
       );
     }
   }

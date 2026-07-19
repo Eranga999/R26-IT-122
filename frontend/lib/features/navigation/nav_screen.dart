@@ -148,23 +148,15 @@ class _NavScreenState extends State<NavScreen> {
           icon: const Icon(Icons.arrow_back_ios_new),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.map_rounded),
-            tooltip: 'Map view',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Map overlay coming in AR phase 2'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
-          ),
-        ],
       ),
       body: Column(
         children: [
+          // Route Summary Header
+          _buildRouteSummary(),
+
+          // Offline AR notice
+          _buildOfflineNotice(),
+
           // Progress bar
           _buildProgressBar(waypoints),
 
@@ -185,6 +177,76 @@ class _NavScreenState extends State<NavScreen> {
           _buildNavFooter(waypoints),
         ],
       ),
+    );
+  }
+
+  Widget _buildOfflineNotice() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppTheme.primary.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppTheme.primary.withOpacity(0.25)),
+      ),
+      child: Row(children: [
+        const Icon(Icons.navigation_rounded,
+            color: AppTheme.primary, size: 20),
+        const SizedBox(width: 10),
+        const Expanded(
+          child: Text(
+            'Offline AR camera navigation is available from the AR button.',
+            style: TextStyle(
+                color: AppTheme.primary,
+                fontSize: 12,
+                fontWeight: FontWeight.w500),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildRouteSummary() {
+    String duration = '2 - 3 hours';
+    String length = '1.2 km circuit';
+    String difficulty = 'Moderate climb';
+
+    if (_normalizedName == 'Dambulla Cave Temple') {
+      duration = '1.5 - 2 hours';
+      length = '0.8 km trail';
+      difficulty = 'Easy ascent';
+    } else if (_normalizedName == 'Polonnaruwa') {
+      duration = '3 - 4 hours';
+      length = '4.5 km total';
+      difficulty = 'Flat terrain';
+    }
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.black.withOpacity(0.08))),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _summaryStat(Icons.schedule_rounded, 'Duration', duration),
+          _summaryStat(Icons.route_rounded, 'Length', length),
+          _summaryStat(Icons.terrain_rounded, 'Terrain', difficulty),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryStat(IconData icon, String label, String value) {
+    return Column(
+      children: [
+        Icon(icon, color: AppTheme.secondary, size: 20),
+        const SizedBox(height: 4),
+        Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textBase)),
+        const SizedBox(height: 2),
+        Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+      ],
     );
   }
 
