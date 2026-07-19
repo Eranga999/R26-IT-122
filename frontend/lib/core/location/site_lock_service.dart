@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../constants/app_constants.dart';
@@ -11,6 +12,8 @@ import 'site_geofence.dart';
 class SiteLockService {
   SiteLockService._();
   static final SiteLockService instance = SiteLockService._();
+  static const MethodChannel _locationChannel =
+      MethodChannel('com.example.r26_it_122/site_lock');
 
   List<SiteGeofence>? _cachedSites;
 
@@ -39,13 +42,12 @@ class SiteLockService {
         );
       }
 
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
+      var permission = await Permission.location.status;
+      if (permission.isDenied) {
+        permission = await Permission.location.request();
       }
 
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
+      if (permission.isDenied || permission.isPermanentlyDenied) {
         return const SiteLockResult(
           status: SiteLockStatus.permissionDenied,
           message: 'Location permission denied.',
@@ -121,7 +123,7 @@ class SiteLockService {
       final confidence = _siteConfidence(
         distanceMeters: bestDistance,
         radiusMeters: best.radiusMeters,
-        gpsAccuracyMeters: position.accuracy,
+        gpsAccuracyMeters: position.accuracy ?? best.radiusMeters,
       );
 
       return SiteLockResult(

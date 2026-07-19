@@ -8,7 +8,7 @@ plugins {
 android {
     namespace = "com.example.r26_it_122"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -47,6 +47,18 @@ android {
     aaptOptions {
         noCompress("tflite")
         noCompress("lite")
+    }
+
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
+    sourceSets {
+        getByName("main") {
+            jniLibs.srcDir("src/main/jniLibs")
+        }
     }
 }
 

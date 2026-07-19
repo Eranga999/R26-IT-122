@@ -17,7 +17,7 @@ dependencies:
   camera: ^0.10.5+9
 
   # On-device TFLite inference
-  tflite_flutter: ^0.10.4
+  tflite_flutter: ^0.12.1
 
   # Image conversion for camera frames
   image: ^4.2.0
@@ -30,7 +30,9 @@ dependencies:
   path_provider: ^2.1.4
 
   # GPS/geofence-based landmark site lock
-  geolocator: ^11.1.0
+  permission_handler: ^12.0.1
+  onnxruntime: ^1.4.1
+  llama_cpp_dart: ^0.2.2
 
   # Compass heading for AR navigation arrow
   flutter_compass: ^0.8.0
@@ -41,6 +43,7 @@ dependencies:
   # Heritage Map (OpenStreetMap)
   flutter_map: ^6.1.0
   latlong2: ^0.9.0
+  geolocator: ^14.0.3
 
 dev_dependencies:
   flutter_test:
@@ -52,9 +55,11 @@ flutter:
 
   assets:
     - assets/models/landmark_model.tflite
+    - assets/models/minilm.onnx
     - assets/images/
     - assets/embeddings/
     - assets/config/
+    - assets/data/
   #         style: italic
   #   - family: Trajan Pro
   #     fonts:

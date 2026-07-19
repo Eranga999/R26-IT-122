@@ -1,7 +1,7 @@
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
@@ -462,7 +462,7 @@ class _CameraScreenState extends State<CameraScreen>
                   onTap: () {
                     Navigator.pop(context);
                     // Simulate a detection result centered on screen
-                    final simulatedBox = Rect.fromLTWH(0.25, 0.25, 0.5, 0.5);
+                    const simulatedBox = Rect.fromLTWH(0.25, 0.25, 0.5, 0.5);
                     final detection = DetectionResult(
                         label: lm.name.toLowerCase(),
                         confidence: 0.94,
