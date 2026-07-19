@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../services/rag_service.dart';
 import '../data/sigiriya_knowledge_base.dart';
 import '../widgets/location_selector.dart';
-import 'explore_screen.dart';
+import 'explore_hub_screen.dart';
 
 // ═══════════════════════════════════════════════════════
 //  ENTRY POINT
@@ -123,7 +123,7 @@ class _SelectionPageState extends State<_SelectionPage>
       PageRouteBuilder(
         pageBuilder: (_, anim, __) => FadeTransition(
           opacity: anim,
-          child: ExploreScreen(rag: widget.rag),
+          child: ExploreHubScreen(rag: widget.rag),
         ),
         transitionDuration: const Duration(milliseconds: 380),
       ),
@@ -390,10 +390,10 @@ class _SelectionPageState extends State<_SelectionPage>
           child: const Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.list_rounded, size: 18),
+              Icon(Icons.grid_view_rounded, size: 18),
               SizedBox(width: 8),
               Text(
-                'Browse All Locations',
+                'Explore Experiences',
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
