@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <!-- Storage permission (needed on API < 33 for saving captures) -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
     <!-- AR feature – not strictly required, enables AR-capable device filtering -->
     <uses-feature android:name="android.hardware.camera.ar" android:required="false"/>
     <uses-permission android:name="android.permission.INTERNET"/>
@@ -14,7 +16,8 @@
     <application
         android:label="HeritageAR"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:extractNativeLibs="true">
 
         <!-- ARCore: optional means the app works without ARCore but can use it when available.
              This prevents the forced "Install ARCore" block on non-AR devices and emulators. -->

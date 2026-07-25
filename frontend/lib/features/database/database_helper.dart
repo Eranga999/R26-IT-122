@@ -1,4 +1,4 @@
-﻿import 'package:sqflite/sqflite.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../../core/constants/app_constants.dart';
 import 'landmark_model.dart';
@@ -137,55 +137,82 @@ class DatabaseHelper {
   Future<void> _seedSubLandmarks(Database db) async {
     final batch = db.batch();
 
-    // Sigiriya sub-landmarks (landmark_id = 1)
+    // Sigiriya sub-landmarks (landmark_id = 1) — 7 UNESCO-quality entries
     batch.insert(AppConstants.subLandmarksTable, {
       'landmark_id': 1,
-      'name': 'Lion Gate',
+      'name': 'Ticket & Visitor Centre',
       'description':
-          'The monumental entrance to Sigiriya\'s summit staircase is flanked '
-          'by two massive lion\'s paws carved in brick and plaster. Originally '
-          'a full lion\'s head rose above the paws; only the feet survive today. '
-          'Visitors walk between the claws to begin the climb to the palace.',
+          'The official entry point to the Sigiriya World Heritage Site. '
+          'Admission: LKR 5,000 for adults / USD 30 for foreign nationals. '
+          'Open daily 7:00 am – 5:30 pm. Facilities include a shaded rest area, '
+          'drinking water, souvenir stalls, and an information centre with maps '
+          'and audio guides for the full site circuit.',
+      'type': 'site',
+    });
+    batch.insert(AppConstants.subLandmarksTable, {
+      'landmark_id': 1,
+      'name': 'Lion Gate (Lion Paws)',
+      'description':
+          'The dramatic entrance to Sigiriya\'s summit stairway is flanked by '
+          'two colossal brick-and-plaster lion\'s paws — the only surviving remnants '
+          'of a full lion sculpture that once formed the gateway. Visitors pass '
+          'between the ancient claws to begin the steep final ascent to the palace '
+          'plateau. The lion symbolised King Kassapa\'s power and divine authority.',
       'type': 'gate',
     });
     batch.insert(AppConstants.subLandmarksTable, {
       'landmark_id': 1,
       'name': 'Mirror Wall',
       'description':
-          'Running along the western face of the rock, the Mirror Wall was '
-          'originally polished so finely that King Kassapa could see his reflection. '
-          'Centuries of visitors inscribed over 685 graffiti poems on its surface, '
-          'making it one of the oldest collections of ancient graffiti in the world.',
+          'Running along the western face of the rock, this plaster wall was '
+          'once polished so finely that King Kassapa could see his reflection. '
+          'Over seven centuries of visitors inscribed 685+ graffiti poems on its '
+          'surface — the oldest surviving collection of Sinhala poetry in the world, '
+          'dating from the 6th to 14th centuries AD.',
       'type': 'wall',
-    });
-    batch.insert(AppConstants.subLandmarksTable, {
-      'landmark_id': 1,
-      'name': 'Sigiriya Frescoes',
-      'description':
-          'Sheltered in a natural recess halfway up the rock, 22 vividly coloured '
-          'frescoes survive from an original 500. The paintings depict life-sized '
-          'Apsaras (celestial maidens) holding lotus blossoms, created using lime '
-          'plaster and natural pigments — remarkably vivid after 1,500 years.',
-      'type': 'fresco',
     });
     batch.insert(AppConstants.subLandmarksTable, {
       'landmark_id': 1,
       'name': 'Water Gardens',
       'description':
-          'Considered the oldest landscaped garden in Asia, the Sigiriya Water '
-          'Gardens feature symmetrical pools, underground pipes, and seasonal '
-          'fountains that still operate naturally during the rainy season after '
-          '1,500 years — a masterpiece of hydraulic engineering.',
+          'Considered the oldest landscaped garden in Asia, the Water Gardens '
+          'feature three distinct zones of symmetrical pools, serpentine moats, '
+          'underground hydraulic pipes, and seasonal fountains that still operate '
+          'naturally during the rainy season — a 1,500-year-old masterpiece '
+          'of hydraulic engineering.',
       'type': 'pool',
+    });
+    batch.insert(AppConstants.subLandmarksTable, {
+      'landmark_id': 1,
+      'name': 'Boulder Gardens',
+      'description':
+          'Between the Water Gardens and the Lion Gate lie the Boulder Gardens — '
+          'massive natural granite boulders forming terraces, cisterns, and caves. '
+          'These outworks served as defensive positions and were later occupied '
+          'by Buddhist monks; ancient cave inscriptions and drip-ledges (used to '
+          'divert rain) are still visible on many boulders.',
+      'type': 'cave',
+    });
+    batch.insert(AppConstants.subLandmarksTable, {
+      'landmark_id': 1,
+      'name': 'Fresco Gallery',
+      'description':
+          'Sheltered in a natural rock pocket half-way up the cliff, 22 vivid '
+          'apsara (celestial maiden) paintings have survived from an original 500. '
+          'Applied on lime plaster using natural pigments, the murals depict '
+          'heavenly figures emerging from clouds, still luminous after 1,500 years. '
+          'A spiral iron staircase provides access to the gallery alcove.',
+      'type': 'fresco',
     });
     batch.insert(AppConstants.subLandmarksTable, {
       'landmark_id': 1,
       'name': 'Summit Palace',
       'description':
-          'Atop the 200-metre summit plateau, the remains of King Kassapa\'s '
-          'royal palace include brick foundations, cisterns, throne platforms, '
-          'and a royal pool cut into the bedrock. It offers a 360-degree panorama '
-          'of the plains and jungle below.',
+          'Crowning the 200-metre granite plateau, the ruins of King Kassapa\'s '
+          'royal residence include brick foundations, a royal bathing pool cut '
+          'into the bedrock, cisterns, throne platforms, and audience halls. '
+          'The summit commands a 360-degree panorama of jungle, plains, and distant '
+          'water bodies — unchanged since the 5th century AD.',
       'type': 'palace',
     });
 
