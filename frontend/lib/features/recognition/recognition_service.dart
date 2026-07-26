@@ -94,61 +94,85 @@ void _inferenceIsolateEntry(SendPort mainSendPort) async {
   ];
 
   // Helper functions inside isolate
-  img.Image buildImageFromPlanes(_InferenceRequest req) {
-    if (req.format == 'yuv420') {
-      final yBytes = req.planes[0]['bytes'] as Uint8List;
-      final uBytes = req.planes[1]['bytes'] as Uint8List;
-      final vBytes = req.planes[2]['bytes'] as Uint8List;
-      final yStride = req.planes[0]['bytesPerRow'] as int;
-      final uvStride = req.planes[1]['bytesPerRow'] as int;
-      final uvPixelStride = req.planes[1]['bytesPerPixel'] as int? ?? 1;
-
-      final out = img.Image(width: req.width, height: req.height);
-      for (int y = 0; y < req.height; y++) {
-        for (int x = 0; x < req.width; x++) {
-          final yVal = yBytes[yStride * y + x];
-          final uvIdx = uvStride * (y >> 1) + (x >> 1) * uvPixelStride;
-          final uVal = uBytes[uvIdx];
-          final vVal = vBytes[uvIdx];
-          final yf = yVal.toDouble();
-          final uf = uVal.toDouble() - 128.0;
-          final vf = vVal.toDouble() - 128.0;
-          final r = (yf + 1.402 * vf).round().clamp(0, 255);
-          final g = (yf - 0.344136 * uf - 0.714136 * vf).round().clamp(0, 255);
-          final b = (yf + 1.772 * uf).round().clamp(0, 255);
-          out.setPixelRgba(x, y, r, g, b, 255);
-        }
-      }
-      return out;
-    } else {
-      final bytes = req.planes[0]['bytes'] as Uint8List;
-      return img.Image.fromBytes(
-          width: req.width,
-          height: req.height,
-          bytes: bytes.buffer,
-          order: img.ChannelOrder.bgra);
-    }
-  }
-
   List<List<List<List<double>>>> preprocessImage(_InferenceRequest req) {
-    img.Image src = buildImageFromPlanes(req);
+    final int inW = req.width;
+    final int inH = req.height;
+    final int outW = req.inputW;
+    final int outH = req.inputH;
     final orientation = req.sensorOrientation;
-    if (orientation == 90) src = img.copyRotate(src, angle: 90);
-    if (orientation == 180) src = img.copyRotate(src, angle: 180);
-    if (orientation == 270) src = img.copyRotate(src, angle: 270);
 
-    final resized = img.copyResize(src,
-        width: req.inputW, height: req.inputH, interpolation: img.Interpolation.linear);
+    if (req.format != 'yuv420') {
+      // Fallback for BGRA8888 (e.g. iOS simulator) which isn't the primary bottleneck
+      final bytes = req.planes[0]['bytes'] as Uint8List;
+      var src = img.Image.fromBytes(width: inW, height: inH, bytes: bytes.buffer, order: img.ChannelOrder.bgra);
+      if (orientation == 90) src = img.copyRotate(src, angle: 90);
+      if (orientation == 180) src = img.copyRotate(src, angle: 180);
+      if (orientation == 270) src = img.copyRotate(src, angle: 270);
+      final resized = img.copyResize(src, width: outW, height: outH, interpolation: img.Interpolation.linear);
+      return List.generate(
+        1,
+        (_) => List.generate(outH, (y) => List.generate(outW, (x) {
+          final p = resized.getPixel(x, y);
+          return <double>[p.r / 255.0, p.g / 255.0, p.b / 255.0];
+        }, growable: false), growable: false),
+        growable: false,
+      );
+    }
+
+    // --- Fast Direct YUV420 to Normalized Float32 Tensor ---
+    // Skips allocating a full 1080p frame, doing a full pixel loop, rotating, then resizing.
+    // Instead, it samples the exact calculated source pixels directly into the output tensor.
+    final yBytes = req.planes[0]['bytes'] as Uint8List;
+    final uBytes = req.planes[1]['bytes'] as Uint8List;
+    final vBytes = req.planes[2]['bytes'] as Uint8List;
+    final yStride = req.planes[0]['bytesPerRow'] as int;
+    final uvStride = req.planes[1]['bytesPerRow'] as int;
+    final uvPixelStride = req.planes[1]['bytesPerPixel'] as int? ?? 1;
 
     return List<List<List<List<double>>>>.generate(
       1,
       (_) => List<List<List<double>>>.generate(
-        req.inputH,
+        outH,
         (y) => List<List<double>>.generate(
-          req.inputW,
+          outW,
           (x) {
-            final p = resized.getPixel(x, y);
-            return <double>[((p.r) / 255.0), ((p.g) / 255.0), ((p.b) / 255.0)];
+            // 1. Map target tensor (x, y) back to normalized [0..1] space
+            double normX = x / outW;
+            double normY = y / outH;
+
+            // 2. Reverse the camera rotation
+            double srcNormX = normX;
+            double srcNormY = normY;
+            if (orientation == 90) {
+              srcNormX = normY;
+              srcNormY = 1.0 - normX;
+            } else if (orientation == 180) {
+              srcNormX = 1.0 - normX;
+              srcNormY = 1.0 - normY;
+            } else if (orientation == 270) {
+              srcNormX = 1.0 - normY;
+              srcNormY = normX;
+            }
+
+            // 3. Map to original camera buffer dimensions
+            int srcX = (srcNormX * inW).floor().clamp(0, inW - 1);
+            int srcY = (srcNormY * inH).floor().clamp(0, inH - 1);
+
+            // 4. Sample the Y, U, V channels at this exact pixel
+            final yIdx = yStride * srcY + srcX;
+            final uvIdx = uvStride * (srcY >> 1) + (srcX >> 1) * uvPixelStride;
+
+            final yf = yBytes[yIdx].toDouble();
+            final uf = uBytes[uvIdx].toDouble() - 128.0;
+            final vf = vBytes[uvIdx].toDouble() - 128.0;
+
+            // 5. Convert to RGB
+            final r = (yf + 1.402 * vf).round().clamp(0, 255);
+            final g = (yf - 0.344136 * uf - 0.714136 * vf).round().clamp(0, 255);
+            final b = (yf + 1.772 * uf).round().clamp(0, 255);
+
+            // 6. Normalize to [0...1] float and return innermost tensor array
+            return <double>[r / 255.0, g / 255.0, b / 255.0];
           },
           growable: false,
         ),
@@ -236,12 +260,20 @@ void _inferenceIsolateEntry(SendPort mainSendPort) async {
       }
 
       double nx1, ny1, nx2, ny2;
+      double rawW, rawH;
+
       if (cx > 1.5 || bw > 1.5) {
+        // Output from model in absolute terms relative to input W/H
+        rawW = bw / req.inputW;
+        rawH = bh / req.inputH;
         nx1 = ((cx - bw / 2) / req.inputW).clamp(0.0, 1.0);
         ny1 = ((cy - bh / 2) / req.inputH).clamp(0.0, 1.0);
         nx2 = ((cx + bw / 2) / req.inputW).clamp(0.0, 1.0);
         ny2 = ((cy + bh / 2) / req.inputH).clamp(0.0, 1.0);
       } else {
+        // Output already normalized (0.0 ... 1.0)
+        rawW = bw;
+        rawH = bh;
         nx1 = (cx - bw / 2).clamp(0.0, 1.0);
         ny1 = (cy - bh / 2).clamp(0.0, 1.0);
         nx2 = (cx + bw / 2).clamp(0.0, 1.0);
@@ -249,6 +281,15 @@ void _inferenceIsolateEntry(SendPort mainSendPort) async {
       }
 
       if (nx2 <= nx1 || ny2 <= ny1) continue; 
+
+      // --- Hallucination Defense ---
+      // 1. Raw Dimension Limit: YOLO sometimes predicts widths 300%+ of the frame on empty backgrounds.
+      if (rawW > 1.2 || rawH > 1.2) continue;
+
+      // 2. Area Limit: If an out-of-bounds box gets clamped to [0.0, 1.0], it becomes a full-screen box.
+      // A legitimate landmark object almost never occupies symmetrically >90% of a camera feed.
+      final boxArea = (nx2 - nx1) * (ny2 - ny1);
+      if (boxArea > 0.90) continue;
 
       results.add(DetectionResult(
         label: labelStr,
@@ -325,19 +366,36 @@ void _inferenceIsolateEntry(SendPort mainSendPort) async {
       }
 
       try {
-         // 1. Preprocess
+         final totalSw = Stopwatch()..start();
+
+         // 1. Preprocess (YUV -> Resize -> Normalize)
+         final preSw = Stopwatch()..start();
          final inputTensor = preprocessImage(msg);
+         final preMs = preSw.elapsedMilliseconds;
          
          // 2. Run Inference
+         final inferSw = Stopwatch()..start();
          final rawOutput = _buildNestedOutputBuffer(fullOutputShape);
          interpreter.runForMultipleInputs([inputTensor], {0: rawOutput});
+         final inferMs = inferSw.elapsedMilliseconds;
 
-         // 3. Postprocess
+         // 3. Postprocess (Flatten, Decode, NMS)
+         final postSw = Stopwatch()..start();
          final flat = _flattenOutput(rawOutput);
          final detections = _parseOutput(flat, msg);
          final finalResults = _nms(detections, msg.nmsIouThreshold);
+         final postMs = postSw.elapsedMilliseconds;
 
-          msg.replyPort.send(finalResults);
+         final totalMs = totalSw.elapsedMilliseconds;
+
+         debugPrint('\n--- YOLO Inference Performance Profile ---');
+         debugPrint('1. Image preprocess (Scale/RGB/Norm): ${preMs}ms');
+         debugPrint('2. Model inference (TFLite ops): ${inferMs}ms');
+         debugPrint('3. Post-process (Decoding + NMS): ${postMs}ms');
+         debugPrint('TOTAL PIPELINE TIME: ${totalMs}ms');
+         debugPrint('------------------------------------------\n');
+
+         msg.replyPort.send(finalResults);
       } catch (e, stack) {
          debugPrint('[RecognitionService] Isolate runtime error: $e\n$stack');
          msg.replyPort.send(<DetectionResult>[]);
