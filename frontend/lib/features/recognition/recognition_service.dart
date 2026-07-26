@@ -1,6 +1,6 @@
+import 'dart:io';
+import 'dart:isolate';
 import 'dart:math';
-import 'dart:typed_data';
-import 'dart:ui';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/services.dart';
@@ -8,92 +8,61 @@ import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import 'package:tflite_flutter/tflite_flutter.dart';
 
-// Top-level isolate entry for preprocessing camera frames off the main thread.
-// Accepts a Map with image metadata and plane bytes and returns a nested 4D
-// List matching [1, H, W, 3] with values normalized to [0,1].
-Future<List<List<List<List<double>>>>> _preprocessCameraFrameIsolate(
-    Map<String, dynamic> args) async {
-  // Local imports inside isolate are available since `image` is pure Dart.
-  final width = args['width'] as int;
-  final height = args['height'] as int;
-  final inputW = args['inputW'] as int;
-  final inputH = args['inputH'] as int;
-  final format = args['format'] as String; // 'yuv420' or 'bgra8888'
-  final sensorOrientation = args['sensorOrientation'] as int;
+// ── Isolate Protocol Classes ─────────────────────────────────────────────────
+class _InferenceWorkerInit {
+  final SendPort replyPort;
+  final Uint8List modelBytes;
 
-  // Recreate planes
-  List<Map<String, dynamic>> planes = (args['planes'] as List)
-      .map((p) => Map<String, dynamic>.from(p as Map))
-      .toList();
+  _InferenceWorkerInit({
+    required this.replyPort,
+    required this.modelBytes,
+  });
+}
 
-  img.Image buildImage() {
-    if (format == 'yuv420') {
-      final yBytes = planes[0]['bytes'] as Uint8List;
-      final uBytes = planes[1]['bytes'] as Uint8List;
-      final vBytes = planes[2]['bytes'] as Uint8List;
-      final yStride = planes[0]['bytesPerRow'] as int;
-      final uvStride = planes[1]['bytesPerRow'] as int;
-      final uvPixelStride = planes[1]['bytesPerPixel'] as int? ?? 1;
+class _InferenceWorkerReady {
+  final SendPort sendPort;
+  final int inputW;
+  final int inputH;
 
-      final out = img.Image(width: width, height: height);
-      for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-          final yVal = yBytes[yStride * y + x];
-          final uvIdx = uvStride * (y >> 1) + (x >> 1) * uvPixelStride;
-          final uVal = uBytes[uvIdx];
-          final vVal = vBytes[uvIdx];
-          final yf = yVal.toDouble();
-          final uf = uVal.toDouble() - 128.0;
-          final vf = vVal.toDouble() - 128.0;
-          final r = (yf + 1.402 * vf).round().clamp(0, 255);
-          final g = (yf - 0.344136 * uf - 0.714136 * vf).round().clamp(0, 255);
-          final b = (yf + 1.772 * uf).round().clamp(0, 255);
-          out.setPixelRgba(x, y, r, g, b, 255);
-        }
-      }
-      return out;
-    } else {
-      final bytes = planes[0]['bytes'] as Uint8List;
-      return img.Image.fromBytes(
-          width: width,
-          height: height,
-          bytes: bytes.buffer,
-          order: img.ChannelOrder.bgra);
-    }
-  }
+  _InferenceWorkerReady({
+    required this.sendPort,
+    required this.inputW,
+    required this.inputH,
+  });
+}
 
-  img.Image src = buildImage();
-  if (sensorOrientation == 90) src = img.copyRotate(src, angle: 90);
-  if (sensorOrientation == 180) src = img.copyRotate(src, angle: 180);
-  if (sensorOrientation == 270) src = img.copyRotate(src, angle: 270);
+class _InferenceRequest {
+  final SendPort replyPort;
+  final int width;
+  final int height;
+  final int inputW;
+  final int inputH;
+  final String format;
+  final int sensorOrientation;
+  final List<Map<String, dynamic>> planes;
+  final double threshold;
+  final double nmsIouThreshold;
+  final Set<String>? allowedLabels;
 
-  final resized = img.copyResize(src,
-      width: inputW, height: inputH, interpolation: img.Interpolation.linear);
-
-  // Build nested list [1, H, W, 3]
-  final out = List<List<List<List<double>>>>.generate(
-    1,
-    (_) => List<List<List<double>>>.generate(
-      inputH,
-      (y) => List<List<double>>.generate(
-        inputW,
-        (x) {
-          final p = resized.getPixel(x, y);
-          return <double>[((p.r) / 255.0), ((p.g) / 255.0), ((p.b) / 255.0)];
-        },
-        growable: false,
-      ),
-      growable: false,
-    ),
-    growable: false,
-  );
-  return out;
+  _InferenceRequest({
+    required this.replyPort,
+    required this.width,
+    required this.height,
+    required this.inputW,
+    required this.inputH,
+    required this.format,
+    required this.sensorOrientation,
+    required this.planes,
+    required this.threshold,
+    required this.nmsIouThreshold,
+    this.allowedLabels,
+  });
 }
 
 class DetectionResult {
   final String label;
   final double confidence;
-  final Rect boundingBox; // normalised 0..1 in model input space
+  final Rect boundingBox; 
   final int classIndex;
 
   const DetectionResult({
@@ -104,19 +73,19 @@ class DetectionResult {
   });
 }
 
-/// YOLOv8 TFLite inference service.
-///
-/// Handles both common export layouts:
-///   • Transposed  [1, num_classes+4, num_anchors]  ← default ultralytics export
-///   • Standard    [1, num_anchors,   num_classes+4]
-///
-/// Labels MUST match the order used during training.
-class RecognitionService {
-  RecognitionService._();
-  static final RecognitionService instance = RecognitionService._();
+// ── Background Worker Entry Point ────────────────────────────────────────────
+void _inferenceIsolateEntry(SendPort mainSendPort) async {
+  final receivePort = ReceivePort();
+  mainSendPort.send(receivePort.sendPort);
 
-  // ── Labels – MUST match your training class order exactly ──────────────────
-  static const List<String> labels = [
+  Interpreter? interpreter;
+  int inputWidth = 640;
+  int inputHeight = 640;
+  List<int> outputShape = [];
+  List<int> fullOutputShape = [];
+  bool isTransposed = false;
+
+  final labels = [
     'sigiriya_lion_paws',
     'sigiriya_lion_rock',
     'sigiriya_mirror_wall',
@@ -124,152 +93,113 @@ class RecognitionService {
     'sigiriya_ticket_counter',
   ];
 
-  // ── State ──────────────────────────────────────────────────────────────────
-  Interpreter? _interpreter;
-  String? _loadError;
+  // Helper functions inside isolate
+  List<List<List<List<double>>>> preprocessImage(_InferenceRequest req) {
+    final int inW = req.width;
+    final int inH = req.height;
+    final int outW = req.inputW;
+    final int outH = req.inputH;
+    final orientation = req.sensorOrientation;
 
-  int _inputWidth = 640;
-  int _inputHeight = 640;
-
-  /// Shape of the output tensor (without the batch dim).
-  /// E.g. [9, 8400] or [8400, 9].
-  List<int> _outputShape = [];
-
-  bool get isLoaded => _interpreter != null;
-  String? get loadError => _loadError;
-  int get inputWidth => _inputWidth;
-  int get inputHeight => _inputHeight;
-
-  // ── Model loading ──────────────────────────────────────────────────────────
-  Future<void> loadModel() async {
-    if (_interpreter != null) return;
-    try {
-      final modelData =
-          await rootBundle.load('assets/models/landmark_model.tflite');
-      final options = InterpreterOptions()..threads = 4;
-      _interpreter = await Interpreter.fromBuffer(
-        modelData.buffer.asUint8List(),
-        options: options,
+    if (req.format != 'yuv420') {
+      // Fallback for BGRA8888 (e.g. iOS simulator) which isn't the primary bottleneck
+      final bytes = req.planes[0]['bytes'] as Uint8List;
+      var src = img.Image.fromBytes(width: inW, height: inH, bytes: bytes.buffer, order: img.ChannelOrder.bgra);
+      if (orientation == 90) src = img.copyRotate(src, angle: 90);
+      if (orientation == 180) src = img.copyRotate(src, angle: 180);
+      if (orientation == 270) src = img.copyRotate(src, angle: 270);
+      final resized = img.copyResize(src, width: outW, height: outH, interpolation: img.Interpolation.linear);
+      return List.generate(
+        1,
+        (_) => List.generate(outH, (y) => List.generate(outW, (x) {
+          final p = resized.getPixel(x, y);
+          return <double>[p.r / 255.0, p.g / 255.0, p.b / 255.0];
+        }, growable: false), growable: false),
+        growable: false,
       );
-
-      // Read input metadata
-      final inputTensors = _interpreter!.getInputTensors();
-      debugPrint(
-          '[RecognitionService] Model loaded. Inputs: ${inputTensors.length}, Outputs: ${_interpreter!.getOutputTensors().length}');
-
-      final inTensor = _interpreter!.getInputTensor(0);
-      final inShape = inTensor.shape;
-      final inType = inTensor.type;
-      debugPrint('[RecognitionService] Input[0]: shape=$inShape, type=$inType');
-
-      if (inShape.length >= 4) {
-        _inputHeight = inShape[1];
-        _inputWidth = inShape[2];
-      }
-
-      // Read output shape – strip the leading batch dim (1)
-      final outTensor = _interpreter!.getOutputTensor(0);
-      final outShape = outTensor.shape;
-      debugPrint(
-          '[RecognitionService] Default Output[0] shape: $outShape, type: ${outTensor.type}, name: ${outTensor.name}');
-      _outputShape = outShape.length > 1 ? outShape.sublist(1) : outShape;
-
-      _interpreter!.allocateTensors();
-      debugPrint('[RecognitionService] Tensors allocated successfully');
-
-      _loadError = null;
-    } catch (e, stack) {
-      _loadError = e.toString();
-      debugPrint('[RecognitionService] Failed to load model: $_loadError');
-      debugPrint(stack.toString());
-      _interpreter = null;
-    }
-  }
-
-  void dispose() {
-    _interpreter?.close();
-    _interpreter = null;
-  }
-
-  // ── Inference ──────────────────────────────────────────────────────────────
-  Future<List<DetectionResult>> predictAll(
-    CameraImage image, {
-    int sensorOrientation = 0,
-    double threshold = 0.30,
-    double nmsIouThreshold = 0.45,
-  }) async {
-    if (_interpreter == null) await loadModel();
-    if (_interpreter == null) return [];
-
-    // 1. Preprocess camera frame off the main thread to avoid jank.
-    final stopwatch = Stopwatch()..start();
-
-    // Serialize planes and metadata to pass to the isolate.
-    final planesForIsolate = image.planes
-        .map((p) => {
-              'bytes': p.bytes,
-              'bytesPerRow': p.bytesPerRow,
-              'bytesPerPixel': p.bytesPerPixel,
-            })
-        .toList(growable: false);
-
-    final args = {
-      'width': image.width,
-      'height': image.height,
-      'inputW': _inputWidth,
-      'inputH': _inputHeight,
-      'format':
-          image.format.group == ImageFormatGroup.yuv420 ? 'yuv420' : 'bgra8888',
-      'sensorOrientation': sensorOrientation,
-      'planes': planesForIsolate,
-    };
-
-    List<List<List<List<double>>>> inputTensor;
-    try {
-      inputTensor = await compute(_preprocessCameraFrameIsolate, args);
-    } catch (e) {
-      debugPrint('[RecognitionService] Preprocess isolate failed: $e');
-      return [];
     }
 
-    // 4. Allocate output buffer
-    final outTensor = _interpreter!.getOutputTensor(0);
-    final outShape = outTensor.shape;
-    // Usually [1, numBoxFields, numAnchors]
-    final dynamic rawOutput = _buildNestedOutputBuffer(outShape);
+    // --- Fast Direct YUV420 to Normalized Float32 Tensor ---
+    // Skips allocating a full 1080p frame, doing a full pixel loop, rotating, then resizing.
+    // Instead, it samples the exact calculated source pixels directly into the output tensor.
+    final yBytes = req.planes[0]['bytes'] as Uint8List;
+    final uBytes = req.planes[1]['bytes'] as Uint8List;
+    final vBytes = req.planes[2]['bytes'] as Uint8List;
+    final yStride = req.planes[0]['bytesPerRow'] as int;
+    final uvStride = req.planes[1]['bytesPerRow'] as int;
+    final uvPixelStride = req.planes[1]['bytesPerPixel'] as int? ?? 1;
 
-    try {
-      // Create a map for outputs if multi-output, but here we just have 1
-      final Map<int, Object> outputs = {0: rawOutput as Object};
-      _interpreter!.runForMultipleInputs([inputTensor], outputs);
-    } catch (e) {
-      debugPrint('[RecognitionService] Inference run failed: $e');
-      return [];
-    }
+    return List<List<List<List<double>>>>.generate(
+      1,
+      (_) => List<List<List<double>>>.generate(
+        outH,
+        (y) => List<List<double>>.generate(
+          outW,
+          (x) {
+            // 1. Map target tensor (x, y) back to normalized [0..1] space
+            double normX = x / outW;
+            double normY = y / outH;
 
-    // 5. Parse detections
-    final detections = _parseOutput(_flattenOutput(rawOutput), threshold);
-    final nmsResults = _nms(detections, nmsIouThreshold);
+            // 2. Reverse the camera rotation
+            double srcNormX = normX;
+            double srcNormY = normY;
+            if (orientation == 90) {
+              srcNormX = normY;
+              srcNormY = 1.0 - normX;
+            } else if (orientation == 180) {
+              srcNormX = 1.0 - normX;
+              srcNormY = 1.0 - normY;
+            } else if (orientation == 270) {
+              srcNormX = 1.0 - normY;
+              srcNormY = normX;
+            }
 
-    if (kDebugMode) {
-      debugPrint(
-          '[RecognitionService] Inference took ${stopwatch.elapsedMilliseconds}ms, found ${nmsResults.length} detections');
-    }
-    return nmsResults;
+            // 3. Map to original camera buffer dimensions
+            int srcX = (srcNormX * inW).floor().clamp(0, inW - 1);
+            int srcY = (srcNormY * inH).floor().clamp(0, inH - 1);
+
+            // 4. Sample the Y, U, V channels at this exact pixel
+            final yIdx = yStride * srcY + srcX;
+            final uvIdx = uvStride * (srcY >> 1) + (srcX >> 1) * uvPixelStride;
+
+            final yf = yBytes[yIdx].toDouble();
+            final uf = uBytes[uvIdx].toDouble() - 128.0;
+            final vf = vBytes[uvIdx].toDouble() - 128.0;
+
+            // 5. Convert to RGB
+            final r = (yf + 1.402 * vf).round().clamp(0, 255);
+            final g = (yf - 0.344136 * uf - 0.714136 * vf).round().clamp(0, 255);
+            final b = (yf + 1.772 * uf).round().clamp(0, 255);
+
+            // 6. Normalize to [0...1] float and return innermost tensor array
+            return <double>[r / 255.0, g / 255.0, b / 255.0];
+          },
+          growable: false,
+        ),
+        growable: false,
+      ),
+      growable: false,
+    );
   }
 
   dynamic _buildNestedOutputBuffer(List<int> shape) {
-    if (shape.isEmpty) {
-      return 0.0;
-    }
-    if (shape.length == 1) {
-      return List<double>.filled(shape[0], 0.0, growable: false);
-    }
+    if (shape.isEmpty) return 0.0;
+    if (shape.length == 1) return List<double>.filled(shape[0], 0.0, growable: false);
     return List.generate(
       shape[0],
       (_) => _buildNestedOutputBuffer(shape.sublist(1)),
       growable: false,
     );
+  }
+
+  void _collectOutputValues(dynamic value, List<double> buffer) {
+    if (value is num) {
+      buffer.add(value.toDouble());
+    } else if (value is List) {
+      for (final item in value) {
+        _collectOutputValues(item, buffer);
+      }
+    }
   }
 
   Float32List _flattenOutput(dynamic value) {
@@ -278,122 +208,88 @@ class RecognitionService {
     return Float32List.fromList(buffer);
   }
 
-  void _collectOutputValues(dynamic value, List<double> buffer) {
-    if (value is num) {
-      buffer.add(value.toDouble());
-      return;
-    }
-    if (value is List) {
-      for (final item in value) {
-        _collectOutputValues(item, buffer);
-      }
-    }
-  }
-
-  /// Convenience: returns only the single best detection (highest confidence).
-  Future<DetectionResult?> predict(
-    CameraImage image, {
-    int sensorOrientation = 0,
-    double threshold = 0.30,
-  }) async {
-    final all = await predictAll(image,
-        sensorOrientation: sensorOrientation, threshold: threshold);
-    if (all.isEmpty) return null;
-    return all.reduce((a, b) => a.confidence > b.confidence ? a : b);
-  }
-
-  // ── Output parsing ─────────────────────────────────────────────────────────
-
-  /// Determine whether the tensor is transposed (YOLOv8 default) or standard.
-  ///
-  ///  Transposed: shape = [numClasses+4, numAnchors]  → numAnchors >> numClasses
-  ///  Standard  : shape = [numAnchors,  numClasses+4] → same but swapped
-  bool get _isTransposed {
-    if (_outputShape.length < 2) return false;
-    // heuristic: the anchors dim is always the larger one
-    return _outputShape[0] < _outputShape[1];
-  }
-
-  List<DetectionResult> _parseOutput(Float32List flat, double threshold) {
-    if (_outputShape.length < 2) return [];
+  List<DetectionResult> _parseOutput(Float32List flat, _InferenceRequest req) {
+    if (outputShape.length < 2) return [];
 
     final int rows;
     final int cols;
-
-    if (_isTransposed) {
-      // Shape: [numBoxFields, numAnchors]  e.g. [9, 8400]
-      rows = _outputShape[0]; // numBoxFields  = 4 + numClasses
-      cols = _outputShape[1]; // numAnchors
+    if (isTransposed) {
+      rows = outputShape[0]; 
+      cols = outputShape[1]; 
     } else {
-      // Shape: [numAnchors, numBoxFields]  e.g. [8400, 9]
-      rows = _outputShape[1]; // numBoxFields
-      cols = _outputShape[0]; // numAnchors
+      rows = outputShape[1]; 
+      cols = outputShape[0]; 
     }
 
     final int numAnchors = cols;
     final int numBoxFields = rows;
-    final int numClasses = numBoxFields - 4; // cx,cy,w,h + class scores
-    final int effectiveClasses = numClasses;
+    final int numClasses = numBoxFields - 4; 
 
     final results = <DetectionResult>[];
-
     for (int a = 0; a < numAnchors; a++) {
       double cx, cy, bw, bh;
-
-      if (_isTransposed) {
-        // flat is stored row-major for [numBoxFields, numAnchors]
-        // value at [field, anchor] = flat[field * numAnchors + anchor]
+      if (isTransposed) {
         cx = flat[0 * numAnchors + a];
         cy = flat[1 * numAnchors + a];
         bw = flat[2 * numAnchors + a];
         bh = flat[3 * numAnchors + a];
       } else {
-        // flat is stored row-major for [numAnchors, numBoxFields]
-        // value at [anchor, field] = flat[anchor * numBoxFields + field]
         cx = flat[a * numBoxFields + 0];
         cy = flat[a * numBoxFields + 1];
         bw = flat[a * numBoxFields + 2];
         bh = flat[a * numBoxFields + 3];
       }
 
-      // Find best class score
       double bestScore = -1;
       int bestClass = -1;
-      for (int c = 0; c < effectiveClasses; c++) {
-        double score;
-        if (_isTransposed) {
-          score = flat[(4 + c) * numAnchors + a];
-        } else {
-          score = flat[a * numBoxFields + 4 + c];
-        }
+      for (int c = 0; c < numClasses; c++) {
+        double score = isTransposed 
+            ? flat[(4 + c) * numAnchors + a] 
+            : flat[a * numBoxFields + 4 + c];
         if (score > bestScore) {
           bestScore = score;
           bestClass = c;
         }
       }
 
-      if (bestClass < 0 || bestScore < threshold) continue;
+      if (bestClass < 0 || bestScore < req.threshold) continue;
 
-      final labelStr =
-          (bestClass < labels.length) ? labels[bestClass] : 'CLASS_$bestClass';
+      final labelStr = (bestClass < labels.length) ? labels[bestClass] : 'CLASS_$bestClass';
+      if (req.allowedLabels != null && !req.allowedLabels!.contains(labelStr)) {
+        continue;
+      }
 
-      // YOLOv8 boxes are in pixel space relative to input size (cx,cy,w,h)
-      // Normalise to 0..1
-      // HEURISTIC: If cx/cy are > 1, they are pixel-space. If < 1, they are already normalized.
       double nx1, ny1, nx2, ny2;
+      double rawW, rawH;
+
       if (cx > 1.5 || bw > 1.5) {
-        nx1 = ((cx - bw / 2) / _inputWidth).clamp(0.0, 1.0);
-        ny1 = ((cy - bh / 2) / _inputHeight).clamp(0.0, 1.0);
-        nx2 = ((cx + bw / 2) / _inputWidth).clamp(0.0, 1.0);
-        ny2 = ((cy + bh / 2) / _inputHeight).clamp(0.0, 1.0);
+        // Output from model in absolute terms relative to input W/H
+        rawW = bw / req.inputW;
+        rawH = bh / req.inputH;
+        nx1 = ((cx - bw / 2) / req.inputW).clamp(0.0, 1.0);
+        ny1 = ((cy - bh / 2) / req.inputH).clamp(0.0, 1.0);
+        nx2 = ((cx + bw / 2) / req.inputW).clamp(0.0, 1.0);
+        ny2 = ((cy + bh / 2) / req.inputH).clamp(0.0, 1.0);
       } else {
+        // Output already normalized (0.0 ... 1.0)
+        rawW = bw;
+        rawH = bh;
         nx1 = (cx - bw / 2).clamp(0.0, 1.0);
         ny1 = (cy - bh / 2).clamp(0.0, 1.0);
         nx2 = (cx + bw / 2).clamp(0.0, 1.0);
         ny2 = (cy + bh / 2).clamp(0.0, 1.0);
       }
 
-      if (nx2 <= nx1 || ny2 <= ny1) continue; // degenerate box
+      if (nx2 <= nx1 || ny2 <= ny1) continue; 
+
+      // --- Hallucination Defense ---
+      // 1. Raw Dimension Limit: YOLO sometimes predicts widths 300%+ of the frame on empty backgrounds.
+      if (rawW > 1.2 || rawH > 1.2) continue;
+
+      // 2. Area Limit: If an out-of-bounds box gets clamped to [0.0, 1.0], it becomes a full-screen box.
+      // A legitimate landmark object almost never occupies symmetrically >90% of a camera feed.
+      final boxArea = (nx2 - nx1) * (ny2 - ny1);
+      if (boxArea > 0.90) continue;
 
       results.add(DetectionResult(
         label: labelStr,
@@ -402,42 +298,7 @@ class RecognitionService {
         classIndex: bestClass,
       ));
     }
-
-    if (results.isNotEmpty && kDebugMode) {
-      debugPrint(
-          '[RecognitionService] Raw detections before NMS: ${results.length}');
-      for (var r in results.take(3)) {
-        debugPrint(
-            '  - ${r.label} conf=${r.confidence.toStringAsFixed(3)} box=${r.boundingBox}');
-      }
-    }
-
     return results;
-  }
-
-  // ── NMS ───────────────────────────────────────────────────────────────────
-  List<DetectionResult> _nms(
-      List<DetectionResult> detections, double iouThreshold) {
-    if (detections.isEmpty) return [];
-
-    // Sort by confidence descending
-    detections.sort((a, b) => b.confidence.compareTo(a.confidence));
-
-    final kept = <DetectionResult>[];
-    final suppressed = List<bool>.filled(detections.length, false);
-
-    for (int i = 0; i < detections.length; i++) {
-      if (suppressed[i]) continue;
-      kept.add(detections[i]);
-      for (int j = i + 1; j < detections.length; j++) {
-        if (suppressed[j]) continue;
-        if (_iou(detections[i].boundingBox, detections[j].boundingBox) >
-            iouThreshold) {
-          suppressed[j] = true;
-        }
-      }
-    }
-    return kept;
   }
 
   double _iou(Rect a, Rect b) {
@@ -452,95 +313,251 @@ class RecognitionService {
     return inter / (aArea + bArea - inter);
   }
 
-  // ── Tensor utilities ───────────────────────────────────────────────────────
-  /// Build a [1, H, W, 3] tensor from a list of images.
-  ///
-  /// The interpreter expects the full 4D shape, so we preserve the nesting
-  /// rather than flattening the pixels into a 1D buffer.
-  List<List<List<List<double>>>> _imageToNestedFloat32(
-    List<img.Image> images,
-    int w,
-    int h,
-  ) {
-    return images
-        .map(
-          (image) => List.generate(
-            h,
-            (y) => List.generate(
-              w,
-              (x) {
-                final p = image.getPixel(x, y);
-                return <double>[p.r / 255.0, p.g / 255.0, p.b / 255.0];
-              },
-              growable: false,
-            ),
-            growable: false,
-          ),
-        )
-        .toList(growable: false);
-  }
+  List<DetectionResult> _nms(List<DetectionResult> detections, double iouThreshold) {
+    if (detections.isEmpty) return [];
+    detections.sort((a, b) => b.confidence.compareTo(a.confidence));
+    final kept = <DetectionResult>[];
+    final suppressed = List<bool>.filled(detections.length, false);
 
-  // ── Image conversion ───────────────────────────────────────────────────────
-  img.Image? _cameraImageToImage(CameraImage image) {
-    switch (image.format.group) {
-      case ImageFormatGroup.yuv420:
-        return _yuv420ToImage(image);
-      case ImageFormatGroup.bgra8888:
-        return _bgra8888ToImage(image);
-      default:
-        return null;
-    }
-  }
-
-  img.Image _yuv420ToImage(CameraImage image) {
-    final w = image.width;
-    final h = image.height;
-    final out = img.Image(width: w, height: h);
-
-    final yPlane = image.planes[0];
-    final uPlane = image.planes[1];
-    final vPlane = image.planes[2];
-    final yBytes = yPlane.bytes;
-    final uBytes = uPlane.bytes;
-    final vBytes = vPlane.bytes;
-    final yStride = yPlane.bytesPerRow;
-    final uvStride = uPlane.bytesPerRow;
-    final uvPixelStride = uPlane.bytesPerPixel ?? 1;
-
-    for (int y = 0; y < h; y++) {
-      for (int x = 0; x < w; x++) {
-        final yVal = yBytes[yStride * y + x];
-        final uvIdx = uvStride * (y >> 1) + (x >> 1) * uvPixelStride;
-        final uVal = uBytes[uvIdx];
-        final vVal = vBytes[uvIdx];
-        final yf = yVal.toDouble();
-        final uf = uVal.toDouble() - 128.0;
-        final vf = vVal.toDouble() - 128.0;
-        final r = (yf + 1.402 * vf).round().clamp(0, 255);
-        final g = (yf - 0.344136 * uf - 0.714136 * vf).round().clamp(0, 255);
-        final b = (yf + 1.772 * uf).round().clamp(0, 255);
-        out.setPixelRgba(x, y, r, g, b, 255);
+    for (int i = 0; i < detections.length; i++) {
+      if (suppressed[i]) continue;
+      kept.add(detections[i]);
+      for (int j = i + 1; j < detections.length; j++) {
+        if (suppressed[j]) continue;
+        if (_iou(detections[i].boundingBox, detections[j].boundingBox) > iouThreshold) {
+          suppressed[j] = true;
+        }
       }
     }
-    return out;
+    return kept;
   }
 
-  img.Image _bgra8888ToImage(CameraImage image) {
-    final plane = image.planes[0];
-    return img.Image.fromBytes(
+  // Handle messages
+  await for (final msg in receivePort) {
+    if (msg is _InferenceWorkerInit) {
+      try {
+        interpreter = Interpreter.fromBuffer(msg.modelBytes, options: InterpreterOptions()..threads = 4);
+        interpreter.allocateTensors();
+        
+        final inShape = interpreter.getInputTensor(0).shape;
+        if (inShape.length >= 4) {
+          inputHeight = inShape[1];
+          inputWidth = inShape[2];
+        }
+        
+        final outTensor = interpreter.getOutputTensor(0);
+        final outShape = outTensor.shape;
+        fullOutputShape = outShape;
+        outputShape = outShape.length > 1 ? outShape.sublist(1) : outShape;
+        isTransposed = outputShape.length >= 2 && outputShape[0] < outputShape[1];
+
+        msg.replyPort.send(_InferenceWorkerReady(
+          sendPort: receivePort.sendPort,
+          inputW: inputWidth,
+          inputH: inputHeight,
+        ));
+      } catch (e) {
+        msg.replyPort.send(e.toString()); // Init error
+      }
+    } else if (msg is _InferenceRequest) {
+      if (interpreter == null) {
+        msg.replyPort.send(<DetectionResult>[]);
+        continue;
+      }
+
+      try {
+         final totalSw = Stopwatch()..start();
+
+         // 1. Preprocess (YUV -> Resize -> Normalize)
+         final preSw = Stopwatch()..start();
+         final inputTensor = preprocessImage(msg);
+         final preMs = preSw.elapsedMilliseconds;
+         
+         // 2. Run Inference
+         final inferSw = Stopwatch()..start();
+         final rawOutput = _buildNestedOutputBuffer(fullOutputShape);
+         interpreter.runForMultipleInputs([inputTensor], {0: rawOutput});
+         final inferMs = inferSw.elapsedMilliseconds;
+
+         // 3. Postprocess (Flatten, Decode, NMS)
+         final postSw = Stopwatch()..start();
+         final flat = _flattenOutput(rawOutput);
+         final detections = _parseOutput(flat, msg);
+         final finalResults = _nms(detections, msg.nmsIouThreshold);
+         final postMs = postSw.elapsedMilliseconds;
+
+         final totalMs = totalSw.elapsedMilliseconds;
+
+         debugPrint('\n--- YOLO Inference Performance Profile ---');
+         debugPrint('1. Image preprocess (Scale/RGB/Norm): ${preMs}ms');
+         debugPrint('2. Model inference (TFLite ops): ${inferMs}ms');
+         debugPrint('3. Post-process (Decoding + NMS): ${postMs}ms');
+         debugPrint('TOTAL PIPELINE TIME: ${totalMs}ms');
+         debugPrint('------------------------------------------\n');
+
+         msg.replyPort.send(finalResults);
+      } catch (e, stack) {
+         debugPrint('[RecognitionService] Isolate runtime error: $e\n$stack');
+         msg.replyPort.send(<DetectionResult>[]);
+      }
+    }
+  }
+}
+
+
+/// YOLOv8 TFLite inference service.
+///
+/// Handles both common export layouts and runs 100% off the UI thread 
+/// to ensure extremely smooth frame rates and zero freezing!
+class RecognitionService {
+  RecognitionService._();
+  static final RecognitionService instance = RecognitionService._();
+
+  // ── Labels – MUST match your training class order exactly ──────────────────
+  static const List<String> labels = [
+    'sigiriya_lion_paws',
+    'sigiriya_lion_rock',
+    'sigiriya_mirror_wall',
+    'sigiriya_throne',
+    'sigiriya_ticket_counter',
+  ];
+
+  static const Map<String, List<String>> _siteLabels = {
+    'Sigiriya': labels,
+    'Dambulla Cave Temple': <String>[],
+    'Polonnaruwa': <String>[],
+  };
+
+  static List<String> labelsForSite(String? siteName) {
+    if (siteName == null) return const <String>[];
+    return List<String>.unmodifiable(_siteLabels[siteName] ?? const <String>[]);
+  }
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  Isolate? _workerIsolate;
+  SendPort? _workerSendPort;
+  String? _loadError;
+  bool _isInitInProgress = false;
+
+  int _inputWidth = 640;
+  int _inputHeight = 640;
+
+  bool get isLoaded => _workerSendPort != null;
+  String? get loadError => _loadError;
+  int get inputWidth => _inputWidth;
+  int get inputHeight => _inputHeight;
+
+  // ── Model loading (Spawns long-lived Isolate) ──────────────────────────────
+  Future<void> loadModel() async {
+    if (_workerSendPort != null || _isInitInProgress) return;
+    _isInitInProgress = true;
+    _loadError = null;
+
+    try {
+      final modelData = await rootBundle.load('assets/models/landmark_model.tflite');
+      
+      final initReceivePort = ReceivePort();
+      _workerIsolate = await Isolate.spawn(_inferenceIsolateEntry, initReceivePort.sendPort);
+
+      // Wait for isolate to turn on
+      final workerPortMsg = await initReceivePort.first;
+      if (workerPortMsg is! SendPort) {
+        throw Exception("Failed to receive isolate communication port.");
+      }
+      final workerSendPort = workerPortMsg;
+
+      final readyReceivePort = ReceivePort();
+      workerSendPort.send(_InferenceWorkerInit(
+        replyPort: readyReceivePort.sendPort, 
+        modelBytes: modelData.buffer.asUint8List(),
+      ));
+
+      final readyMsg = await readyReceivePort.first;
+      if (readyMsg is _InferenceWorkerReady) {
+         _workerSendPort = workerSendPort;
+         _inputWidth = readyMsg.inputW;
+         _inputHeight = readyMsg.inputH;
+         debugPrint('[RecognitionService] Fast Background Worker initialized smoothly.');
+      } else {
+         throw Exception("Isolate initialization failed: $readyMsg");
+      }
+    } catch (e, stack) {
+      _loadError = e.toString();
+      debugPrint('[RecognitionService] Failed to load model: $_loadError');
+      dispose();
+    } finally {
+      _isInitInProgress = false;
+    }
+  }
+
+  void dispose() {
+    _workerIsolate?.kill(priority: Isolate.immediate);
+    _workerIsolate = null;
+    _workerSendPort = null;
+  }
+
+  // ── Inference (Zero main-thread blocking) ──────────────────────────────────
+  Future<List<DetectionResult>> predictAll(
+    CameraImage image, {
+    int sensorOrientation = 0,
+    double threshold = 0.30,
+    double nmsIouThreshold = 0.45,
+    Set<String>? allowedLabels,
+  }) async {
+    if (_workerSendPort == null) await loadModel();
+    if (_workerSendPort == null) return [];
+
+    final normalizedAllowedLabels = allowedLabels?.map((l) => l.trim().toLowerCase()).toSet();
+    if (normalizedAllowedLabels != null && normalizedAllowedLabels.isEmpty) {
+      return [];
+    }
+
+    final stopwatch = Stopwatch()..start();
+    final planesForIsolate = image.planes
+        .map((p) => {
+              'bytes': p.bytes,
+              'bytesPerRow': p.bytesPerRow,
+              'bytesPerPixel': p.bytesPerPixel,
+            })
+        .toList(growable: false);
+
+    final replyPort = ReceivePort();
+    
+    _workerSendPort!.send(_InferenceRequest(
+      replyPort: replyPort.sendPort,
       width: image.width,
       height: image.height,
-      bytes: plane.bytes.buffer,
-      order: img.ChannelOrder.bgra,
-    );
+      inputW: _inputWidth,
+      inputH: _inputHeight,
+      format: image.format.group == ImageFormatGroup.yuv420 ? 'yuv420' : 'bgra8888',
+      sensorOrientation: sensorOrientation,
+      planes: planesForIsolate,
+      threshold: threshold,
+      nmsIouThreshold: nmsIouThreshold,
+      allowedLabels: normalizedAllowedLabels,
+    ));
+
+    final result = await replyPort.first;
+    
+    if (kDebugMode) {
+      final list = result as List<DetectionResult>;
+      debugPrint('[RecognitionService] Background inference took ${stopwatch.elapsedMilliseconds}ms, found ${list.length} detections');
+    }
+
+    return result is List<DetectionResult> ? result : [];
   }
 
-  /// Rotate image so that the top of frame matches portrait orientation.
-  /// On Android the back camera is typically rotated 90°.
-  img.Image _rotateForInference(img.Image src, int sensorOrientation) {
-    if (sensorOrientation == 90) return img.copyRotate(src, angle: 90);
-    if (sensorOrientation == 180) return img.copyRotate(src, angle: 180);
-    if (sensorOrientation == 270) return img.copyRotate(src, angle: 270);
-    return src; // 0 – no rotation needed
+  Future<DetectionResult?> predict(
+    CameraImage image, {
+    int sensorOrientation = 0,
+    double threshold = 0.30,
+    Set<String>? allowedLabels,
+  }) async {
+    final all = await predictAll(image,
+        sensorOrientation: sensorOrientation,
+        threshold: threshold,
+        allowedLabels: allowedLabels);
+    if (all.isEmpty) return null;
+    return all.reduce((a, b) => a.confidence > b.confidence ? a : b);
   }
 }

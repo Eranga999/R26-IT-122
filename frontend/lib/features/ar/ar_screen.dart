@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/ar_availability.dart';
 import '../../features/database/landmark_model.dart';
@@ -16,6 +16,8 @@ class ArScreen extends StatefulWidget {
 }
 
 class _ArScreenState extends State<ArScreen> {
+  bool get _isSigiriya =>
+      widget.landmark.name.toLowerCase().contains('sigiriya');
   static const _gradients = [
     [Color(0xFFB71C1C), Color(0xFFE53935)],
     [Color(0xFFE65100), Color(0xFFFF8F00)],
@@ -64,6 +66,17 @@ class _ArScreenState extends State<ArScreen> {
   }
 
   void _onLaunchAr(List<Color> colors) {
+    // Sigiriya uses camera-based AR navigation — no ARCore required.
+    if (_isSigiriya) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ArCameraView(landmark: widget.landmark),
+        ),
+      );
+      return;
+    }
+
     if (_arStatus?.canInstall == true ||
         (!(_arStatus?.supported ?? false) &&
             !(_arStatus?.arCoreInstalled ?? false))) {
@@ -243,9 +256,9 @@ class _ArScreenState extends State<ArScreen> {
                       border: Border.all(
                           color: AppTheme.secondary.withValues(alpha: 0.4)),
                     ),
-                    child: const Text(
-                      'AR Experience',
-                      style: TextStyle(
+                    child: Text(
+                      _isSigiriya ? 'AR Navigation' : 'AR Experience',
+                      style: const TextStyle(
                           color: Color(0xFFFFB300),
                           fontWeight: FontWeight.w600),
                     ),
@@ -289,21 +302,25 @@ class _ArScreenState extends State<ArScreen> {
                               ],
                             )
                           : arSupported
-                              ? const Column(children: [
-                                  Icon(Icons.check_circle_rounded,
+                              ? Column(children: [
+                                  const Icon(Icons.check_circle_rounded,
                                       color: Colors.green, size: 32),
-                                  SizedBox(height: 10),
+                                  const SizedBox(height: 10),
                                   Text(
-                                    'Your device supports AR!',
-                                    style: TextStyle(
+                                    _isSigiriya
+                                        ? 'Camera-based AR Navigation Ready!'
+                                        : 'Your device supports AR!',
+                                    style: const TextStyle(
                                         color: Colors.green,
                                         fontWeight: FontWeight.w700,
                                         fontSize: 14),
                                   ),
-                                  SizedBox(height: 6),
+                                  const SizedBox(height: 6),
                                   Text(
-                                    'Tap "Launch AR" to start the immersive 3-D overlay experience for this landmark.',
-                                    style: TextStyle(
+                                    _isSigiriya
+                                        ? 'Offline route overlay with GPS, compass, and YOLO landmark confirmation.'
+                                        : 'Tap "Launch AR" to start the immersive 3-D overlay experience for this landmark.',
+                                    style: const TextStyle(
                                         color: Colors.white60,
                                         fontSize: 12,
                                         height: 1.5),
@@ -314,32 +331,68 @@ class _ArScreenState extends State<ArScreen> {
                                   Icon(
                                     (_arStatus?.isEmulator ?? false)
                                         ? Icons.computer_rounded
-                                        : Icons.warning_amber_rounded,
+                                        : (_isSigiriya
+                                            ? Icons.navigation_rounded
+                                            : Icons.warning_amber_rounded),
                                     color: (_arStatus?.isEmulator ?? false)
                                         ? Colors.blueGrey.shade300
-                                        : Colors.orange,
+                                        : (_isSigiriya
+                                            ? Colors.greenAccent
+                                            : Colors.orange),
                                     size: 32,
                                   ),
                                   const SizedBox(height: 10),
                                   Text(
                                     (_arStatus?.isEmulator ?? false)
-                                        ? 'Emulator Detected – ARCore Not Installed'
-                                        : 'AR Not Available on This Device',
+                                        ? 'Emulator Detected'
+                                        : (_isSigiriya
+                                            ? 'Camera AR Navigation Available'
+                                            : 'AR Not Supported'),
                                     style: TextStyle(
                                         color: (_arStatus?.isEmulator ?? false)
                                             ? Colors.blueGrey.shade300
-                                            : Colors.orange,
+                                            : (_isSigiriya
+                                                ? Colors.greenAccent
+                                                : Colors.orange),
                                         fontWeight: FontWeight.w700,
-                                        fontSize: 14),
+                                        fontSize: 16),
                                     textAlign: TextAlign.center,
                                   ),
-                                  const SizedBox(height: 6),
+                                  const SizedBox(height: 16),
+                                  
+                                  // Device Compatibility Checklist
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: Colors.white12),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        _compatibilityRow('Camera', true),
+                                        const SizedBox(height: 8),
+                                        _compatibilityRow('IMU Sensors', true),
+                                        const SizedBox(height: 8),
+                                        _compatibilityRow('Google ARCore', false),
+                                        if (_isSigiriya) ...[
+                                          const SizedBox(height: 8),
+                                          _compatibilityRow('GPS Navigation', true),
+                                          const SizedBox(height: 8),
+                                          _compatibilityRow('Compass Heading', true),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  
+                                  const SizedBox(height: 16),
                                   Text(
-                                    _arStatus?.reason ??
-                                        'AR is not supported on this device.',
-                                    style: const TextStyle(
-                                        color: Colors.white54,
-                                        fontSize: 12,
+                                    _isSigiriya
+                                        ? 'ARCore 3D anchors are not supported, but camera-based AR navigation is available.'
+                                        : 'Don\'t worry! You can still use the Landmark Scanner, Navigation, and Ask AI features without AR.',
+                                    style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 13,
                                         height: 1.5),
                                     textAlign: TextAlign.center,
                                   ),
@@ -404,27 +457,34 @@ class _ArScreenState extends State<ArScreen> {
                           child: ElevatedButton.icon(
                             onPressed: _checking
                                 ? null
+                                : (_isSigiriya ||
+                                        !(_arStatus?.canInstall == true))
+                                    ? () => _onLaunchAr(colors)
+                                    : _installArCore,
+                            icon: _isSigiriya
+                                ? const Icon(Icons.navigation_rounded)
                                 : (_arStatus?.canInstall == true)
-                                    ? _installArCore
-                                    : () => _onLaunchAr(colors),
-                            icon: (_arStatus?.canInstall == true)
-                                ? const Icon(Icons.download_rounded)
-                                : const Icon(Icons.view_in_ar_rounded),
-                            label: Text(arSupported
-                                ? 'Launch AR'
-                                : (_arStatus?.canInstall == true)
-                                    ? 'Install ARCore'
-                                    : (_arStatus?.isEmulator ?? false)
-                                        ? 'ARCore Not Installed (Emulator)'
-                                        : 'AR Not Available on This Device'),
+                                    ? const Icon(Icons.download_rounded)
+                                    : const Icon(Icons.view_in_ar_rounded),
+                            label: Text(_isSigiriya
+                                ? 'Launch AR Navigation'
+                                : arSupported
+                                    ? 'Launch AR'
+                                    : (_arStatus?.canInstall == true)
+                                        ? 'Install ARCore'
+                                        : (_arStatus?.isEmulator ?? false)
+                                            ? 'ARCore Not Installed (Emulator)'
+                                            : 'AR Not Available on This Device'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: _checking
                                   ? Colors.grey.shade700
-                                  : arSupported
-                                      ? colors[0]
-                                      : (_arStatus?.canInstall == true)
-                                          ? const Color(0xFF1565C0)
-                                          : Colors.grey.shade700,
+                                  : _isSigiriya
+                                      ? const Color(0xFF1B5E20)
+                                      : arSupported
+                                          ? colors[0]
+                                          : (_arStatus?.canInstall == true)
+                                              ? const Color(0xFF1565C0)
+                                              : Colors.grey.shade700,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(
@@ -459,6 +519,23 @@ class _ArScreenState extends State<ArScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _compatibilityRow(String title, bool passed) {
+    return Row(
+      children: [
+        Icon(
+          passed ? Icons.check_circle_rounded : Icons.cancel_rounded,
+          color: passed ? Colors.green : Colors.red,
+          size: 16,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(color: Colors.white, fontSize: 13),
+        ),
+      ],
     );
   }
 }

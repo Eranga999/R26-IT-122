@@ -1,9 +1,12 @@
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
+import '../../core/location/site_geofence.dart';
+import '../../core/location/site_lock_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../features/recognition/recognition_service.dart';
 import '../../features/database/database_helper.dart';
@@ -15,34 +18,87 @@ import '../rag/rag_screen.dart';
 import '../navigation/nav_screen.dart';
 import '../home/home_screen.dart';
 
-class CameraScreen extends StatefulWidget {
-  const CameraScreen({
-    super.key,
-    this.lockedLandmarkId,
-    this.lockedLandmarkName,
-  });
+/// Verification state of the GPS geofence check.
+enum _VerifyStatus { verifying, locked, outside, failed, manual }
 
-  final int? lockedLandmarkId;
-  final String? lockedLandmarkName;
+class CameraScreen extends StatefulWidget {
+  const CameraScreen({super.key});
 
   @override
   State<CameraScreen> createState() => _CameraScreenState();
 }
 
 class _CameraScreenState extends State<CameraScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   CameraController? _controller;
   String? _cameraError;
   bool _isProcessing = false;
   int _lastProcessTime = 0; // for throttling
   int _lastPanelUpdateTime = 0;
   String? _lastPanelLabel;
+  final Map<int, LandmarkModel> _landmarkCache = {};
+  final Map<int, List<SubLandmarkModel>> _subCache = {};
 
-  static const int _frameThrottleMs = 500;
-  static const int _sameLabelPanelCooldownMs = 1200;
+  // ── GPS / site verification state ─────────────────────────────────────────
+  _VerifyStatus _verifyStatus = _VerifyStatus.verifying;
+  SiteLockResult? _siteLock;
+  List<String> _allowedLabels = const [];
+
+  bool get _canRunDetector =>
+      (_verifyStatus == _VerifyStatus.locked ||
+          _verifyStatus == _VerifyStatus.manual) &&
+      _allowedLabels.isNotEmpty;
 
   // ── Live detection state (shown while scanning) ────────────────────────────
   List<DetectionResult> _liveDetections = []; // real-time boxes on camera
+
+  // ── Bounding-box smoothing ────────────────────────────────────────────────
+  Rect? _smoothedBoxRect; // exponentially smoothed box
+  static const double _boxAlpha = 0.75; // Smoother tracking (less jitter)
+
+  // ── False positive protection (Stable detection tracking) ──────────────────
+  String? _candidateLabel;
+  int _candidateCount = 0;
+  int _lastConfirmedTime = 0;
+  // Hold the info panel for 6 s after the last confirmed frame.
+  static const int _panelHoldMs = 6000;
+
+  // ── Frame-rate throttle ───────────────────────────────────────────────────
+  // Limit inference to ~8 fps to prevent a processing backlog (lag).
+  static const int _minFrameIntervalMs = 125;
+
+  // ── Stale bounding-box protection ────────────────────────────────────────
+  // The bounding box clears quickly (1.2 s or 6 empty frames), but the
+  // info card can stay visible for much longer (_panelHoldMs).
+  static const int _boxHoldMs = 1200;       // box disappears after 1.2 s with no detection
+  static const int _maxEmptyFrames = 6;     // OR after 6 consecutive empty frames
+  int _emptyFrameCount = 0;                 // consecutive frames with no detections
+  int _lastDetectionTime = 0;               // last ms we saw any detection
+  bool _boxVisible = false;                 // guard: prevents stale painter data
+
+  bool get _isGpsLocked => _verifyStatus == _VerifyStatus.locked;
+  // GPS-locked: lower thresholds – the site is confirmed by GPS.
+  // Manual mode: slightly higher to reduce noise, but still detectable.
+  double get _modelThreshold => _isGpsLocked ? 0.60 : 0.72;
+  double get _cardThreshold  => _isGpsLocked ? 0.72 : 0.78;
+  // GPS-locked: 2 consecutive frames; manual: 3 frames for stability.
+  int get _requiredFrames => _isGpsLocked ? 2 : 3;
+
+  bool _isStableDetection(DetectionResult bestDetection) {
+    if (bestDetection.confidence < _cardThreshold) {
+      _candidateCount = 0;
+      return false;
+    }
+
+    if (bestDetection.label == _candidateLabel) {
+      _candidateCount++;
+    } else {
+      _candidateLabel = bestDetection.label;
+      _candidateCount = 1;
+    }
+
+    return _candidateCount >= _requiredFrames;
+  }
 
   // ── Info-panel state (opened when confident enough) ────────────────────────
   LandmarkModel? _detectedLandmark;
@@ -53,6 +109,9 @@ class _CameraScreenState extends State<CameraScreen>
   bool _panelVisible = false;
 
   late final AnimationController _pulseAnim;
+  late final AnimationController _cardAnim;
+  late final Animation<double> _cardFade;
+  late final Animation<Offset> _cardSlide;
 
   @override
   void initState() {
@@ -60,10 +119,116 @@ class _CameraScreenState extends State<CameraScreen>
     _pulseAnim =
         AnimationController(vsync: this, duration: const Duration(seconds: 2))
           ..repeat(reverse: true);
+    _cardAnim = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 350));
+    _cardFade = CurvedAnimation(parent: _cardAnim, curve: Curves.easeOut);
+    _cardSlide = Tween<Offset>(
+            begin: const Offset(0, 0.25), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _cardAnim, curve: Curves.easeOut));
+    // Always open camera immediately — do not wait for GPS.
     if (!_isDesktop) {
       _initCamera();
-      RecognitionService.instance.loadModel();
     }
+    // GPS verification runs concurrently in the background.
+    _verifyGpsInBackground();
+  }
+
+  /// Runs GPS geofencing in the background after the camera is already open.
+  Future<void> _verifyGpsInBackground() async {
+    final result = await SiteLockService.instance.lockSiteByGps();
+    if (!mounted) return;
+    final labels = RecognitionService.labelsForSite(result.site?.landmarkName);
+    setState(() {
+      _siteLock = result;
+      _allowedLabels = labels;
+      switch (result.status) {
+        case SiteLockStatus.locked:
+          _verifyStatus = _VerifyStatus.locked;
+        case SiteLockStatus.outOfRange:
+          _verifyStatus = _VerifyStatus.outside;
+        default:
+          // permissionDenied, serviceDisabled, timeout, error
+          _verifyStatus = _VerifyStatus.failed;
+      }
+    });
+    if (_canRunDetector) {
+      RecognitionService.instance.loadModel();
+      // Pre-warm DB cache once the site is confirmed.
+      Future.microtask(() async {
+        final all = await DatabaseHelper.instance.getAllLandmarks();
+        for (final lm in all) {
+          if (lm.id == null || !mounted) continue;
+          _landmarkCache[lm.id!] = lm;
+          _subCache[lm.id!] =
+              await DatabaseHelper.instance.getSubLandmarks(lm.id!);
+        }
+      });
+    }
+  }
+
+  /// Shows the manual site-selection bottom sheet from within the camera screen.
+  Future<void> _selectManualSite() async {
+    final sites = await SiteLockService.instance.loadSites();
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF1A0A00),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Center(
+              child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                      color: Colors.white30,
+                      borderRadius: BorderRadius.circular(2)))),
+          const Text('Select Your Current Site',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          const Text(
+              'GPS is unavailable — choose your heritage site manually.',
+              style: TextStyle(color: Colors.white54, fontSize: 12)),
+          const SizedBox(height: 16),
+          ...sites.map((site) => ListTile(
+                leading: const Icon(Icons.place_rounded,
+                    color: Color(0xFFFFB300)),
+                title: Text(site.landmarkName,
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w600)),
+                subtitle: Text(site.landmarkId,
+                    style:
+                        const TextStyle(color: Colors.white54, fontSize: 12)),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final labels =
+                      RecognitionService.labelsForSite(site.landmarkName);
+                  setState(() {
+                    _siteLock = SiteLockResult.manual(site: site);
+                    _allowedLabels = labels;
+                    _verifyStatus = _VerifyStatus.manual;
+                  });
+                  RecognitionService.instance.loadModel();
+                  final all = await DatabaseHelper.instance.getAllLandmarks();
+                  for (final lm in all) {
+                    if (lm.id == null || !mounted) continue;
+                    _landmarkCache[lm.id!] = lm;
+                    _subCache[lm.id!] =
+                        await DatabaseHelper.instance.getSubLandmarks(lm.id!);
+                  }
+                },
+              )),
+        ]),
+      ),
+    );
   }
 
   bool get _isDesktop =>
@@ -76,8 +241,11 @@ class _CameraScreenState extends State<CameraScreen>
         if (mounted) setState(() => _cameraError = 'No camera found.');
         return;
       }
-      _controller = CameraController(cameras.first, ResolutionPreset.low,
-          enableAudio: false);
+      // Use medium resolution – gives the YOLO model better input without
+      // the heavy overhead of high/veryHigh on mid-range devices.
+      _controller = CameraController(cameras.first, ResolutionPreset.medium,
+          enableAudio: false,
+          imageFormatGroup: ImageFormatGroup.yuv420);
       await _controller!.initialize();
       if (mounted) setState(() {});
       _controller!.startImageStream(_processFrame);
@@ -89,55 +257,110 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> _processFrame(CameraImage image) async {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    if (_isProcessing || (now - _lastProcessTime < _frameThrottleMs)) return;
+    if (!_canRunDetector) return;
+    if (!mounted) return;
+    if (_isProcessing) return;
+
+    // ── Frame-rate throttle ──────────────────────────────────────────────────
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (nowMs - _lastProcessTime < _minFrameIntervalMs) return;
+    _lastProcessTime = nowMs;
+
     _isProcessing = true;
-    _lastProcessTime = now;
     try {
       final results = await RecognitionService.instance.predictAll(
         image,
         sensorOrientation: _controller?.description.sensorOrientation ?? 0,
-        threshold: 0.50, // keep weak empty-frame detections off the overlay
+        threshold: _modelThreshold,
+        allowedLabels: _allowedLabels.toSet(),
       );
-
       if (!mounted) return;
 
-      if (kDebugMode) {
-        debugPrint('[Scan] ${results.length} detections | '
-            'previewSize=${_controller?.value.previewSize} | '
-            'sensor=${_controller?.description.sensorOrientation}°');
-        for (final r in results) {
-          debugPrint(
-              '  -> ${r.label} ${(r.confidence * 100).toStringAsFixed(1)}% box=${r.boundingBox}');
-        }
-      }
-
-      // Filter out very small boxes (likely noise) before updating overlay.
-      // Also ensure the active detection is cleared when there are no live boxes
-      // so the previous overlay doesn't persist when pointing at empty space.
-      final minArea = 0.01; // normalised area (1% of frame)
+      // ── Noise filter ────────────────────────────────────────────────────────
+      final minArea = _isGpsLocked ? 0.012 : 0.02;
       final filtered = results
           .where((r) => (r.boundingBox.width * r.boundingBox.height) >= minArea)
-          .toList(growable: false);
+          .toList();
 
-      if (!mounted) return;
-      setState(() {
-        _liveDetections = filtered;
-        if (filtered.isEmpty) {
-          // remove the active bounding box so overlay disappears
-          _activeDetection = null;
+      final now = DateTime.now().millisecondsSinceEpoch;
+
+      if (filtered.isNotEmpty) {
+        // ── Active detection path ──────────────────────────────────────────
+        _emptyFrameCount = 0;           // reset miss counter
+        _lastDetectionTime = now;       // stamp the last live frame
+
+        // Exponential smoothing on the best box
+        final originalBest =
+            filtered.reduce((a, b) => a.confidence > b.confidence ? a : b);
+        final ref = originalBest.boundingBox;
+        final old = _smoothedBoxRect;
+        _smoothedBoxRect = old == null
+            ? ref
+            : Rect.fromLTRB(
+                old.left   * (1 - _boxAlpha) + ref.left   * _boxAlpha,
+                old.top    * (1 - _boxAlpha) + ref.top    * _boxAlpha,
+                old.right  * (1 - _boxAlpha) + ref.right  * _boxAlpha,
+                old.bottom * (1 - _boxAlpha) + ref.bottom * _boxAlpha,
+              );
+
+        final smoothedBest = DetectionResult(
+          label:       originalBest.label,
+          confidence:  originalBest.confidence,
+          boundingBox: _smoothedBoxRect!,
+          classIndex:  originalBest.classIndex,
+        );
+        final idx = filtered.indexOf(originalBest);
+        if (idx != -1) filtered[idx] = smoothedBest;
+
+        if (_isStableDetection(smoothedBest)) {
+          _lastConfirmedTime = now;
+          if (!_panelVisible || _activeDetection?.label != smoothedBest.label) {
+            Future.microtask(() => _onLandmarkDetected(smoothedBest));
+          } else {
+            setState(() {
+              _activeDetection  = smoothedBest;
+              _confidence       = smoothedBest.confidence;
+              _liveDetections   = filtered;
+              _boxVisible       = true;
+            });
+          }
+        } else {
+          // Unstable / below card threshold — show box but not card
+          setState(() {
+            _liveDetections = filtered;
+            _boxVisible     = true;
+          });
+          // Panel still open from a previous stable detection: dismiss if
+          // hold time has expired.
+          if (_panelVisible && now - _lastConfirmedTime > _panelHoldMs) {
+            _dismissPanel();
+          }
         }
-      });
 
-      // Open the info panel only when confident enough (apply to filtered list)
-      final highConf = filtered
-          .where((r) => r.confidence >= 0.50)
-          .fold<DetectionResult?>(
-              null,
-              (best, r) =>
-                  best == null || r.confidence > best.confidence ? r : best);
+      } else {
+        // ── No detection path ─────────────────────────────────────────────
+        _emptyFrameCount++;
 
-      if (highConf != null) await _onLandmarkDetected(highConf);
+        final boxExpiredByTime  = now - _lastDetectionTime > _boxHoldMs;
+        final boxExpiredByCount = _emptyFrameCount >= _maxEmptyFrames;
+
+        if (boxExpiredByTime || boxExpiredByCount) {
+          // Clear the bounding box immediately — do not wait for the card.
+          if (_boxVisible || _liveDetections.isNotEmpty || _smoothedBoxRect != null) {
+            setState(() {
+              _liveDetections  = const [];
+              _smoothedBoxRect = null;
+              _boxVisible      = false;
+            });
+          }
+          _candidateCount = 0;          // reset stability counter
+          _candidateLabel = null;
+        }
+        // The info card lives independently — only dismiss it after _panelHoldMs.
+        if (_panelVisible && now - _lastConfirmedTime > _panelHoldMs) {
+          _dismissPanel();
+        }
+      }
     } catch (e) {
       if (kDebugMode) debugPrint('[Scan] frame error: $e');
     } finally {
@@ -148,39 +371,33 @@ class _CameraScreenState extends State<CameraScreen>
   Future<void> _onLandmarkDetected(DetectionResult detection) async {
     final now = DateTime.now().millisecondsSinceEpoch;
 
-    // Prevent rapid re-opening/updating for the same class on consecutive frames.
-    if (_lastPanelLabel == detection.label &&
-        (now - _lastPanelUpdateTime) < _sameLabelPanelCooldownMs) {
-      return;
-    }
-
     final id = _labelToId(detection.label);
-    if (id == null) {
-      if (kDebugMode) {
-        debugPrint('Ignoring unsupported detection label: ${detection.label}');
-      }
-      return;
-    }
-    if (widget.lockedLandmarkId != null && id != widget.lockedLandmarkId) {
+    if (id == null) return;
+
+    // Use current site lock if available to filter relevant detections
+    if (_siteLock?.site?.landmarkDbId != null &&
+        id != _siteLock!.site!.landmarkDbId) {
       return;
     }
 
-    // If the same landmark is already on panel, just refresh confidence/box.
+    // Ignore repeat calls if we're already rendering this panel
     if (_panelVisible && _detectedLandmark?.id == id) {
-      if (!mounted) return;
-      setState(() {
-        _activeDetection = detection;
-        _detectedClassLabel = detection.label;
-        _confidence = detection.confidence;
-      });
-      _lastPanelLabel = detection.label;
-      _lastPanelUpdateTime = now;
-      return;
+       return;
     }
 
-    final lm = await DatabaseHelper.instance.getLandmarkById(id);
-    if (lm == null || !mounted) return;
-    final subs = await DatabaseHelper.instance.getSubLandmarks(id);
+    LandmarkModel? lm;
+    List<SubLandmarkModel> subs;
+    if (_landmarkCache.containsKey(id)) {
+      lm = _landmarkCache[id];
+      subs = _subCache[id] ?? [];
+    } else {
+      lm = await DatabaseHelper.instance.getLandmarkById(id);
+      if (lm == null || !mounted) return;
+      subs = await DatabaseHelper.instance.getSubLandmarks(id);
+      if (!mounted) return;
+      _landmarkCache[id] = lm;
+      _subCache[id] = subs;
+    }
     if (!mounted) return;
     setState(() {
       _detectedLandmark = lm;
@@ -190,40 +407,78 @@ class _CameraScreenState extends State<CameraScreen>
       _confidence = detection.confidence;
       _panelVisible = true;
     });
+    // Animate the floating card in
+    _cardAnim.forward(from: 0);
+    HapticFeedback.mediumImpact();
     _lastPanelLabel = detection.label;
     _lastPanelUpdateTime = now;
   }
 
   int? _labelToId(String label) {
     final normalized = label.trim().toLowerCase();
-    const m = {
-      'sigiriya_lion_paws': 1,
-      'sigiriya_lion_rock': 1,
-      'sigiriya_mirror_wall': 1,
-      'sigiriya_throne': 1,
-      'sigiriya_ticket_counter': 1,
-      'sigiriya': 1,
-      'dambulla': 2,
-      'dambulla cave temple': 2,
-      'polonnaruwa': 3,
+
+    // ── Sigiriya sub-landmarks ─────────────────────────────────────────────
+    // The model's 5 classes all belong to the Sigiriya parent landmark (DB id=1).
+    // Matching by the full class name avoids false mapping of unrelated labels.
+    const sigiriyaClasses = {
+      'sigiriya_lion_paws',
+      'sigiriya_lion_rock',
+      'sigiriya_mirror_wall',
+      'sigiriya_throne',
+      'sigiriya_ticket_counter',
     };
-    return m[normalized];
+    if (sigiriyaClasses.contains(normalized)) return 1;
+
+    // ── Other sites ───────────────────────────────────────────────────────
+    if (normalized.contains('dambulla')) return 2;
+    if (normalized.contains('polonnaruwa')) return 3;
+
+    return null;
   }
 
-  void _dismissPanel() => setState(() {
-        _panelVisible = false;
-        _detectedLandmark = null;
-        _activeDetection = null;
-        _detectedClassLabel = null;
-        _subLandmarks = [];
-        _liveDetections = [];
-      });
+  /// Converts a raw model class label into a human-readable sub-landmark name.
+  /// e.g. 'sigiriya_lion_rock' → 'Lion Rock'
+  String _classLabelToDisplayName(String label) {
+    final normalized = label.trim().toLowerCase();
+    const nameMap = {
+      'sigiriya_lion_paws':      'Lion Paws',
+      'sigiriya_lion_rock':      'Lion Rock',
+      'sigiriya_mirror_wall':    'Mirror Wall',
+      'sigiriya_throne':         'Throne',
+      'sigiriya_ticket_counter': 'Ticket Counter',
+    };
+    if (nameMap.containsKey(normalized)) return nameMap[normalized]!;
+    // Fallback: title-case the parts after the first underscore segment.
+    final parts = normalized.split('_');
+    return parts.map((w) => w.isNotEmpty
+        ? '${w[0].toUpperCase()}${w.substring(1)}'
+        : '').join(' ');
+  }
+
+  void _dismissPanel() {
+    _cardAnim.reverse();
+    setState(() {
+      _panelVisible        = false;
+      _detectedLandmark    = null;
+      _activeDetection     = null;
+      _detectedClassLabel  = null;
+      _subLandmarks        = [];
+      _candidateCount      = 0;
+      _candidateLabel      = null;
+      // Also clear any residual bounding box when the panel closes.
+      _liveDetections      = const [];
+      _smoothedBoxRect     = null;
+      _boxVisible          = false;
+    });
+  }
 
   Future<void> _showDemoPicker() async {
     final landmarks = await DatabaseHelper.instance.getAllLandmarks();
-    final options = widget.lockedLandmarkId == null
+    final options = _siteLock?.site?.landmarkDbId == null
         ? landmarks
-        : landmarks.where((lm) => lm.id == widget.lockedLandmarkId).toList();
+        : landmarks
+            .where((lm) => lm.id == _siteLock?.site?.landmarkDbId)
+            .toList();
 
     if (!mounted) return;
     showModalBottomSheet(
@@ -254,9 +509,9 @@ class _CameraScreenState extends State<CameraScreen>
                     fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
             Text(
-                widget.lockedLandmarkName == null
+                _siteLock?.site?.landmarkName == null
                     ? 'Select a landmark to preview the AR overlay'
-                    : 'Site lock active: ${widget.lockedLandmarkName}',
+                    : 'Site lock active: ${_siteLock?.site?.landmarkName}',
                 style: const TextStyle(color: Colors.white54, fontSize: 12)),
             const SizedBox(height: 16),
             ...options.map((lm) => ListTile(
@@ -276,7 +531,7 @@ class _CameraScreenState extends State<CameraScreen>
                   onTap: () {
                     Navigator.pop(context);
                     // Simulate a detection result centered on screen
-                    final simulatedBox = Rect.fromLTWH(0.25, 0.25, 0.5, 0.5);
+                    const simulatedBox = Rect.fromLTWH(0.25, 0.25, 0.5, 0.5);
                     final detection = DetectionResult(
                         label: lm.name.toLowerCase(),
                         confidence: 0.94,
@@ -294,6 +549,7 @@ class _CameraScreenState extends State<CameraScreen>
   @override
   void dispose() {
     _pulseAnim.dispose();
+    _cardAnim.dispose();
     _controller?.dispose();
     RecognitionService.instance.dispose();
     super.dispose();
@@ -312,10 +568,13 @@ class _CameraScreenState extends State<CameraScreen>
         else
           CameraPreview(_controller!),
 
-        // Live bounding-box overlay – shown while scanning AND after panel opens
-        if (_liveDetections.isNotEmpty || _activeDetection != null)
+        // Live bounding-box overlay – only shown when _boxVisible is true.
+        // This is a strict gate: the painter never receives stale data after
+        // detection loss, even if the info card is still visible.
+        if (_boxVisible &&
+            (_liveDetections.isNotEmpty || _activeDetection != null))
           Positioned.fill(
-            child: IgnorePointer(
+            child: RepaintBoundary(
               child: CustomPaint(
                 painter: _DetectionOverlayPainter(
                   detections: _panelVisible && _activeDetection != null
@@ -329,48 +588,9 @@ class _CameraScreenState extends State<CameraScreen>
             ),
           ),
 
-        // Debug Stats
-        if (kDebugMode)
-          Positioned(
-            top: 100,
-            left: 20,
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('DEBUG SCANNER',
-                      style: TextStyle(
-                          color: Colors.yellow,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  Text(
-                      'Model Input: ${RecognitionService.instance.inputWidth}x${RecognitionService.instance.inputHeight}',
-                      style:
-                          const TextStyle(color: Colors.white, fontSize: 10)),
-                  Text('Live Detections: ${_liveDetections.length}',
-                      style: const TextStyle(
-                          color: Colors.greenAccent,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold)),
-                  if (_liveDetections.isNotEmpty)
-                    Text(
-                        'Top Conf: ${(_liveDetections.first.confidence * 100).toStringAsFixed(0)}%',
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 10)),
-                  if (RecognitionService.instance.loadError != null)
-                    Text('ERROR: ${RecognitionService.instance.loadError}',
-                        style: const TextStyle(
-                            color: Colors.redAccent, fontSize: 9)),
-                ],
-              ),
-            ),
-          ),
+        // GPS / site verification status overlay (banners, spinner, manual pick)
+        if (!_panelVisible)
+          _buildGpsStatusOverlay(),
 
         // Top bar
         Positioned(
@@ -378,88 +598,70 @@ class _CameraScreenState extends State<CameraScreen>
             left: 0,
             right: 0,
             child: Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                   gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [Colors.black87, Colors.transparent])),
+                      colors: [Colors.black.withOpacity(0.85), Colors.transparent])),
               padding: const EdgeInsets.only(
-                  top: 48, bottom: 20, left: 8, right: 16),
-              child: Row(children: [
-                IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new,
-                        color: Colors.white),
-                    onPressed: () => Navigator.pop(context)),
-                const Text('Scan Landmark',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Georgia')),
-                if (widget.lockedLandmarkName != null) ...[
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.black45,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white30),
-                      ),
-                      child: Text(
-                        widget.lockedLandmarkName!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 11),
-                      ),
-                    ),
-                  ),
-                ],
-                const Spacer(),
-                if (_panelVisible && _detectedLandmark != null)
-                  Flexible(
-                    child: Align(
-                      alignment: Alignment.centerRight,
+                  top: 54, bottom: 20, left: 16, right: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  GestureDetector(
+                      onTap: () => Navigator.pop(context),
                       child: Container(
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.42,
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 5),
-                        decoration: BoxDecoration(
-                            color: Colors.green.withOpacity(0.85),
-                            borderRadius: BorderRadius.circular(20)),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          const Icon(Icons.check_circle_rounded,
-                              color: Colors.white, size: 14),
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Text(
-                              '${_detectedClassLabel ?? _detectedLandmark!.name} • ${(_confidence * 100).toStringAsFixed(0)}%',
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600),
-                            ),
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.15),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white30)
                           ),
-                        ]),
+                          child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
                       ),
-                    ),
                   ),
+                  const Text('Scan Landmark',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                          fontFamily: 'Georgia')),
+                  if (_canRunDetector && !_panelVisible && _cameraError == null && _controller?.value.isInitialized == true)
+                    GestureDetector(
+                        onTap: _showDemoPicker,
+                        child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(
+                                color: AppTheme.secondary.withOpacity(0.9),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: AppTheme.secondary, width: 1.0),
+                                boxShadow: [
+                                  BoxShadow(color: AppTheme.secondary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))
+                                ]
+                            ),
+                            child: const Row(
+                                children: [
+                                  Icon(Icons.science_rounded, color: Colors.white, size: 16),
+                                  SizedBox(width: 6),
+                                  Text('Demo', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold))
+                                ]
+                            )
+                        ),
+                    )
+                  else
+                    const SizedBox(width: 48),
               ]),
             )),
 
         if (_controller?.value.isInitialized == true && !_panelVisible)
           _buildScanFrame(),
 
-        if (_panelVisible && _detectedLandmark != null) _buildArPanel(),
+        if (_panelVisible && _detectedLandmark != null) _buildFloatingDetectionCard(),
 
-        if (widget.lockedLandmarkId != null &&
-            widget.lockedLandmarkId != 1 &&
+        if (_canRunDetector &&
+            _siteLock?.site?.landmarkDbId != null &&
+            _siteLock?.site?.landmarkDbId != 1 &&
             !_panelVisible)
           Positioned(
               top: 162,
@@ -469,24 +671,13 @@ class _CameraScreenState extends State<CameraScreen>
 
         if (!_panelVisible)
           Positioned(
-              bottom: 32, left: 24, right: 24, child: _buildBottomLabel()),
+              bottom: 40, left: 0, right: 0, child: Center(child: _buildBottomLabel())),
       ]),
-      floatingActionButton: (!_panelVisible &&
-              _cameraError == null &&
-              _controller?.value.isInitialized == true)
-          ? FloatingActionButton.extended(
-              onPressed: _showDemoPicker,
-              backgroundColor: AppTheme.secondary,
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.science_rounded),
-              label: const Text('Demo',
-                  style: TextStyle(fontWeight: FontWeight.w600)))
-          : null,
     );
   }
 
   Widget _buildUnsupportedSiteBanner() {
-    final siteName = widget.lockedLandmarkName ?? 'this site';
+    final siteName = _siteLock?.site?.landmarkName ?? 'this site';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
@@ -499,7 +690,7 @@ class _CameraScreenState extends State<CameraScreen>
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            'Live recognition currently supports Sigiriya only. $siteName is available in the app, but this camera flow will not auto-detect it.',
+            'Live recognition is limited to the locked site profile. $siteName is available in the app, but no detector is running for unsupported labels.',
             style: const TextStyle(
                 color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
           ),
@@ -508,408 +699,397 @@ class _CameraScreenState extends State<CameraScreen>
     );
   }
 
-  Widget _buildArPanel() {
-    final lm = _detectedLandmark!;
-    final idx = ((lm.id ?? 1) - 1);
-    const gs = [
-      [Color(0xFFB71C1C), Color(0xFFE53935)],
-      [Color(0xFFE65100), Color(0xFFFF8F00)],
-      [Color(0xFF1A237E), Color(0xFF3949AB)],
-    ];
-    final colors = gs[idx % gs.length];
-    final histSnip = lm.history.isNotEmpty
-        ? '${lm.history.split('. ').take(2).join('. ')}.'
-        : lm.description;
+  // ── GPS status overlay ──────────────────────────────────────────────────────────────
 
+  /// Returns the correct top-of-screen overlay for the current GPS state.
+  /// Returns an empty [SizedBox] when no overlay is needed (e.g. locked state).
+  Widget _buildGpsStatusOverlay() {
+    switch (_verifyStatus) {
+      case _VerifyStatus.verifying:
+        return _statusBanner(
+          icon: Icons.gps_not_fixed_rounded,
+          color: Colors.blueGrey.shade700,
+          message: 'Verifying your heritage site...',
+          showSpinner: true,
+        );
+      case _VerifyStatus.failed:
+        return _statusBanner(
+          icon: Icons.gps_off_rounded,
+          color: Colors.orange.shade800,
+          message:
+              'Enable GPS or verify your site to start landmark detection.',
+          actionLabel: 'Select your current site',
+          onAction: _selectManualSite,
+        );
+      case _VerifyStatus.outside:
+        return _statusBanner(
+          icon: Icons.location_off_rounded,
+          color: Colors.red.shade700,
+          message: 'You are outside a supported heritage site.',
+          actionLabel: 'Select your current site',
+          onAction: _selectManualSite,
+        );
+      case _VerifyStatus.manual:
+        return _statusBanner(
+          icon: Icons.touch_app_rounded,
+          color: Colors.teal.shade700,
+          message:
+              'Manual Site Mode: ${_siteLock?.site?.landmarkName ?? ''}',
+        );
+      case _VerifyStatus.locked:
+        return const SizedBox.shrink(); // no banner in GPS-locked state
+    }
+  }
+
+  Widget _statusBanner({
+    required IconData icon,
+    required Color color,
+    required String message,
+    bool showSpinner = false,
+    String? actionLabel,
+    VoidCallback? onAction,
+  }) {
     return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: DraggableScrollableSheet(
-        initialChildSize: 0.52,
-        minChildSize: 0.30,
-        maxChildSize: 0.92,
-        snap: true,
-        snapSizes: const [0.30, 0.52, 0.92],
-        builder: (context, sc) => Container(
-          decoration: const BoxDecoration(
-              color: Color(0xFFFFF8F0),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-              boxShadow: [
-                BoxShadow(
-                    blurRadius: 24,
-                    color: Colors.black54,
-                    offset: Offset(0, -4))
-              ]),
-          child: SingleChildScrollView(
-              controller: sc,
+      top: 120,
+      left: 16,
+      right: 16,
+      child: Center(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.75),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.white.withOpacity(0.2)),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black38, blurRadius: 10, offset: Offset(0, 4))
+                ],
+              ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Center(
-                      child: Container(
-                          width: 40,
-                          height: 4,
-                          margin: const EdgeInsets.only(top: 12),
-                          decoration: BoxDecoration(
-                              color: Colors.grey.shade400,
-                              borderRadius: BorderRadius.circular(2)))),
-
-                  // Header
-                  Container(
-                    margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                        gradient: LinearGradient(colors: colors),
-                        borderRadius: BorderRadius.circular(20)),
-                    child: Row(children: [
-                      Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
-                              shape: BoxShape.circle),
-                          child: const Icon(Icons.account_balance_rounded,
-                              color: Colors.white, size: 28)),
-                      const SizedBox(width: 14),
-                      Expanded(
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                            Text(lm.name,
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontFamily: 'Georgia',
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 4),
-                            Row(children: [
-                              const Icon(Icons.location_on_rounded,
-                                  color: Colors.white70, size: 13),
-                              const SizedBox(width: 3),
-                              const Text('Sri Lanka',
-                                  style: TextStyle(
-                                      color: Colors.white70, fontSize: 12)),
-                              const SizedBox(width: 10),
-                              Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 7, vertical: 2),
-                                  decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(8)),
-                                  child: const Text('UNESCO',
-                                      style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600))),
-                            ]),
-                          ])),
-                      IconButton(
-                          icon: const Icon(Icons.close_rounded,
-                              color: Colors.white70),
-                          onPressed: _dismissPanel),
-                    ]),
-                  ),
-
-                  // Quick facts
-                  Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    if (showSpinner)
+                      const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white)))
+                    else
+                      Icon(icon, color: Colors.white, size: 18),
+                    const SizedBox(width: 10),
+                    Flexible(
+                        child: Text(message,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.2))),
+                  ]),
+                  if (actionLabel != null && onAction != null) ...[
+                    const SizedBox(height: 10),
+                    GestureDetector(
+                      onTap: onAction,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 12),
+                            horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2))
-                            ]),
+                          color: Colors.white.withOpacity(0.25),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.white.withOpacity(0.4)),
+                        ),
                         child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: _quickFacts(lm.id ?? 1)
-                                .map((f) => _FactPill(
-                                    label: f[0],
-                                    value: f[1],
-                                    color: Color(colors[0].value)))
-                                .toList()),
-                      )),
-
-                  // History
-
-                  if (_activeDetection != null)
-                    Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                              color: const Color(0xFFF3E5AB),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color:
-                                      Color(colors[0].value).withOpacity(0.2))),
-                          child: Text(
-                            'Detected class: ${_detectedClassLabel ?? _activeDetection!.label}\n'
-                            'Confidence: ${(_confidence * 100).toStringAsFixed(1)}%\n'
-                            'BBox: ${_bboxText(_activeDetection!.boundingBox)}',
-                            style: const TextStyle(
-                                color: Color(0xFF4E342E),
-                                fontSize: 12.5,
-                                height: 1.6,
-                                fontWeight: FontWeight.w600),
-                          ),
-                        )),
-                  Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(children: [
-                              Icon(Icons.history_edu_rounded,
-                                  color: Color(colors[0].value), size: 18),
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.touch_app_rounded,
+                                  color: Colors.white, size: 14),
                               const SizedBox(width: 6),
-                              const Text('History',
-                                  style: TextStyle(
-                                      fontFamily: 'Georgia',
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF1A0A00))),
+                              Text(actionLabel,
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold)),
                             ]),
-                            const SizedBox(height: 8),
-                            Text(histSnip,
-                                style: const TextStyle(
-                                    color: Color(0xFF4E342E),
-                                    fontSize: 13.5,
-                                    height: 1.65)),
-                          ])),
-
-                  // Sub-landmarks
-                  if (_subLandmarks.isNotEmpty) ...[
-                    Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
-                        child: Row(children: [
-                          Icon(Icons.place_rounded,
-                              color: Color(colors[0].value), size: 18),
-                          const SizedBox(width: 6),
-                          const Text('Points of Interest',
-                              style: TextStyle(
-                                  fontFamily: 'Georgia',
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1A0A00))),
-                          const Spacer(),
-                          Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                  color:
-                                      Color(colors[0].value).withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(10)),
-                              child: Text('${_subLandmarks.length} stops',
-                                  style: TextStyle(
-                                      color: Color(colors[0].value),
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600))),
-                        ])),
-                    const SizedBox(height: 10),
-                    ..._subLandmarks.take(4).map((sub) => Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                    color: Colors.black.withOpacity(0.04),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2))
-                              ]),
-                          child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                    width: 34,
-                                    height: 34,
-                                    decoration: BoxDecoration(
-                                        color: Color(colors[0].value)
-                                            .withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(8)),
-                                    child: Icon(_subTypeIcon(sub.type),
-                                        color: Color(colors[0].value),
-                                        size: 18)),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                    child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                      Text(sub.name,
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 13,
-                                              color: Color(0xFF2D1B0E))),
-                                      const SizedBox(height: 2),
-                                      Text(sub.description,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                              color: Color(0xFF6D4C41),
-                                              fontSize: 12,
-                                              height: 1.5)),
-                                    ])),
-                              ]),
-                        ))),
+                      ),
+                    ),
                   ],
-
-                  // Action buttons
-                  Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                      child: SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                              onPressed: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) =>
-                                          LandmarkDetailScreen(landmark: lm))),
-                              icon: const Icon(Icons.open_in_full_rounded,
-                                  size: 18),
-                              label: const Text('View Full Details'),
-                              style: ElevatedButton.styleFrom(
-                                  backgroundColor: Color(colors[0].value),
-                                  foregroundColor: Colors.white,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 15),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14)),
-                                  textStyle: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w700))))),
-
-                  // View AR button – reflects device capability
-                  Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                      child: SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                              onPressed: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => ArScreen(landmark: lm))),
-                              icon: const Icon(Icons.view_in_ar_rounded,
-                                  size: 18),
-                              label: const Text('Launch AR'),
-                              style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF00695C),
-                                  foregroundColor: Colors.white,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 15),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14)),
-                                  textStyle: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w700))))),
-
-                  Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                      child: Row(children: [
-                        Expanded(
-                            child: ElevatedButton.icon(
-                                onPressed: () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) =>
-                                            RagScreen(landmarkName: lm.name))),
-                                icon: const Icon(Icons.smart_toy_rounded,
-                                    size: 17),
-                                label: const Text('Ask AI'),
-                                style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFFFFB300),
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 13),
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12))))),
-                        const SizedBox(width: 10),
-                        Expanded(
-                            child: ElevatedButton.icon(
-                                onPressed: () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) =>
-                                            NavScreen(landmarkName: lm.name))),
-                                icon:
-                                    const Icon(Icons.explore_rounded, size: 17),
-                                label: const Text('Navigate'),
-                                style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF37474F),
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 13),
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12))))),
-                      ])),
-
-                  const SizedBox(height: 24),
                 ],
-              )),
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 
-  List<List<String>> _quickFacts(int id) {
-    const f1 = [
-      ['Founded', '477 AD'],
-      ['Type', 'Fortress'],
-      ['UNESCO', '1982']
-    ];
-    const f2 = [
-      ['Founded', '1st c BC'],
-      ['Type', 'Cave Temple'],
-      ['UNESCO', '1991']
-    ];
-    const f3 = [
-      ['Founded', '1070 AD'],
-      ['Type', 'Ancient City'],
-      ['UNESCO', '1982']
-    ];
-    if (id == 1) return f1;
-    if (id == 2) return f2;
-    return f3;
+
+
+  /// Compact glassmorphism floating card — slides up from bottom on detection.
+  Widget _buildFloatingDetectionCard() {
+    final lm = _detectedLandmark!;
+    return Positioned(
+      bottom: 28,
+      left: 16,
+      right: 16,
+      child: FadeTransition(
+        opacity: _cardFade,
+        child: SlideTransition(
+          position: _cardSlide,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.black.withOpacity(0.65),
+                      Colors.black.withOpacity(0.45),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                      color: Colors.white.withOpacity(0.18), width: 1.0),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.5),
+                        blurRadius: 32,
+                        offset: const Offset(0, 12)),
+                  ],
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header row
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            SizedBox(
+                              width: 60,
+                              height: 60,
+                              child: CircularProgressIndicator(
+                                value: _confidence,
+                                strokeWidth: 4.0,
+                                backgroundColor: Colors.white.withOpacity(0.06),
+                                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFFB300)),
+                              ),
+                            ),
+                            Container(
+                              width: 46,
+                              height: 46,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    const Color(0xFFFFB300).withOpacity(0.2),
+                                    const Color(0xFFFF8F00).withOpacity(0.05),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.account_balance_rounded,
+                                  color: Color(0xFFFFB300), size: 24),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                lm.name,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontFamily: 'Georgia',
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.2,
+                                  height: 1.2,
+                                ),
+                              ),
+                              // Show the specific detected sub-landmark
+                              if (_detectedClassLabel != null) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  _classLabelToDisplayName(_detectedClassLabel!),
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.65),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFB300).withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xFFFFB300).withOpacity(0.35)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.auto_awesome_rounded, color: Color(0xFFFFB300), size: 12),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${(_confidence * 100).toStringAsFixed(0)}% AI Match',
+                                      style: const TextStyle(
+                                        color: Color(0xFFFFB300),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: _dismissPanel,
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.close_rounded,
+                                color: Colors.white, size: 18),
+                          ),
+                        ),
+                      ]),
+                    const SizedBox(height: 18),
+                    // Action buttons
+                    Row(children: [
+                      Expanded(
+                        child: _glassButton(
+                          label: 'Details',
+                          icon: Icons.open_in_full_rounded,
+                          onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      LandmarkDetailScreen(landmark: lm))),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _glassButton(
+                          label: 'Navigate',
+                          icon: Icons.explore_rounded,
+                          onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      NavScreen(landmarkName: lm.name))),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _glassButton(
+                          label: 'Ask AI',
+                          icon: Icons.smart_toy_rounded,
+                          color: AppTheme.secondary,
+                          isHighlight: true,
+                          onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      RagScreen(landmarkName: lm.name))),
+                        ),
+                      ),
+                    ]),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
-  IconData _subTypeIcon(String type) {
-    switch (type) {
-      case 'fresco':
-        return Icons.palette_rounded;
-      case 'gate':
-        return Icons.door_front_door_rounded;
-      case 'wall':
-        return Icons.format_paint_rounded;
-      case 'pool':
-        return Icons.water_rounded;
-      case 'palace':
-        return Icons.castle_rounded;
-      case 'cave':
-        return Icons.terrain_rounded;
-      case 'stupa':
-        return Icons.architecture_rounded;
-      case 'sculpture':
-        return Icons.image_rounded;
-      case 'temple':
-        return Icons.temple_hindu_rounded;
-      case 'reservoir':
-        return Icons.waves_rounded;
-      default:
-        return Icons.place_rounded;
-    }
+  Widget _glassButton({
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+    Color? color,
+    bool isHighlight = false,
+  }) {
+    final fg = color ?? Colors.white;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          gradient: isHighlight
+              ? const LinearGradient(
+                  colors: [Color(0xFFFFB300), Color(0xFFFF8F00)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : LinearGradient(
+                  colors: [
+                    Colors.white.withOpacity(0.12),
+                    Colors.white.withOpacity(0.04),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isHighlight
+                ? Colors.transparent
+                : Colors.white.withOpacity(0.18),
+            width: 1,
+          ),
+          boxShadow: isHighlight
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFFFFB300).withOpacity(0.35),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  )
+                ]
+              : null,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: isHighlight ? const Color(0xFF1A1A1A) : fg, size: 22),
+            const SizedBox(height: 6),
+            Text(label,
+                style: TextStyle(
+                    color: isHighlight ? const Color(0xFF1A1A1A) : fg,
+                    fontSize: 12,
+                    fontWeight: isHighlight ? FontWeight.w800 : FontWeight.w600)),
+          ],
+        ),
+      ),
+    );
   }
+
+
 
   Widget _buildDesktopUnsupported() => Scaffold(
       backgroundColor: const Color(0xFF1A0A00),
@@ -1064,46 +1244,34 @@ class _CameraScreenState extends State<CameraScreen>
           height: 20,
           child: CustomPaint(painter: _CornerPainter(alignment: a, thick: 3))));
 
-  Widget _buildBottomLabel() => Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.65),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white12)),
-      child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(Icons.search_rounded, color: Color(0xFFFFB300), size: 18),
-        SizedBox(width: 8),
-        Flexible(
-            child: Text('Point camera at a heritage landmark...',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500),
-                textAlign: TextAlign.center)),
-      ]));
+  Widget _buildBottomLabel() => ClipRRect(
+        borderRadius: BorderRadius.circular(30),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                      colors: [Colors.black.withOpacity(0.7), Colors.black.withOpacity(0.4)],
+                      begin: Alignment.topLeft, end: Alignment.bottomRight),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: Colors.white.withOpacity(0.2)),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 15, spreadRadius: 2)
+                  ]),
+              child: const Row(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.document_scanner_rounded, color: Color(0xFFFFB300), size: 18),
+                SizedBox(width: 10),
+                Text('Point camera at a heritage landmark',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.3)),
+              ])),
+        ),
+      );
 
-  String _bboxText(Rect box) {
-    return 'x:${(box.left * 100).toStringAsFixed(0)}% '
-        'y:${(box.top * 100).toStringAsFixed(0)}% '
-        'w:${((box.right - box.left) * 100).toStringAsFixed(0)}% '
-        'h:${((box.bottom - box.top) * 100).toStringAsFixed(0)}%';
-  }
-}
-
-class _FactPill extends StatelessWidget {
-  final String label, value;
-  final Color color;
-  const _FactPill(
-      {required this.label, required this.value, required this.color});
-
-  @override
-  Widget build(BuildContext context) => Column(children: [
-        Text(value,
-            style: TextStyle(
-                fontWeight: FontWeight.w800, fontSize: 12, color: color)),
-        const SizedBox(height: 2),
-        Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-      ]);
 }
 
 class _CornerPainter extends CustomPainter {
@@ -1145,15 +1313,6 @@ class _DetectionOverlayPainter extends CustomPainter {
     required this.sensorOrientation,
   });
 
-  // Distinct colours per class index
-  static const _boxColours = [
-    Color(0xFF00E676), // green
-    Color(0xFF40C4FF), // light blue
-    Color(0xFFFF6D00), // orange
-    Color(0xFFE040FB), // purple
-    Color(0xFFFFD740), // amber
-  ];
-
   @override
   void paint(Canvas canvas, Size widgetSize) {
     if (detections.isEmpty || previewSize == null) return;
@@ -1178,7 +1337,7 @@ class _DetectionOverlayPainter extends CustomPainter {
     final double offsetY = (widgetSize.height - scaledH) / 2;
 
     for (final det in detections) {
-      final colour = _boxColours[det.classIndex % _boxColours.length];
+      final colour = const Color(0xFFFFB300); // Standardized AR Yellow
 
       // Map normalised [0..1] box to widget pixels
       final x1 = offsetX + det.boundingBox.left * scaledW;
@@ -1191,7 +1350,7 @@ class _DetectionOverlayPainter extends CustomPainter {
       canvas.drawRect(
           box,
           Paint()
-            ..color = colour.withOpacity(0.15)
+            ..color = colour.withOpacity(0.12)
             ..style = PaintingStyle.fill);
 
       // Border
@@ -1200,44 +1359,54 @@ class _DetectionOverlayPainter extends CustomPainter {
           Paint()
             ..color = colour
             ..style = PaintingStyle.stroke
-            ..strokeWidth = 2.5);
+            ..strokeWidth = 2.0);
 
       // Corner accents
       _drawCorners(canvas, box, colour);
 
       // Label chip: "<name>  <conf>%"
-      final labelText = '${det.label.replaceAll('_', ' ')}  '
-          '${(det.confidence * 100).toStringAsFixed(0)}%';
+      final formattedLabel = det.label.split('_').map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}' : '').join(' ');
+      final labelText = '$formattedLabel ${(det.confidence * 100).toStringAsFixed(0)}%';
 
       final tp = TextPainter(
         text: TextSpan(
           text: labelText,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
+          style: TextStyle(
+            color: colour,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
             letterSpacing: 0.3,
           ),
         ),
         textDirection: TextDirection.ltr,
       )..layout(maxWidth: widgetSize.width - 24);
 
-      const padH = 6.0;
-      const padV = 4.0;
+      const padH = 10.0;
+      const padV = 6.0;
       final chipW = tp.width + padH * 2;
       final chipH = tp.height + padV * 2;
 
       // Position chip above the box; flip below if out of bounds
       double chipX = x1;
-      double chipY = y1 - chipH - 4;
-      if (chipY < 0) chipY = y2 + 4;
+      double chipY = y1 - chipH - 6;
+      if (chipY < 0) chipY = y2 + 6;
       chipX = chipX.clamp(4.0, widgetSize.width - chipW - 4);
 
-      // Chip background
+      // Chip background (Dark Frosted Glass)
       canvas.drawRRect(
         RRect.fromRectAndRadius(Rect.fromLTWH(chipX, chipY, chipW, chipH),
-            const Radius.circular(6)),
-        Paint()..color = colour.withOpacity(0.88),
+            const Radius.circular(10)),
+        Paint()..color = Colors.black.withOpacity(0.75),
+      );
+      
+      // Chip subtle border
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(chipX, chipY, chipW, chipH),
+            const Radius.circular(10)),
+        Paint()
+          ..color = colour.withOpacity(0.4)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.0,
       );
 
       tp.paint(canvas, Offset(chipX + padH, chipY + padV));
@@ -1275,6 +1444,18 @@ class _DetectionOverlayPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _DetectionOverlayPainter old) =>
-      old.detections != detections;
+  bool shouldRepaint(covariant _DetectionOverlayPainter old) {
+    // Always repaint when the list size changes.
+    if (old.detections.length != detections.length) return true;
+    if (detections.isEmpty && old.detections.isEmpty) return false;
+    // Repaint when any detection's label, confidence, or box changes.
+    for (int i = 0; i < detections.length; i++) {
+      if (old.detections[i].label != detections[i].label ||
+          old.detections[i].confidence != detections[i].confidence ||
+          old.detections[i].boundingBox != detections[i].boundingBox) {
+        return true;
+      }
+    }
+    return false;
+  }
 }

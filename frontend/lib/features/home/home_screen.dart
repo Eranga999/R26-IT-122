@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../../core/location/site_geofence.dart';
 import '../../core/location/site_lock_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -7,6 +9,7 @@ import '../../features/ar/ar_screen.dart';
 import '../../features/database/database_helper.dart';
 import '../../features/database/landmark_model.dart';
 import '../../features/database/sub_landmark_model.dart';
+import '../sigiriya_guide/screens/home_screen.dart' as sigiriya_home;
 import '../../widgets/landmark_info_card.dart';
 import '../camera/camera_screen.dart';
 import '../rag/rag_screen.dart';
@@ -59,6 +62,14 @@ class _HomeScreenState extends State<HomeScreen> {
       _siteLock = result;
       _siteLockLoading = false;
     });
+  }
+
+  Future<void> _launchCamera() async {
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CameraScreen()),
+    );
   }
 
   Future<void> _manualLockSitePicker() async {
@@ -137,15 +148,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.surface,
-      body: Stack(
-        children: [
-          _navIndex == 0 ? _buildExploreBody() : _buildMapPlaceholder(),
+    final PreferredSizeWidget? topAppBar = _navIndex == 1
+        ? AppBar(
+            backgroundColor: AppTheme.primary,
+            elevation: 2,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded),
+              onPressed: () => setState(() => _navIndex = 0),
+            ),
+            title: const Text('Heritage Map'),
+          )
+        : null;
 
-        ],
-      ),
-      floatingActionButton: _buildScanFab(),
+    return Scaffold(
+      appBar: topAppBar,
+      backgroundColor: AppTheme.surface,
+      bottomNavigationBar: _buildBottomNav(),
+      body: _navIndex == 0 ? _buildExploreBody() : _buildHeritageMap(),
+      floatingActionButton: _navIndex == 0 ? _buildScanFab() : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: _buildBottomNav(),
     );
@@ -176,7 +196,16 @@ class _HomeScreenState extends State<HomeScreen> {
     final active = _navIndex == index;
     return InkWell(
       borderRadius: BorderRadius.circular(12),
-      onTap: () => setState(() => _navIndex = index),
+      onTap: () {
+        if (index == 0) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const sigiriya_home.HomeScreen()),
+          );
+        } else {
+          setState(() => _navIndex = index);
+        }
+      },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
         child: Column(
@@ -203,15 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return FloatingActionButton(
       backgroundColor: AppTheme.secondary,
       elevation: 6,
-      onPressed: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => CameraScreen(
-            lockedLandmarkId: _siteLock?.site?.landmarkDbId,
-            lockedLandmarkName: _siteLock?.site?.landmarkName,
-          ),
-        ),
-      ),
+      onPressed: _launchCamera,
       child:
           const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 28),
     );
@@ -263,11 +284,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           child: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(72, 12, 24, 12),
+              padding: const EdgeInsets.fromLTRB(24, 56, 24, 28),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  const SizedBox(height: 6),
                   const Text(
                     'HeritageAR',
                     style: TextStyle(
@@ -351,9 +372,13 @@ class _HomeScreenState extends State<HomeScreen> {
       SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-          child: _buildSiteLockBanner(),
+          child: _buildLocationCard(),
         ),
       ),
+
+      const SliverToBoxAdapter(child: SizedBox(height: 18)),
+
+      const SliverToBoxAdapter(child: SizedBox(height: 8)),
 
       // section label
       const SliverToBoxAdapter(
@@ -428,120 +453,242 @@ class _HomeScreenState extends State<HomeScreen> {
     ];
   }
 
-  Widget _buildSiteLockBanner() {
+  Widget _buildLocationCard() {
+    // ── Loading state ────────────────────────────────────────────────────────
     if (_siteLockLoading) {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.black12),
-        ),
-        child: const Row(
-          children: [
-            SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-            SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Detecting your current heritage site by GPS...',
-                style: TextStyle(fontSize: 12),
-              ),
-            ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.black.withOpacity(0.08)),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2))
           ],
         ),
+        child: Row(children: [
+          const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: AppTheme.secondary)),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'Searching for your heritage site...',
+              style: TextStyle(
+                  fontSize: 13, color: AppTheme.textBase, height: 1.4),
+            ),
+          ),
+        ]),
       );
     }
 
     final lock = _siteLock;
     final locked = lock?.isLocked ?? false;
-    final siteName = lock?.site?.landmarkName ?? 'Site not locked';
-    final subtitle = locked
-        ? 'Locked by ${lock!.source.toUpperCase()}  |  ${lock.distanceMeters?.toStringAsFixed(0) ?? '-'} m from center'
-        : (lock?.message ?? 'Unable to lock site from GPS.');
+    final outside = lock?.status == SiteLockStatus.outOfRange;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: locked ? const Color(0xFFE8F5E9) : const Color(0xFFFFF3E0),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: locked ? const Color(0xFF81C784) : const Color(0xFFFFB74D),
+    // ── Locked state ─────────────────────────────────────────────────────────
+    if (locked) {
+      final siteName = lock!.site?.landmarkName ?? 'Heritage Site';
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppTheme.primary.withOpacity(0.25)),
+          boxShadow: [
+            BoxShadow(
+                color: AppTheme.primary.withOpacity(0.06),
+                blurRadius: 8,
+                offset: const Offset(0, 2))
+          ],
         ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            locked ? Icons.gps_fixed_rounded : Icons.gps_off_rounded,
-            color: locked ? const Color(0xFF1B5E20) : const Color(0xFFE65100),
-          ),
+        child: Row(children: [
+          Icon(Icons.location_on_rounded, color: AppTheme.primary, size: 22),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  siteName,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                  ),
-                ),
+                const Text('📍 Current Location',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.primary,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.4)),
                 const SizedBox(height: 2),
                 Text(
-                  subtitle,
-                  style: const TextStyle(fontSize: 11),
+                  '$siteName  ●  You\'re at this site',
+                  style: const TextStyle(
+                      fontSize: 13,
+                      color: AppTheme.textBase,
+                      fontWeight: FontWeight.w700),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          TextButton(
-            onPressed: locked ? _resolveGpsSiteLock : _manualLockSitePicker,
-            child: Text(locked ? 'Refresh' : 'Manual'),
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppTheme.primary,
+              side: const BorderSide(color: AppTheme.primary),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+              textStyle: const TextStyle(fontSize: 12),
+            ),
+            onPressed: _resolveGpsSiteLock,
+            child: const Text('Refresh'),
           ),
+        ]),
+      );
+    }
+
+    // ── Failed or Outside state ───────────────────────────────────────────────
+    final message = outside
+        ? 'You\'re not near a heritage site — Choose a site manually to start exploring.'
+        : 'Location not verified — Enable GPS or choose a heritage site to begin exploration.';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.secondary.withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2))
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(Icons.location_off_rounded,
+                color: AppTheme.secondary, size: 20),
+            const SizedBox(width: 8),
+            const Expanded(
+                child: Text('📍 Current Location',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.secondary,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.4))),
+          ]),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            style: const TextStyle(
+                fontSize: 12.5, color: AppTheme.textBase, height: 1.5),
+          ),
+          const SizedBox(height: 10),
+          Row(children: [
+            if (!outside)
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primary,
+                    side: const BorderSide(color: AppTheme.primary),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    textStyle: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                  onPressed: _resolveGpsSiteLock,
+                  child: const Text('Verify Location'),
+                ),
+              ),
+            if (!outside) const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.primary,
+                  side: const BorderSide(color: AppTheme.primary),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  textStyle: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                onPressed: _manualLockSitePicker,
+                child: const Text('Choose Site'),
+              ),
+            ),
+          ]),
         ],
       ),
     );
   }
 
-  // â”€â”€ Map placeholder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  Widget _buildMapPlaceholder() {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF1A237E), Color(0xFF283593)],
-        ),
+  // -- Heritage Map (flutter_map + OSM) -----------------------------------
+  Widget _buildHeritageMap() {
+    const poisSigiriya = [
+      _PoiMarker(
+          Icons.confirmation_num_rounded, 'Ticket Counter', 7.95470, 80.75549),
+      _PoiMarker(Icons.water_rounded, 'Water Gardens', 7.95670, 80.75655),
+      _PoiMarker(Icons.palette_rounded, 'Fresco Gallery', 7.95700, 80.75970),
+      _PoiMarker(Icons.auto_awesome_rounded, 'Mirror Wall', 7.95725, 80.75988),
+      _PoiMarker(Icons.pets_rounded, 'Lion Paws Gate', 7.95759, 80.75988),
+      _PoiMarker(Icons.castle_rounded, 'Summit Palace', 7.95709, 80.76010),
+    ];
+    return FlutterMap(
+      options: const MapOptions(
+        initialCenter: LatLng(7.9567, 80.7580),
+        initialZoom: 16.0,
       ),
-      child: const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.map_rounded, size: 80, color: Colors.white38),
-            SizedBox(height: 16),
-            Text(
-              'Interactive Map',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Georgia'),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Coming soon â€“ offline maps\nfor heritage sites',
-              textAlign: TextAlign.center,
-              style:
-                  TextStyle(color: Colors.white54, fontSize: 14, height: 1.5),
-            ),
-          ],
+      children: [
+        TileLayer(
+          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          userAgentPackageName: 'com.example.r26_it_122',
         ),
-      ),
+        MarkerLayer(
+          markers: poisSigiriya
+              .map((poi) => Marker(
+                    point: LatLng(poi.lat, poi.lng),
+                    width: 64,
+                    height: 64,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: AppTheme.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                              child: Icon(poi.icon,
+                                  color: Colors.white, size: 18)),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 4, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primary,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            poi.name,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 7,
+                                fontWeight: FontWeight.w600),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ))
+              .toList(),
+        ),
+      ],
     );
   }
 }
@@ -552,10 +699,10 @@ class _FeaturedCard extends StatelessWidget {
   const _FeaturedCard({required this.landmark});
 
   static const _gradients = [
-    [Color(0xFFB71C1C), Color(0xFFE53935)],
-    [Color(0xFFE65100), Color(0xFFFF8F00)],
-    [Color(0xFF1A237E), Color(0xFF3949AB)],
-    [Color(0xFF1B5E20), Color(0xFF43A047)],
+    [Color(0xFF8B5E3C), Color(0xFFBF8650)], // warm terracotta
+    [Color(0xFF6D4C41), Color(0xFF8D6E63)], // espresso brown
+    [Color(0xFFAF8C5B), Color(0xFFD4A017)], // antique gold
+    [Color(0xFF5D4037), Color(0xFF795548)], // dark earth
   ];
 
   static const _icons = [
@@ -1118,4 +1265,12 @@ class _FactCell extends StatelessWidget {
           Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
         ],
       );
+}
+
+class _PoiMarker {
+  final IconData icon;
+  final String name;
+  final double lat;
+  final double lng;
+  const _PoiMarker(this.icon, this.name, this.lat, this.lng);
 }
