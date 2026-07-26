@@ -17,7 +17,7 @@ dependencies:
   camera: ^0.10.5+9
 
   # On-device TFLite inference
-  tflite_flutter: ^0.10.4
+  tflite_flutter: ^0.12.1
 
   # Image conversion for camera frames
   image: ^4.2.0
