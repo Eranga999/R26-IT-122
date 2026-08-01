@@ -13,6 +13,7 @@ import '../../widgets/landmark_info_card.dart';
 import '../camera/camera_screen.dart';
 import '../chat/rag_chat_screen.dart';
 import '../navigation/nav_screen.dart';
+import '../sigiriya_guide/screens/home_screen.dart' as sigiriya_home;
 
 /// The main landing screen of HeritageAR.
 class HomeScreen extends StatefulWidget {
@@ -194,10 +195,14 @@ class _HomeScreenState extends State<HomeScreen> {
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: () {
-        if (index == _navIndex) {
-          return;
+        if (index == 0) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const sigiriya_home.HomeScreen()),
+          );
+        } else {
+          setState(() => _navIndex = index);
         }
-        setState(() => _navIndex = index);
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),

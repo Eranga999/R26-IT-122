@@ -21,6 +21,10 @@ class SemanticCache {
   static SemanticCache? _instance;
   Database? _db;
 
+  // Bump this when the Sigiriya knowledge base content changes so stale
+  // cached answers are not reused after data updates.
+  static const int _cacheSchemaVersion = 4;
+
   // Mirrors Python: CACHE_SIM_THRESHOLD = 0.92
   static const double _simThreshold = 0.92;
 
@@ -76,18 +80,18 @@ class SemanticCache {
     final rows = await _db!.query('cache');
 
     String? bestAnswer;
-    double  bestScore = _simThreshold;
+    double bestScore = _simThreshold;
 
     for (final row in rows) {
       final key = row['key'] as String;
       if (!key.endsWith('::$mode')) continue;
 
       final embStr = row['embedding'] as String;
-      final emb    = embStr.split(',').map(double.parse).toList();
-      final score  = _cosine(queryEmbedding, emb);
+      final emb = embStr.split(',').map(double.parse).toList();
+      final score = _cosine(queryEmbedding, emb);
 
       if (score > bestScore) {
-        bestScore  = score;
+        bestScore = score;
         bestAnswer = row['answer'] as String;
       }
     }
@@ -105,16 +109,16 @@ class SemanticCache {
     String answer,
     List<double> embedding,
   ) async {
-    final key    = _makeKey(place, mode);
+    final key = _makeKey(place, mode);
     final embStr = embedding.map((v) => v.toStringAsFixed(6)).join(',');
 
     await _db!.insert(
       'cache',
       {
-        'key':      key,
-        'answer':   answer,
+        'key': key,
+        'answer': answer,
         'embedding': embStr,
-        'created':  DateTime.now().toIso8601String(),
+        'created': DateTime.now().toIso8601String(),
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
@@ -130,15 +134,15 @@ class SemanticCache {
   }
 
   String _makeKey(String place, String mode) =>
-      '${place.toLowerCase().trim()}::$mode';
+      'v$_cacheSchemaVersion::${place.toLowerCase().trim()}::$mode';
 
   double _cosine(List<double> a, List<double> b) {
     double dot = 0, na = 0, nb = 0;
     final len = min(a.length, b.length);
     for (int i = 0; i < len; i++) {
       dot += a[i] * b[i];
-      na  += a[i] * a[i];
-      nb  += b[i] * b[i];
+      na += a[i] * a[i];
+      nb += b[i] * b[i];
     }
     if (na == 0 || nb == 0) return 0;
     return dot / (sqrt(na) * sqrt(nb));
