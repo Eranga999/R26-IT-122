@@ -5,7 +5,7 @@ from retriever import Retriever, load_json_data
 from vector_store import VectorStore
 from response_formatter import ResponseFormatter
 
-def get_answer(question, landmark_id):
+def get_answer(question, landmark_id, language='en'):
     """
     Offline RAG pipeline with personalized conversational formatting.
     :param question: User question string
@@ -55,7 +55,7 @@ def get_answer(question, landmark_id):
     
     # Format as conversational guide response
     formatter = ResponseFormatter()
-    answer = formatter.format_response(results, landmark_id, query=question)
+    answer = formatter.format_response(results, landmark_id, query=question, language=language)
     
     return answer
 
