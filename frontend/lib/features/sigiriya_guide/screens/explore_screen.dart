@@ -1,5 +1,6 @@
 // lib/screens/explore_screen.dart
 import 'package:flutter/material.dart';
+import '../data/quest_state.dart';
 import '../data/sigiriya_knowledge_base.dart';
 import '../models/location_model.dart';
 import '../services/rag_service.dart';
@@ -77,15 +78,18 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 final loc = _filtered[i];
                 return _LocationCard(
                   location: loc,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => LocationDetailScreen(
-                        location: loc,
-                        rag: widget.rag,
+                  onTap: () {
+                    QuestProgress.instance.markLocationVisited(loc.id);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => LocationDetailScreen(
+                          location: loc,
+                          rag: widget.rag,
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 );
               },
             ),

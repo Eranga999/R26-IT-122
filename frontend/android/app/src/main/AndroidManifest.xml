@@ -9,6 +9,8 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
+    <!-- Microphone permission for voice chat (speech-to-text) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <!-- AR feature – not strictly required, enables AR-capable device filtering -->
     <uses-feature android:name="android.hardware.camera.ar" android:required="false"/>
 
@@ -58,6 +60,10 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Required for speech_to_text plugin on Android 11+ (API 30+) -->
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
         </intent>
     </queries>
 </manifest>

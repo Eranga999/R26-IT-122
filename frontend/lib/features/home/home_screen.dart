@@ -9,11 +9,11 @@ import '../../features/ar/ar_screen.dart';
 import '../../features/database/database_helper.dart';
 import '../../features/database/landmark_model.dart';
 import '../../features/database/sub_landmark_model.dart';
-import '../sigiriya_guide/screens/home_screen.dart' as sigiriya_home;
 import '../../widgets/landmark_info_card.dart';
 import '../camera/camera_screen.dart';
-import '../rag/rag_screen.dart';
+import '../chat/rag_chat_screen.dart';
 import '../navigation/nav_screen.dart';
+import '../sigiriya_guide/screens/home_screen.dart' as sigiriya_home;
 
 /// The main landing screen of HeritageAR.
 class HomeScreen extends StatefulWidget {
@@ -944,7 +944,7 @@ class LandmarkDetailScreenState extends State<LandmarkDetailScreen> {
                     ),
                     const SizedBox(height: 6),
                     const Text(
-                      'ðŸ‡±ðŸ‡°  Sri Lanka',
+                      'Sri Lanka',
                       style: TextStyle(color: Colors.white70, fontSize: 14),
                     ),
                   ],
@@ -1099,30 +1099,34 @@ class LandmarkDetailScreenState extends State<LandmarkDetailScreen> {
                   Row(
                     children: [
                       // Ask AI
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  RagScreen(landmarkName: widget.landmark.name),
+                      // Ask AI Guide (Only for Sigiriya)
+                      if (widget.landmark.id == 1) ...[
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => RagChatScreen(
+                                  landmarkName: widget.landmark.name,
+                                  landmarkId: 'sigiriya',
+                                ),
+                              ),
+                            ),
+                            icon: const Icon(Icons.smart_toy_rounded, size: 18),
+                            label: const Text('Ask AI Guide'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFFFB300),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14)),
+                              textStyle: const TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.w600),
                             ),
                           ),
-                          icon: const Icon(Icons.smart_toy_rounded, size: 18),
-                          label: const Text('Ask AI Guide'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFFB300),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14)),
-                            textStyle: const TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.w600),
-                          ),
                         ),
-                      ),
-
-                      const SizedBox(width: 10),
+                        const SizedBox(width: 10),
+                      ],
 
                       // Navigate
                       Expanded(

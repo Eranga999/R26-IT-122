@@ -34,6 +34,10 @@ dependencies:
   onnxruntime: ^1.4.1
   llama_cpp_dart: ^0.2.2
 
+  # Voice chat – fully offline STT & TTS via device engines
+  speech_to_text: ^7.0.0
+  flutter_tts: ^4.2.0
+
   # Compass heading for AR navigation arrow
   flutter_compass: ^0.8.0
 

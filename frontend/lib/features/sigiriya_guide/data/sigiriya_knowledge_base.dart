@@ -526,13 +526,14 @@ Rising **nearly 200 metres**, with ascent limited to a few constructed stairways
 The imposing height, complex pathways, and grandeur of the Lion Gate intimidate and disorient attackers before they reach any critical defense point. The demanding climb weakens enemy forces physically and psychologically.''',
   ),
 
-    // ─────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────
   SigiriyaLocation(
     id: 'ticket_counter',
     name: 'Ticket Counter',
     emoji: '🎟️',
     tags: ['ticket', 'entrance', 'information', 'visitor', 'entry', 'counter'],
-    imageAssets: ['assets/images/Ticket01.jpeg',
+    imageAssets: [
+      'assets/images/Ticket01.jpeg',
       'assets/images/Ticket02.jpeg',
       'assets/images/Ticket03.jpeg',
       'assets/images/Ticket04.jpeg',
@@ -567,7 +568,6 @@ The Ticket Counter is typically the **first interaction point** with the site. D
 ### Importance in Site Flow
 Although not part of the ancient structure, the Ticket Counter plays a crucial role in **modern site management**, helping regulate visitor flow and preserve the heritage site.''',
   ),
-
 ];
 
 /// All location names for the dropdown/search
@@ -600,8 +600,8 @@ List<SearchResult> searchLocations(String query, {int topK = 3}) {
 
   for (final loc in kSigiriyaLocations) {
     double score = 0;
-    final searchText = '${loc.name} ${loc.tags.join(' ')} ${loc.briefSummary}'
-        .toLowerCase();
+    final searchText =
+        '${loc.name} ${loc.tags.join(' ')} ${loc.briefSummary}'.toLowerCase();
 
     for (final word in words) {
       if (word.length < 3) continue;
