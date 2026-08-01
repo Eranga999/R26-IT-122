@@ -9,10 +9,8 @@ import '../../features/ar/ar_screen.dart';
 import '../../features/database/database_helper.dart';
 import '../../features/database/landmark_model.dart';
 import '../../features/database/sub_landmark_model.dart';
-import '../sigiriya_guide/screens/home_screen.dart' as sigiriya_home;
 import '../../widgets/landmark_info_card.dart';
 import '../camera/camera_screen.dart';
-import '../rag/rag_screen.dart';
 import '../chat/rag_chat_screen.dart';
 import '../navigation/nav_screen.dart';
 
@@ -167,7 +165,6 @@ class _HomeScreenState extends State<HomeScreen> {
       body: _navIndex == 0 ? _buildExploreBody() : _buildHeritageMap(),
       floatingActionButton: _navIndex == 0 ? _buildScanFab() : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
@@ -197,14 +194,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: () {
-        if (index == 0) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const sigiriya_home.HomeScreen()),
-          );
-        } else {
-          setState(() => _navIndex = index);
+        if (index == _navIndex) {
+          return;
         }
+        setState(() => _navIndex = index);
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
@@ -946,7 +939,7 @@ class LandmarkDetailScreenState extends State<LandmarkDetailScreen> {
                     ),
                     const SizedBox(height: 6),
                     const Text(
-                      'ðŸ‡±ðŸ‡°  Sri Lanka',
+                      'Sri Lanka',
                       style: TextStyle(color: Colors.white70, fontSize: 14),
                     ),
                   ],
@@ -1109,7 +1102,9 @@ class LandmarkDetailScreenState extends State<LandmarkDetailScreen> {
                               context,
                               MaterialPageRoute(
                                 builder: (_) => RagChatScreen(
-                                    landmarkName: widget.landmark.name),
+                                  landmarkName: widget.landmark.name,
+                                  landmarkId: 'sigiriya',
+                                ),
                               ),
                             ),
                             icon: const Icon(Icons.smart_toy_rounded, size: 18),
