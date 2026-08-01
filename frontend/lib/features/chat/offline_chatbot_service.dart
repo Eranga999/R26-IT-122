@@ -246,16 +246,20 @@ class OfflineChatbotService {
     final candidates = dataset.where((entry) => _normalize(entry.landmark).contains(landmarkKey)).toList();
     final searchSpace = candidates.isNotEmpty ? candidates : dataset;
 
-    final best = _rankEntries(searchSpace, normalizedQuestion).firstOrNull;
+    final best = _rankEntries(searchSpace, normalizedQuestion, normalizedLanguage).firstOrNull;
     if (best == null || best.score <= 0) {
       return localized['no_results']!;
     }
 
     final templateMap = localized['templates'] as Map<String, String>;
     final template = templateMap[best.entry.category.toLowerCase()] ?? templateMap['default']!;
+    
+    final bestText = best.entry.getLocalizedText(normalizedLanguage);
+    final bestLandmark = _getLocalizedLandmark(best.entry.landmark, normalizedLanguage);
+
     final formatted = template
-        .replaceAll('{text}', best.entry.text)
-        .replaceAll('{landmark}', best.entry.landmark)
+        .replaceAll('{text}', bestText)
+        .replaceAll('{landmark}', bestLandmark)
         .replaceAll('{category}', best.entry.category);
 
     final fact = _optionalFact(normalizedLanguage, landmarkKey);
@@ -296,17 +300,17 @@ class OfflineChatbotService {
     return thanks[language]?.any(question.contains) ?? thanks['en']!.any(question.contains);
   }
 
-  List<_ScoredEntry> _rankEntries(List<_KnowledgeEntry> entries, String question) {
+  List<_ScoredEntry> _rankEntries(List<_KnowledgeEntry> entries, String question, String language) {
     final queryTokens = _tokens(question);
     final weightedCategory = _categoryHints(question);
 
     final scored = entries.map((entry) {
       var score = 0;
-      final text = _normalize(entry.text);
+      final text = _normalize(entry.getLocalizedText(language));
       final category = _normalize(entry.category);
-      final landmark = _normalize(entry.landmark);
+      final landmark = _normalize(_getLocalizedLandmark(entry.landmark, language));
 
-      if (landmark.contains('sigiriya')) {
+      if (landmark.contains('sigiriya') || landmark.contains('සීගිරිය') || landmark.contains('सिगिरिया')) {
         score += 2;
       }
 
@@ -369,18 +373,93 @@ class OfflineChatbotService {
     return greetings[randomIndex] as String;
   }
 
+  String _getLocalizedLandmark(String landmark, String language) {
+    final key = landmark.toLowerCase().trim();
+    const translations = {
+      'sigiriya': {
+        'en': 'Sigiriya',
+        'hi': 'सिगिरिया',
+        'zh': '锡吉里耶',
+        'ru': 'Сигирия',
+        'de': 'Sigiriya',
+        'si': 'සීගිරිය',
+        'ta': 'சிகிரியா',
+      },
+      'dambulla': {
+        'en': 'Dambulla',
+        'hi': 'डंबुला',
+        'zh': '丹布勒',
+        'ru': 'Дамбулла',
+        'de': 'Dambulla',
+        'si': 'දඹුල්ල',
+        'ta': 'தம்புள்ளை',
+      },
+      'polonnaruwa': {
+        'en': 'Polonnaruwa',
+        'hi': 'पोलोन्नरुवा',
+        'zh': '波隆纳鲁沃',
+        'ru': 'Полоннарува',
+        'de': 'Polonnaruwa',
+        'si': 'පොළොන්නරුව',
+        'ta': 'பொலன்னறுவை',
+      }
+    };
+    return translations[key]?[language] ?? landmark;
+  }
+
   String _optionalFact(String language, String landmarkKey) {
     if (landmarkKey != 'sigiriya') {
       return '';
     }
 
     final factPrefix = _localized(language)['fact_prefix'] as String;
-    const facts = [
-      "Sigiriya is often called the Eighth Wonder of the World.",
-      "The site has over 1,202 steps to the summit.",
-      "Its water gardens are among the oldest landscaped gardens in Asia.",
-      "The Mirror Wall contains ancient graffiti from visitors centuries ago.",
-    ];
+    
+    final Map<String, List<String>> localizedFacts = {
+      'en': [
+        "Sigiriya is often called the Eighth Wonder of the World.",
+        "The site has over 1,202 steps to the summit.",
+        "Its water gardens are among the oldest landscaped gardens in Asia.",
+        "The Mirror Wall contains ancient graffiti from visitors centuries ago.",
+      ],
+      'hi': [
+        "सिगिरिया को अक्सर दुनिया का आठवां अजूबा कहा जाता है।",
+        "शिखर तक पहुँचने के लिए यहाँ 1,202 से अधिक सीढ़ियाँ हैं।",
+        "इसके जल उद्यान एशिया के सबसे पुराने भूदृश्य उद्यानों में से हैं।",
+        "दर्पण दीवार (Mirror Wall) पर सदियों पहले के आगंतुकों के प्राचीन भित्तिचित्र हैं।",
+      ],
+      'zh': [
+        "锡吉里耶常被誉为世界第八大奇迹。",
+        "到达岩顶共有1,202级台阶。",
+        "它的水上花园是亚洲最古老的景观花园之一。",
+        "镜墙上保留着数百年前游客留下的古老涂鸦。",
+      ],
+      'ru': [
+        "Сигирию часто называют восьмым чудом света.",
+        "На вершину скалы ведет более 1202 ступеней.",
+        "Ее водяные сады являются одними из старейших ландшафтных садов в Азии.",
+        "Зеркальная стена содержит древние граффити, оставленные посетителями много веков назад.",
+      ],
+      'de': [
+        "Sigiriya wird oft als das achte Weltwunder bezeichnet.",
+        "Es gibt über 1.202 Stufen bis zum Gipfel.",
+        "Die Wassergärten gehören zu den ältesten Landschaftsgärten Asiens.",
+        "Die Spiegelwand enthält antike Graffiti von Besuchern vor Jahrhunderten.",
+      ],
+      'si': [
+        "සීගිරිය බොහෝ විට ලෝකයේ අටවන පුදුමය ලෙස හඳුන්වනු ලැබේ.",
+        "මුදුනට ළඟා වීමට පියගැට 1,202 කට වඩා තිබේ.",
+        "එහි දිය උද්‍යාන ආසියාවේ පැරණිතම උද්‍යාන සැලසුම් අතර වේ.",
+        "කැඩපත් පවුරේ සියවස් ගණනාවකට පෙර පැමිණි අමුත්තන්ගේ පැරණි කුරුටු ගී අඩංගු වේ.",
+      ],
+      'ta': [
+        "சிகிரியா பெரும்பாலும் உலகின் எட்டாவது அதிசயம் என்று அழைக்கப்படுகிறது.",
+        "உச்சிக்கு செல்ல 1,202 க்கும் மேற்பட்ட படிகள் உள்ளன.",
+        "இதன் நீர் பூங்காக்கள் ஆசியாவிலேயே மிக பழமையான நிலப்பரப்பு பூங்காக்களில் ஒன்றாகும்.",
+        "கண்ணாடிச் சுவரில் பல நூற்றாண்டுகளுக்கு முன்பு வந்த பார்வையாளர்களின் பண்டைய சுவரெழுத்துக்கள் உள்ளன.",
+      ],
+    };
+
+    final facts = localizedFacts[language] ?? localizedFacts['en']!;
     final randomIndex = Random().nextInt(facts.length);
     return ' $factPrefix ${facts[randomIndex]}';
   }
@@ -409,21 +488,35 @@ class _KnowledgeEntry {
   final String landmark;
   final String category;
   final String text;
+  final Map<String, String> translations;
 
   _KnowledgeEntry({
     required this.id,
     required this.landmark,
     required this.category,
     required this.text,
+    required this.translations,
   });
 
   factory _KnowledgeEntry.fromJson(Map<String, dynamic> json) {
+    final rawTranslations = json['translations'] as Map<String, dynamic>? ?? {};
+    final Map<String, String> translationsMap = {};
+    rawTranslations.forEach((k, v) => translationsMap[k] = v.toString());
+
     return _KnowledgeEntry(
       id: json['id'] as String? ?? '',
       landmark: json['landmark'] as String? ?? 'Sigiriya',
       category: json['category'] as String? ?? 'default',
       text: json['text'] as String? ?? '',
+      translations: translationsMap,
     );
+  }
+
+  String getLocalizedText(String languageCode) {
+    if (languageCode == 'en') return text;
+    final translated = translations[languageCode];
+    if (translated == null || translated.isEmpty) return text;
+    return translated;
   }
 }
 
