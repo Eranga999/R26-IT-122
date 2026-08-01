@@ -1,134 +1,1472 @@
 [
-  { "id": "sig_001", "landmark": "Sigiriya", "category": "history", "text": "Sigiriya is an ancient rock fortress in Sri Lanka built by King Kashyapa in the 5th century AD and is a UNESCO World Heritage Site." },
-  { "id": "sig_002", "landmark": "Sigiriya", "category": "history", "text": "King Kashyapa chose Sigiriya as his capital after seizing the throne from his father, King Dhatusena." },
-  { "id": "sig_003", "landmark": "Sigiriya", "category": "history", "text": "After King Kashyapa's death, Sigiriya was transformed into a Buddhist monastery." },
-  { "id": "sig_004", "landmark": "Sigiriya", "category": "history", "text": "Sigiriya is often referred to as the Eighth Wonder of the World due to its historical and architectural significance." },
-  { "id": "sig_005", "landmark": "Sigiriya", "category": "history", "text": "The site shows evidence of human settlement even before King Kashyapa's reign." },
-
-  { "id": "sig_006", "landmark": "Sigiriya", "category": "architecture", "text": "Sigiriya rises approximately 200 meters above the surrounding plains." },
-  { "id": "sig_007", "landmark": "Sigiriya", "category": "architecture", "text": "The Lion’s Paw is the entrance staircase carved into the rock in the shape of a lion." },
-  { "id": "sig_008", "landmark": "Sigiriya", "category": "architecture", "text": "The summit of Sigiriya contains ruins of an ancient royal palace." },
-  { "id": "sig_009", "landmark": "Sigiriya", "category": "architecture", "text": "Sigiriya is designed with symmetrical layouts showing advanced urban planning." },
-  { "id": "sig_010", "landmark": "Sigiriya", "category": "architecture", "text": "Massive staircases and terraces were carved directly into the rock surface." },
-
-  { "id": "sig_011", "landmark": "Sigiriya", "category": "engineering", "text": "Sigiriya contains one of the oldest hydraulic systems in the world." },
-  { "id": "sig_012", "landmark": "Sigiriya", "category": "engineering", "text": "Water gardens at Sigiriya use underground channels and surface reservoirs." },
-  { "id": "sig_013", "landmark": "Sigiriya", "category": "engineering", "text": "Ancient engineers created fountains that still function during rainy seasons." },
-  { "id": "sig_014", "landmark": "Sigiriya", "category": "engineering", "text": "The site demonstrates advanced knowledge of water pressure control." },
-  { "id": "sig_015", "landmark": "Sigiriya", "category": "engineering", "text": "Symmetrical garden layouts reflect careful engineering and planning." },
-
-  { "id": "sig_016", "landmark": "Sigiriya", "category": "art", "text": "Sigiriya frescoes depict celestial maidens painted on the western rock face." },
-  { "id": "sig_017", "landmark": "Sigiriya", "category": "art", "text": "The frescoes are considered masterpieces of ancient Sri Lankan art." },
-  { "id": "sig_018", "landmark": "Sigiriya", "category": "art", "text": "Only a small portion of the original frescoes remains today." },
-  { "id": "sig_019", "landmark": "Sigiriya", "category": "art", "text": "The paintings show advanced use of natural pigments and shading techniques." },
-  { "id": "sig_020", "landmark": "Sigiriya", "category": "art", "text": "The identity of the women in the frescoes is still debated by historians." },
-
-  { "id": "sig_021", "landmark": "Sigiriya", "category": "culture", "text": "The Mirror Wall was once polished so highly that it reflected images like a mirror." },
-  { "id": "sig_022", "landmark": "Sigiriya", "category": "culture", "text": "The Mirror Wall contains ancient graffiti written by visitors over centuries." },
-  { "id": "sig_023", "landmark": "Sigiriya", "category": "culture", "text": "Graffiti includes poems, comments, and praises written in early Sinhala script." },
-  { "id": "sig_024", "landmark": "Sigiriya", "category": "culture", "text": "Sigiriya reflects a combination of royal power, art, and Buddhist influence." },
-  { "id": "sig_025", "landmark": "Sigiriya", "category": "culture", "text": "The site represents ancient Sri Lankan civilization and cultural identity." },
-
-  { "id": "sig_026", "landmark": "Sigiriya", "category": "facts", "text": "Sigiriya is located in the Matale District of Sri Lanka." },
-  { "id": "sig_027", "landmark": "Sigiriya", "category": "facts", "text": "It attracts thousands of local and foreign tourists every year." },
-  { "id": "sig_028", "landmark": "Sigiriya", "category": "facts", "text": "The rock is made of hardened magma from an extinct volcano." },
-  { "id": "sig_029", "landmark": "Sigiriya", "category": "facts", "text": "Sigiriya is one of the best-preserved ancient urban planning sites in Asia." },
-  { "id": "sig_030", "landmark": "Sigiriya", "category": "facts", "text": "It is listed as a UNESCO World Heritage Site since 1982." },
-
-  { "id": "sig_031", "landmark": "Sigiriya", "category": "architecture", "text": "The main entrance to Sigiriya was designed in the shape of a giant lion." },
-  { "id": "sig_032", "landmark": "Sigiriya", "category": "architecture", "text": "The Lion’s Paw remains as two large carved stone feet at the entrance." },
-  { "id": "sig_033", "landmark": "Sigiriya", "category": "architecture", "text": "The site includes symmetrical gardens divided into water, boulder, and terraced gardens." },
-
-  { "id": "sig_034", "landmark": "Sigiriya", "category": "engineering", "text": "Sigiriya gardens are aligned with geometric precision and water flow systems." },
-  { "id": "sig_035", "landmark": "Sigiriya", "category": "engineering", "text": "Underground drainage systems prevent water damage to structures." },
-
-  { "id": "sig_036", "landmark": "Sigiriya", "category": "history", "text": "The site was rediscovered in the 19th century by British archaeologists." },
-  { "id": "sig_037", "landmark": "Sigiriya", "category": "history", "text": "Excavations revealed hidden gardens and palace foundations." },
-
-  { "id": "sig_038", "landmark": "Sigiriya", "category": "culture", "text": "Sigiriya is a symbol of ancient Sri Lankan innovation and creativity." },
-  { "id": "sig_039", "landmark": "Sigiriya", "category": "culture", "text": "The site blends natural landscape with human engineering." },
-
-  { "id": "sig_040", "landmark": "Sigiriya", "category": "facts", "text": "The climb to Sigiriya summit involves over 1,200 steps." },
-  { "id": "sig_041", "landmark": "Sigiriya", "category": "facts", "text": "Sigiriya is one of the most visited tourist attractions in Sri Lanka." },
-
-  { "id": "sig_042", "landmark": "Sigiriya", "category": "art", "text": "The frescoes are painted on a sheltered rock surface protected from weather." },
-  { "id": "sig_043", "landmark": "Sigiriya", "category": "art", "text": "Only a small group of frescoes remains due to natural erosion and vandalism." },
-
-  { "id": "sig_044", "landmark": "Sigiriya", "category": "engineering", "text": "Cooling and ventilation techniques were used in the palace design." },
-  { "id": "sig_045", "landmark": "Sigiriya", "category": "engineering", "text": "The site demonstrates early use of landscape architecture principles." },
-
-  { "id": "sig_046", "landmark": "Sigiriya", "category": "history", "text": "Sigiriya was built as both a fortress and a royal pleasure garden." },
-  { "id": "sig_047", "landmark": "Sigiriya", "category": "culture", "text": "The site reflects the transition between monarchy and monastic use." },
-
-  { "id": "sig_048", "landmark": "Sigiriya", "category": "facts", "text": "The surrounding area includes wildlife and forest ecosystems." },
-  { "id": "sig_049", "landmark": "Sigiriya", "category": "facts", "text": "Sigiriya is part of Sri Lanka’s Cultural Triangle." },
-
-  { "id": "sig_050", "landmark": "Sigiriya", "category": "architecture", "text": "Stone pathways and staircases were carved to blend with natural rock formations." },
-  { "id": "sig_051", "landmark": "Sigiriya", "category": "engineering", "text": "The irrigation system allowed gardens to function even in dry seasons." },
-  { "id": "sig_052", "landmark": "Sigiriya", "category": "culture", "text": "Sigiriya remains a major symbol of Sri Lankan heritage identity." },
-  { "id": "sig_053", "landmark": "Sigiriya", "category": "art", "text": "The artistic style shows influence of South Asian classical painting traditions." },
-  { "id": "sig_054", "landmark": "Sigiriya", "category": "history", "text": "Sigiriya represents one of the earliest examples of planned city design in the region." },
-  { "id": "sig_055", "landmark": "Sigiriya", "category": "facts", "text": "The site is protected by the Department of Archaeology of Sri Lanka." },
-
-  
-  { "id": "sig_056", "landmark": "Sigiriya", "category": "tourism", "text": "Sigiriya attracts visitors from around the world because of its historical and architectural importance." },
-  { "id": "sig_057", "landmark": "Sigiriya", "category": "tourism", "text": "Early morning is considered one of the best times to climb Sigiriya due to cooler weather." },
-  { "id": "sig_058", "landmark": "Sigiriya", "category": "tourism", "text": "Tourists visiting Sigiriya often explore nearby heritage sites within the Cultural Triangle." },
-  { "id": "sig_059", "landmark": "Sigiriya", "category": "tourism", "text": "The summit of Sigiriya provides panoramic views of forests and surrounding villages." },
-  { "id": "sig_060", "landmark": "Sigiriya", "category": "tourism", "text": "Sigiriya has become one of the most photographed landmarks in Sri Lanka." },
-
-  { "id": "sig_061", "landmark": "Sigiriya", "category": "tourism", "text": "Guided tours at Sigiriya help visitors understand the historical significance of the site." },
-  { "id": "sig_062", "landmark": "Sigiriya", "category": "tourism", "text": "The site includes resting areas for visitors climbing the rock fortress." },
-  { "id": "sig_063", "landmark": "Sigiriya", "category": "tourism", "text": "Tourists are advised to carry water while climbing Sigiriya due to the long staircase." },
-  { "id": "sig_064", "landmark": "Sigiriya", "category": "tourism", "text": "Local and foreign tourists visit Sigiriya throughout the year." },
-  { "id": "sig_065", "landmark": "Sigiriya", "category": "tourism", "text": "The Sigiriya museum displays artifacts and historical information related to the site." },
-
-  { "id": "sig_066", "landmark": "Sigiriya", "category": "archaeology", "text": "Archaeological excavations at Sigiriya revealed foundations of ancient buildings." },
-  { "id": "sig_067", "landmark": "Sigiriya", "category": "archaeology", "text": "Researchers discovered evidence of sophisticated city planning at Sigiriya." },
-  { "id": "sig_068", "landmark": "Sigiriya", "category": "archaeology", "text": "Ancient brick structures were uncovered during archaeological studies." },
-  { "id": "sig_069", "landmark": "Sigiriya", "category": "archaeology", "text": "Archaeologists identified royal gardens surrounding the rock fortress." },
-  { "id": "sig_070", "landmark": "Sigiriya", "category": "archaeology", "text": "Excavations at Sigiriya revealed remains of ancient water management systems." },
-
-  { "id": "sig_071", "landmark": "Sigiriya", "category": "archaeology", "text": "Stone inscriptions discovered near Sigiriya provide historical insights into the site." },
-  { "id": "sig_072", "landmark": "Sigiriya", "category": "archaeology", "text": "Archaeologists believe Sigiriya served both military and ceremonial purposes." },
-  { "id": "sig_073", "landmark": "Sigiriya", "category": "archaeology", "text": "Ancient pathways discovered around Sigiriya connected different parts of the fortress." },
-  { "id": "sig_074", "landmark": "Sigiriya", "category": "archaeology", "text": "Artifacts found at Sigiriya include pottery, tools, and decorative objects." },
-  { "id": "sig_075", "landmark": "Sigiriya", "category": "archaeology", "text": "The archaeological site continues to be studied by local and international researchers." },
-
-  { "id": "sig_076", "landmark": "Sigiriya", "category": "religion", "text": "After the fall of King Kashyapa, Sigiriya became a Buddhist monastic complex." },
-  { "id": "sig_077", "landmark": "Sigiriya", "category": "religion", "text": "Monks used caves around Sigiriya for meditation and religious practices." },
-  { "id": "sig_078", "landmark": "Sigiriya", "category": "religion", "text": "Several rock shelters near Sigiriya contain ancient Buddhist inscriptions." },
-  { "id": "sig_079", "landmark": "Sigiriya", "category": "religion", "text": "Buddhist monks occupied Sigiriya for many centuries after the royal period ended." },
-  { "id": "sig_080", "landmark": "Sigiriya", "category": "religion", "text": "Religious influence shaped many cultural aspects of Sigiriya after its transformation into a monastery." },
-
-  { "id": "sig_081", "landmark": "Sigiriya", "category": "environment", "text": "The forests surrounding Sigiriya are home to various species of birds and wildlife." },
-  { "id": "sig_082", "landmark": "Sigiriya", "category": "environment", "text": "The area around Sigiriya contains rich biodiversity and natural ecosystems." },
-  { "id": "sig_083", "landmark": "Sigiriya", "category": "environment", "text": "Large water gardens at Sigiriya contribute to the ecological balance of the site." },
-  { "id": "sig_084", "landmark": "Sigiriya", "category": "environment", "text": "The surrounding landscape includes forests, lakes, and rocky terrain." },
-  { "id": "sig_085", "landmark": "Sigiriya", "category": "environment", "text": "Environmental conservation is important for preserving Sigiriya’s natural beauty." },
-
-  { "id": "sig_086", "landmark": "Sigiriya", "category": "environment", "text": "Wild elephants are occasionally seen in forested areas near Sigiriya." },
-  { "id": "sig_087", "landmark": "Sigiriya", "category": "environment", "text": "Native trees around Sigiriya provide shade and support local wildlife habitats." },
-  { "id": "sig_088", "landmark": "Sigiriya", "category": "environment", "text": "Seasonal rainfall supports the functioning of Sigiriya’s ancient fountains." },
-  { "id": "sig_089", "landmark": "Sigiriya", "category": "environment", "text": "The natural rock formation of Sigiriya stands prominently above dense greenery." },
-  { "id": "sig_090", "landmark": "Sigiriya", "category": "environment", "text": "The site combines natural landscapes with human-made architectural features." },
-
-  { "id": "sig_091", "landmark": "Sigiriya", "category": "gardens", "text": "The water gardens of Sigiriya are among the oldest landscaped gardens in Asia." },
-  { "id": "sig_092", "landmark": "Sigiriya", "category": "gardens", "text": "Sigiriya gardens include symmetrical pools and fountains." },
-  { "id": "sig_093", "landmark": "Sigiriya", "category": "gardens", "text": "Boulder gardens at Sigiriya contain pathways between massive natural rocks." },
-  { "id": "sig_094", "landmark": "Sigiriya", "category": "gardens", "text": "Terraced gardens were built along the slopes leading to the summit." },
-  { "id": "sig_095", "landmark": "Sigiriya", "category": "gardens", "text": "Ancient landscape architects carefully designed Sigiriya’s garden layouts." },
-
-  { "id": "sig_096", "landmark": "Sigiriya", "category": "gardens", "text": "Water channels in the gardens were designed to control water movement efficiently." },
-  { "id": "sig_097", "landmark": "Sigiriya", "category": "gardens", "text": "The gardens demonstrate advanced planning techniques from ancient Sri Lanka." },
-  { "id": "sig_098", "landmark": "Sigiriya", "category": "gardens", "text": "The combination of water, rocks, and greenery creates a balanced garden design." },
-  { "id": "sig_099", "landmark": "Sigiriya", "category": "gardens", "text": "Sigiriya gardens are divided into water gardens, cave gardens, and terraced gardens." },
-  { "id": "sig_100", "landmark": "Sigiriya", "category": "gardens", "text": "The garden complex reflects the luxurious lifestyle of the royal palace era." },
-
-  { "id": "sig_101", "landmark": "Sigiriya", "category": "fortress", "text": "Sigiriya was strategically built as a fortress for protection against enemies." },
-  { "id": "sig_102", "landmark": "Sigiriya", "category": "fortress", "text": "The height of the rock provided a natural defensive advantage." },
-  { "id": "sig_103", "landmark": "Sigiriya", "category": "fortress", "text": "Ancient guards likely monitored the surrounding area from the summit." },
-  { "id": "sig_104", "landmark": "Sigiriya", "category": "fortress", "text": "The narrow staircases helped control access to the upper palace." },
-  { "id": "sig_105", "landmark": "Sigiriya", "category": "fortress", "text": "Moats and walls surrounding Sigiriya strengthened its defensive structure." }
-
+  {
+    "id": "sig_001",
+    "landmark": "Sigiriya",
+    "category": "history",
+    "text": "Sigiriya is an ancient rock fortress in Sri Lanka built by King Kashyapa in the 5th century AD and is a UNESCO World Heritage Site.",
+    "translations": {
+      "hi": "सिगिरिया श्रीलंका में 5वीं शताब्दी ईस्वी में राजा कश्यप द्वारा बनाया गया एक प्राचीन चट्टानी किला है और यह यूनेस्को की विश्व धरोहर स्थल है।",
+      "zh": "锡吉里亚是斯里兰卡一座古老的岩石堡垒，由卡什亚帕国王于公元5世纪建造，被联合国教科文组织列为世界遗产。",
+      "ru": "Сигирия — древняя скальная крепость на Шри-Ланке, построенная королем Кашьяпой в V веке нашей эры и являющаяся объектом Всемирного наследия ЮНЕСКО.",
+      "de": "Sigiriya ist eine alte Felsenfestung in Sri Lanka, die im 5. Jahrhundert n. Chr. von König Kashyapa erbaut wurde und zum UNESCO-Weltkulturerbe gehört.",
+      "si": "සීගිරිය යනු ක්‍රිස්තු වර්ෂ 5 වන සියවසේ කාශ්‍යප රජු විසින් ඉදිකරන ලද ශ්‍රී ලංකාවේ පැරණි ගල් බලකොටුවක් වන අතර එය යුනෙස්කෝ ලෝක උරුම අඩවියකි.",
+      "ta": "சிகிரியா என்பது இலங்கையில் உள்ள ஒரு பழமையான பாறை கோட்டையாகும், இது கி.பி 5 ஆம் நூற்றாண்டில் காஷ்யப மன்னரால் கட்டப்பட்டது மற்றும் யுனெஸ்கோவின் உலக பாரம்பரிய தளமாகும்."
+    }
+  },
+  {
+    "id": "sig_002",
+    "landmark": "Sigiriya",
+    "category": "history",
+    "text": "King Kashyapa chose Sigiriya as his capital after seizing the throne from his father, King Dhatusena.",
+    "translations": {
+      "hi": "राजा कश्यप ने अपने पिता राजा धातुसेना से सिंहासन छीनने के बाद सिगिरिया को अपनी राजधानी के रूप में चुना।",
+      "zh": "迦叶波国王从父亲达图塞纳国王手中夺取王位后，选择锡吉里耶作为首都。",
+      "ru": "Король Кашьяпа выбрал Сигирию своей столицей после того, как отобрал трон у своего отца, короля Дхатусены.",
+      "de": "König Kashyapa wählte Sigiriya als seine Hauptstadt, nachdem er seinem Vater, König Dhatusena, den Thron entrissen hatte.",
+      "si": "කාශ්‍යප රජු සීගිරිය අගනුවර ලෙස තෝරා ගත්තේ තම පියා වූ ධාතුසේන රජුගෙන් සිහසුන අත්පත් කර ගැනීමෙන් පසුවය.",
+      "ta": "மன்னன் காஷ்யப தனது தந்தையான ததுசேனனிடமிருந்து அரியணையைக் கைப்பற்றிய பிறகு சிகிரியாவைத் தன் தலைநகராகத் தேர்ந்தெடுத்தான்."
+    }
+  },
+  {
+    "id": "sig_003",
+    "landmark": "Sigiriya",
+    "category": "history",
+    "text": "After King Kashyapa's death, Sigiriya was transformed into a Buddhist monastery.",
+    "translations": {
+      "hi": "राजा कश्यप की मृत्यु के बाद सिगिरिया एक बौद्ध मठ में तब्दील हो गया।",
+      "zh": "迦叶波国王去世后，锡吉里耶被改造成一座佛教寺院。",
+      "ru": "После смерти короля Кашьяпы Сигирия была преобразована в буддийский монастырь.",
+      "de": "Nach dem Tod von König Kashyapa wurde Sigiriya in ein buddhistisches Kloster umgewandelt.",
+      "si": "කාශ්‍යප රජුගේ අභාවයෙන් පසු සීගිරිය බෞද්ධ ආරාමයක් බවට පරිවර්තනය විය.",
+      "ta": "மன்னர் காஷ்யபரின் மரணத்திற்குப் பிறகு, சிகிரியா ஒரு புத்த மடாலயமாக மாற்றப்பட்டது."
+    }
+  },
+  {
+    "id": "sig_004",
+    "landmark": "Sigiriya",
+    "category": "history",
+    "text": "Sigiriya is often referred to as the Eighth Wonder of the World due to its historical and architectural significance.",
+    "translations": {
+      "hi": "सिगिरिया को इसके ऐतिहासिक और स्थापत्य महत्व के कारण अक्सर दुनिया का आठवां आश्चर्य कहा जाता है।",
+      "zh": "由于其历史和建筑意义，锡吉里耶通常被称为世界第八大奇迹。",
+      "ru": "Сигирию часто называют восьмым чудом света из-за ее исторического и архитектурного значения.",
+      "de": "Sigiriya wird aufgrund seiner historischen und architektonischen Bedeutung oft als das achte Weltwunder bezeichnet.",
+      "si": "සීගිරිය බොහෝ විට හඳුන්වනු ලබන්නේ එහි ඇති ඓතිහාසික හා වාස්තු විද්‍යාත්මක වැදගත්කම නිසා ලෝකයේ අටවන පුදුමය ලෙසිනි.",
+      "ta": "சிகிரியா அதன் வரலாற்று மற்றும் கட்டிடக்கலை முக்கியத்துவம் காரணமாக பெரும்பாலும் உலகின் எட்டாவது அதிசயமாக குறிப்பிடப்படுகிறது."
+    }
+  },
+  {
+    "id": "sig_005",
+    "landmark": "Sigiriya",
+    "category": "history",
+    "text": "The site shows evidence of human settlement even before King Kashyapa's reign.",
+    "translations": {
+      "hi": "यह स्थल राजा कश्यप के शासनकाल से पहले भी मानव बस्ती के साक्ष्य दिखाता है।",
+      "zh": "该遗址显示出甚至在迦叶波国王统治之前就有人类定居的证据。",
+      "ru": "Это место демонстрирует свидетельства существования поселений людей еще до правления короля Кашьяпы.",
+      "de": "Die Stätte weist Hinweise auf eine menschliche Besiedlung bereits vor der Herrschaft von König Kashyapa auf.",
+      "si": "කාශ්‍යප රජුගේ රාජ්‍ය සමයට පෙර සිටම මානව ජනාවාස ඇති වූ බවට මෙම අඩවියේ සාක්ෂි දක්වයි.",
+      "ta": "மன்னன் காஷ்யபரின் ஆட்சிக்கு முன்பே மக்கள் குடியேறியதற்கான ஆதாரங்களை இந்த தளம் காட்டுகிறது."
+    }
+  },
+  {
+    "id": "sig_006",
+    "landmark": "Sigiriya",
+    "category": "architecture",
+    "text": "Sigiriya rises approximately 200 meters above the surrounding plains.",
+    "translations": {
+      "hi": "सिगिरिया आसपास के मैदानों से लगभग 200 मीटर ऊपर उठता है।",
+      "zh": "锡吉里耶高出周围平原约 200 米。",
+      "ru": "Сигирия возвышается примерно на 200 метров над окружающими равнинами.",
+      "de": "Sigiriya erhebt sich etwa 200 Meter über die umliegenden Ebenen.",
+      "si": "සීගිරිය අවට තැනිතලාවෙන් ආසන්න වශයෙන් මීටර් 200 ක් පමණ ඉහළට නැඟේ.",
+      "ta": "சிகிரியா சுற்றியுள்ள சமவெளியில் இருந்து சுமார் 200 மீட்டர் உயரத்தில் உயர்கிறது."
+    }
+  },
+  {
+    "id": "sig_007",
+    "landmark": "Sigiriya",
+    "category": "architecture",
+    "text": "The Lion’s Paw is the entrance staircase carved into the rock in the shape of a lion.",
+    "translations": {
+      "hi": "शेर का पंजा शेर के आकार में चट्टान में खुदी हुई प्रवेश सीढ़ी है।",
+      "zh": "狮爪是入口楼梯，以狮子的形状雕刻在岩石上。",
+      "ru": "Львиная лапа — входная лестница, высеченная в скале в форме льва.",
+      "de": "Die Löwentatze ist die in den Fels gehauene Eingangstreppe in Form eines Löwen.",
+      "si": "සිංහ පාදය යනු සිංහයෙකුගේ හැඩයෙන් ගලෙහි කැටයම් කර ඇති පිවිසුම් පඩිපෙළයි.",
+      "ta": "சிங்கத்தின் பாதம் என்பது சிங்க வடிவில் பாறையில் செதுக்கப்பட்ட நுழைவு படிக்கட்டு ஆகும்."
+    }
+  },
+  {
+    "id": "sig_008",
+    "landmark": "Sigiriya",
+    "category": "architecture",
+    "text": "The summit of Sigiriya contains ruins of an ancient royal palace.",
+    "translations": {
+      "hi": "सिगिरिया के शिखर पर एक प्राचीन शाही महल के खंडहर हैं।",
+      "zh": "锡吉里耶山顶有一座古代皇宫的遗址。",
+      "ru": "На вершине Сигирии находятся руины древнего королевского дворца.",
+      "de": "Auf dem Gipfel von Sigiriya befinden sich Ruinen eines alten Königspalastes.",
+      "si": "සීගිරි ශිඛරය පුරාණ රජ මාලිගයක නටබුන් වලින් සමන්විත වේ.",
+      "ta": "சிகிரியாவின் உச்சியில் ஒரு பழங்கால அரச அரண்மனையின் இடிபாடுகள் உள்ளன."
+    }
+  },
+  {
+    "id": "sig_009",
+    "landmark": "Sigiriya",
+    "category": "architecture",
+    "text": "Sigiriya is designed with symmetrical layouts showing advanced urban planning.",
+    "translations": {
+      "hi": "सिगिरिया को उन्नत शहरी नियोजन को दर्शाने वाले सममित लेआउट के साथ डिज़ाइन किया गया है।",
+      "zh": "锡吉里耶的设计采用对称布局，显示出先进的城市规划。",
+      "ru": "Сигирия спроектирована с симметричной планировкой, демонстрирующей передовое городское планирование.",
+      "de": "Sigiriya ist mit symmetrischen Grundrissen gestaltet, die eine fortschrittliche Stadtplanung widerspiegeln.",
+      "si": "සීගිරිය සැලසුම් කර ඇත්තේ දියුණු නාගරික සැලසුම් පෙන්වන සමමිතික පිරිසැලසුම් සහිතවය.",
+      "ta": "சிகிரியா மேம்பட்ட நகர்ப்புற திட்டமிடலைக் காட்டும் சமச்சீர் அமைப்புகளுடன் வடிவமைக்கப்பட்டுள்ளது."
+    }
+  },
+  {
+    "id": "sig_010",
+    "landmark": "Sigiriya",
+    "category": "architecture",
+    "text": "Massive staircases and terraces were carved directly into the rock surface.",
+    "translations": {
+      "hi": "विशाल सीढ़ियाँ और छतों को सीधे चट्टान की सतह पर उकेरा गया था।",
+      "zh": "巨大的楼梯和露台直接雕刻在岩石表面。",
+      "ru": "Массивные лестницы и террасы были высечены прямо в поверхности скалы.",
+      "de": "Massive Treppen und Terrassen wurden direkt in die Felsoberfläche gehauen.",
+      "si": "දැවැන්ත පඩිපෙළ සහ ටෙරස් කෙලින්ම පාෂාණ මතුපිටට කැටයම් කර ඇත.",
+      "ta": "பாரிய படிக்கட்டுகள் மற்றும் மொட்டை மாடிகள் நேரடியாக பாறை மேற்பரப்பில் செதுக்கப்பட்டன."
+    }
+  },
+  {
+    "id": "sig_011",
+    "landmark": "Sigiriya",
+    "category": "engineering",
+    "text": "Sigiriya contains one of the oldest hydraulic systems in the world.",
+    "translations": {
+      "hi": "सिगिरिया में दुनिया की सबसे पुरानी हाइड्रोलिक प्रणालियों में से एक है।",
+      "zh": "锡吉里亚拥有世界上最古老的液压系统之一。",
+      "ru": "В Сигирии находится одна из старейших гидравлических систем в мире.",
+      "de": "Sigiriya verfügt über eines der ältesten Hydrauliksysteme der Welt.",
+      "si": "සීගිරිය ලෝකයේ පැරණිතම හයිඩ්‍රොලික් පද්ධති වලින් එකකි.",
+      "ta": "சிகிரியா உலகின் பழமையான ஹைட்ராலிக் அமைப்புகளில் ஒன்றாகும்."
+    }
+  },
+  {
+    "id": "sig_012",
+    "landmark": "Sigiriya",
+    "category": "engineering",
+    "text": "Water gardens at Sigiriya use underground channels and surface reservoirs.",
+    "translations": {
+      "hi": "सिगिरिया में जल उद्यान भूमिगत चैनलों और सतही जलाशयों का उपयोग करते हैं।",
+      "zh": "锡吉里耶的水上花园使用地下渠道和地表水库。",
+      "ru": "Водные сады в Сигирии используют подземные каналы и поверхностные резервуары.",
+      "de": "Wassergärten in Sigiriya nutzen unterirdische Kanäle und Oberflächenreservoirs.",
+      "si": "සීගිරියේ ජල උද්‍යාන භූගත නාලිකා සහ මතුපිට ජලාශ භාවිතා කරයි.",
+      "ta": "சிகிரியாவில் உள்ள நீர் தோட்டங்கள் நிலத்தடி கால்வாய்கள் மற்றும் மேற்பரப்பு நீர்த்தேக்கங்களைப் பயன்படுத்துகின்றன."
+    }
+  },
+  {
+    "id": "sig_013",
+    "landmark": "Sigiriya",
+    "category": "engineering",
+    "text": "Ancient engineers created fountains that still function during rainy seasons.",
+    "translations": {
+      "hi": "प्राचीन इंजीनियरों ने ऐसे फव्वारे बनाए जो आज भी बरसात के मौसम में काम करते हैं।",
+      "zh": "古代工程师创造的喷泉在雨季仍然发挥作用。",
+      "ru": "Древние инженеры создали фонтаны, которые до сих пор работают в сезон дождей.",
+      "de": "Antike Ingenieure schufen Brunnen, die auch während der Regenzeit noch funktionieren.",
+      "si": "පැරණි ඉංජිනේරුවන් වැසි කාලවලදී තවමත් ක්‍රියාත්මක වන දිය උල්පත් නිර්මාණය කළහ.",
+      "ta": "பண்டைய பொறியாளர்கள் நீரூற்றுகளை உருவாக்கினர், அவை மழைக்காலங்களில் இன்னும் செயல்படுகின்றன."
+    }
+  },
+  {
+    "id": "sig_014",
+    "landmark": "Sigiriya",
+    "category": "engineering",
+    "text": "The site demonstrates advanced knowledge of water pressure control.",
+    "translations": {
+      "hi": "यह साइट जल दबाव नियंत्रण के उन्नत ज्ञान को प्रदर्शित करती है।",
+      "zh": "该网站展示了水压控制的先进知识。",
+      "ru": "Сайт демонстрирует передовые знания в области контроля давления воды.",
+      "de": "Die Website demonstriert fortgeschrittene Kenntnisse in der Wasserdruckkontrolle.",
+      "si": "වෙබ් අඩවිය ජල පීඩන පාලනය පිළිබඳ උසස් දැනුමක් පෙන්නුම් කරයි.",
+      "ta": "தளம் நீர் அழுத்தக் கட்டுப்பாடு பற்றிய மேம்பட்ட அறிவை நிரூபிக்கிறது."
+    }
+  },
+  {
+    "id": "sig_015",
+    "landmark": "Sigiriya",
+    "category": "engineering",
+    "text": "Symmetrical garden layouts reflect careful engineering and planning.",
+    "translations": {
+      "hi": "सममित उद्यान लेआउट सावधानीपूर्वक इंजीनियरिंग और योजना को दर्शाते हैं।",
+      "zh": "对称的花园布局反映了精心的工程和规划。",
+      "ru": "Симметричная планировка сада отражает тщательную инженерию и планирование.",
+      "de": "Symmetrische Gartenlayouts spiegeln sorgfältige Technik und Planung wider.",
+      "si": "සමමිතික උද්‍යාන පිරිසැලසුම් ප්‍රවේශමෙන් ඉංජිනේරු සහ සැලසුම් පිළිබිඹු කරයි.",
+      "ta": "சமச்சீர் தோட்ட அமைப்பு கவனமாக பொறியியல் மற்றும் திட்டமிடல் பிரதிபலிக்கிறது."
+    }
+  },
+  {
+    "id": "sig_016",
+    "landmark": "Sigiriya",
+    "category": "art",
+    "text": "Sigiriya frescoes depict celestial maidens painted on the western rock face.",
+    "translations": {
+      "hi": "सिगिरिया भित्तिचित्रों में पश्चिमी चट्टान पर चित्रित दिव्य युवतियों को दर्शाया गया है।",
+      "zh": "锡吉里耶壁画描绘了绘制在西部岩壁上的天女。",
+      "ru": "Фрески Сигирии изображают небесных девиц, нарисованных на западной скале.",
+      "de": "Die Fresken von Sigiriya zeigen himmlische Jungfrauen, die auf die westliche Felswand gemalt sind.",
+      "si": "සීගිරි බිතු සිතුවම් බටහිර පර්වත මුහුණත මත පින්තාරු කර ඇති ආකාශ කන්‍යාවන් නිරූපණය කරයි.",
+      "ta": "சிகிரியா ஓவியங்கள் மேற்கு பாறை முகத்தில் வரையப்பட்ட வான கன்னிகளை சித்தரிக்கின்றன."
+    }
+  },
+  {
+    "id": "sig_017",
+    "landmark": "Sigiriya",
+    "category": "art",
+    "text": "The frescoes are considered masterpieces of ancient Sri Lankan art.",
+    "translations": {
+      "hi": "भित्तिचित्रों को प्राचीन श्रीलंकाई कला की उत्कृष्ट कृतियाँ माना जाता है।",
+      "zh": "这些壁画被认为是斯里兰卡古代艺术的杰作。",
+      "ru": "Фрески считаются шедеврами древнего искусства Шри-Ланки.",
+      "de": "Die Fresken gelten als Meisterwerke der alten srilankischen Kunst.",
+      "si": "බිතුසිතුවම් පැරණි ශ්‍රී ලාංකේය කලාවේ විශිෂ්ටතම නිර්මාණ ලෙස සැලකේ.",
+      "ta": "சுவரோவியங்கள் பண்டைய இலங்கை கலையின் தலைசிறந்த படைப்புகளாகக் கருதப்படுகின்றன."
+    }
+  },
+  {
+    "id": "sig_018",
+    "landmark": "Sigiriya",
+    "category": "art",
+    "text": "Only a small portion of the original frescoes remains today.",
+    "translations": {
+      "hi": "मूल भित्तिचित्रों का केवल एक छोटा सा हिस्सा ही आज बचा है।",
+      "zh": "今天只剩下一小部分原始壁画。",
+      "ru": "Сегодня сохранилась лишь небольшая часть оригинальных фресок.",
+      "de": "Von den ursprünglichen Fresken ist heute nur noch ein kleiner Teil erhalten.",
+      "si": "මුල් බිතුසිතුවම් වලින් කුඩා කොටසක් පමණක් අද ඉතිරිව ඇත.",
+      "ta": "அசல் ஓவியங்களில் ஒரு சிறிய பகுதி மட்டுமே இன்றும் உள்ளது."
+    }
+  },
+  {
+    "id": "sig_019",
+    "landmark": "Sigiriya",
+    "category": "art",
+    "text": "The paintings show advanced use of natural pigments and shading techniques.",
+    "translations": {
+      "hi": "पेंटिंग्स में प्राकृतिक रंगों और छायांकन तकनीकों का उन्नत उपयोग दिखाया गया है।",
+      "zh": "这些画作展示了天然颜料和着色技术的先进使用。",
+      "ru": "Картины демонстрируют передовое использование натуральных пигментов и техник растушевки.",
+      "de": "Die Gemälde zeigen den fortschrittlichen Einsatz natürlicher Pigmente und Schattierungstechniken.",
+      "si": "සිතුවම්වල ස්වභාවික වර්ණක සහ සෙවන තාක්ෂණයේ දියුණු භාවිතය පෙන්නුම් කරයි.",
+      "ta": "ஓவியங்கள் இயற்கை நிறமிகளின் மேம்பட்ட பயன்பாடு மற்றும் நிழல் நுட்பங்களைக் காட்டுகின்றன."
+    }
+  },
+  {
+    "id": "sig_020",
+    "landmark": "Sigiriya",
+    "category": "art",
+    "text": "The identity of the women in the frescoes is still debated by historians.",
+    "translations": {
+      "hi": "भित्तिचित्रों में महिलाओं की पहचान पर अभी भी इतिहासकारों द्वारा बहस की जाती है।",
+      "zh": "壁画中女性的身份仍然受到历史学家的争论。",
+      "ru": "Историки до сих пор спорят о личности женщин на фресках.",
+      "de": "Die Identität der Frauen in den Fresken wird von Historikern immer noch diskutiert.",
+      "si": "බිතුසිතුවම්වල සිටින කාන්තාවන්ගේ අනන්යතාව තවමත් ඉතිහාසඥයින් විසින් විවාද කරනු ලැබේ.",
+      "ta": "சுவரோவியங்களில் பெண்களின் அடையாளம் இன்னும் வரலாற்றாசிரியர்களால் விவாதிக்கப்படுகிறது."
+    }
+  },
+  {
+    "id": "sig_021",
+    "landmark": "Sigiriya",
+    "category": "culture",
+    "text": "The Mirror Wall was once polished so highly that it reflected images like a mirror.",
+    "translations": {
+      "hi": "दर्पण की दीवार को एक बार इतनी अधिक पॉलिश किया गया था कि यह दर्पण की तरह छवियों को प्रतिबिंबित करती थी।",
+      "zh": "镜墙曾经经过高度抛光，可以像镜子一样反射图像。",
+      "ru": "Зеркальная стена когда-то была настолько тщательно отполирована, что отражала изображения, как зеркало.",
+      "de": "Die Spiegelwand war einst so hochglanzpoliert, dass sie Bilder wie ein Spiegel reflektierte.",
+      "si": "කැටපත් පවුර වරෙක ඉතා ඉහළින් ඔප දමා තිබූ අතර එය කැඩපතක් වැනි රූප පිළිබිඹු කරයි.",
+      "ta": "கண்ணாடிச் சுவர் ஒரு காலத்தில் மிகவும் மெருகூட்டப்பட்டது, அது கண்ணாடியைப் போன்ற படங்களை பிரதிபலிக்கிறது."
+    }
+  },
+  {
+    "id": "sig_022",
+    "landmark": "Sigiriya",
+    "category": "culture",
+    "text": "The Mirror Wall contains ancient graffiti written by visitors over centuries.",
+    "translations": {
+      "hi": "मिरर वॉल में सदियों से आगंतुकों द्वारा लिखी गई प्राचीन भित्तिचित्र शामिल हैं।",
+      "zh": "镜墙上有游客几个世纪以来写下的古老涂鸦。",
+      "ru": "Зеркальная стена содержит древние граффити, написанные посетителями на протяжении веков.",
+      "de": "Die Spiegelwand enthält antike Graffiti, die von Besuchern über Jahrhunderte geschrieben wurden.",
+      "si": "කැටපත් පවුරේ සියවස් ගණනාවක් පුරා අමුත්තන් විසින් ලියන ලද පැරණි ග්‍රැෆිටි අඩංගු වේ.",
+      "ta": "மிரர் வால் பல நூற்றாண்டுகளாக பார்வையாளர்களால் எழுதப்பட்ட பண்டைய கிராஃபிட்டிகளைக் கொண்டுள்ளது."
+    }
+  },
+  {
+    "id": "sig_023",
+    "landmark": "Sigiriya",
+    "category": "culture",
+    "text": "Graffiti includes poems, comments, and praises written in early Sinhala script.",
+    "translations": {
+      "hi": "भित्तिचित्र में प्रारंभिक सिंहली लिपि में लिखी गई कविताएँ, टिप्पणियाँ और प्रशंसाएँ शामिल हैं।",
+      "zh": "涂鸦包括用早期僧伽罗文字书写的诗歌、评论和赞美。",
+      "ru": "Граффити включает в себя стихи, комментарии и похвалы, написанные ранним сингальским письмом.",
+      "de": "Graffiti umfasst Gedichte, Kommentare und Lobpreisungen, die in früher singhalesischer Schrift verfasst sind.",
+      "si": "ග්‍රැෆිටි වලට මුල් සිංහල අකුරුවලින් ලියැවුණු කවි, අදහස්, ප්‍රශංසා ඇතුළත් වේ.",
+      "ta": "கிராஃபிட்டியில் ஆரம்பகால சிங்கள எழுத்துக்களில் எழுதப்பட்ட கவிதைகள், கருத்துக்கள் மற்றும் பாராட்டுக்கள் அடங்கும்."
+    }
+  },
+  {
+    "id": "sig_024",
+    "landmark": "Sigiriya",
+    "category": "culture",
+    "text": "Sigiriya reflects a combination of royal power, art, and Buddhist influence.",
+    "translations": {
+      "hi": "सिगिरिया शाही शक्ति, कला और बौद्ध प्रभाव के संयोजन को दर्शाता है।",
+      "zh": "锡吉里耶体现了王权、艺术和佛教影响的结合。",
+      "ru": "Сигирия отражает сочетание королевской власти, искусства и буддийского влияния.",
+      "de": "Sigiriya spiegelt eine Kombination aus königlicher Macht, Kunst und buddhistischem Einfluss wider.",
+      "si": "සීගිරිය රාජකීය බලය, කලාව සහ බෞද්ධ බලපෑමේ එකතුවක් පිළිබිඹු කරයි.",
+      "ta": "சிகிரியா அரச சக்தி, கலை மற்றும் பௌத்த செல்வாக்கு ஆகியவற்றின் கலவையை பிரதிபலிக்கிறது."
+    }
+  },
+  {
+    "id": "sig_025",
+    "landmark": "Sigiriya",
+    "category": "culture",
+    "text": "The site represents ancient Sri Lankan civilization and cultural identity.",
+    "translations": {
+      "hi": "यह स्थल प्राचीन श्रीलंकाई सभ्यता और सांस्कृतिक पहचान का प्रतिनिधित्व करता है।",
+      "zh": "该遗址代表了斯里兰卡古代文明和文化特征。",
+      "ru": "Это место представляет собой древнюю цивилизацию и культурную самобытность Шри-Ланки.",
+      "de": "Die Stätte repräsentiert die alte Zivilisation und kulturelle Identität Sri Lankas.",
+      "si": "මෙම අඩවිය පුරාණ ශ්‍රී ලාංකික ශිෂ්ටාචාරය සහ සංස්කෘතික අනන්‍යතාවය නියෝජනය කරයි.",
+      "ta": "இந்த தளம் பண்டைய இலங்கை நாகரிகம் மற்றும் கலாச்சார அடையாளத்தை பிரதிபலிக்கிறது."
+    }
+  },
+  {
+    "id": "sig_026",
+    "landmark": "Sigiriya",
+    "category": "facts",
+    "text": "Sigiriya is located in the Matale District of Sri Lanka.",
+    "translations": {
+      "hi": "सिगिरिया श्रीलंका के मटाले जिले में स्थित है।",
+      "zh": "锡吉里耶位于斯里兰卡马特莱区。",
+      "ru": "Сигирия расположена в округе Матале на Шри-Ланке.",
+      "de": "Sigiriya liegt im Distrikt Matale in Sri Lanka.",
+      "si": "සීගිරිය ශ්‍රී ලංකාවේ මාතලේ දිස්ත්‍රික්කයේ පිහිටා ඇත.",
+      "ta": "சிகிரியா இலங்கையின் மாத்தளை மாவட்டத்தில் அமைந்துள்ளது."
+    }
+  },
+  {
+    "id": "sig_027",
+    "landmark": "Sigiriya",
+    "category": "facts",
+    "text": "It attracts thousands of local and foreign tourists every year.",
+    "translations": {
+      "hi": "यह हर साल हजारों स्थानीय और विदेशी पर्यटकों को आकर्षित करता है।",
+      "zh": "每年吸引成千上万的本地和外国游客。",
+      "ru": "Ежегодно он привлекает тысячи местных и иностранных туристов.",
+      "de": "Es zieht jedes Jahr Tausende von einheimischen und ausländischen Touristen an.",
+      "si": "එය සෑම වසරකම දේශීය හා විදේශීය සංචාරකයින් දහස් ගණනක් ආකර්ෂණය කරයි.",
+      "ta": "இது ஒவ்வொரு ஆண்டும் ஆயிரக்கணக்கான உள்ளூர் மற்றும் வெளிநாட்டு சுற்றுலாப் பயணிகளை ஈர்க்கிறது."
+    }
+  },
+  {
+    "id": "sig_028",
+    "landmark": "Sigiriya",
+    "category": "facts",
+    "text": "The rock is made of hardened magma from an extinct volcano.",
+    "translations": {
+      "hi": "यह चट्टान एक विलुप्त ज्वालामुखी से निकले कठोर मैग्मा से बनी है।",
+      "zh": "岩石是由死火山的硬化岩浆制成的。",
+      "ru": "Камень состоит из затвердевшей магмы потухшего вулкана.",
+      "de": "Das Gestein besteht aus gehärtetem Magma eines erloschenen Vulkans.",
+      "si": "පර්වතය සෑදී ඇත්තේ වඳ වී ගිය ගිනි කන්දකින් දැඩි වූ මැග්මා වලින්.",
+      "ta": "பாறையானது அழிந்துபோன எரிமலையிலிருந்து கடினமான மாக்மாவால் ஆனது."
+    }
+  },
+  {
+    "id": "sig_029",
+    "landmark": "Sigiriya",
+    "category": "facts",
+    "text": "Sigiriya is one of the best-preserved ancient urban planning sites in Asia.",
+    "translations": {
+      "hi": "सिगिरिया एशिया में सबसे अच्छी तरह से संरक्षित प्राचीन शहरी नियोजन स्थलों में से एक है।",
+      "zh": "锡吉里耶是亚洲保存最完好的古代城市规划遗址之一。",
+      "ru": "Сигирия — один из наиболее хорошо сохранившихся объектов древней городской застройки в Азии.",
+      "de": "Sigiriya ist eine der am besten erhaltenen antiken Stadtplanungsstätten in Asien.",
+      "si": "සීගිරිය ආසියාවේ හොඳම සංරක්ෂණය කර ඇති පැරණි නාගරික සැලසුම් ස්ථානවලින් එකකි.",
+      "ta": "சீகிரியா ஆசியாவிலேயே சிறந்த பாதுகாக்கப்பட்ட புராதன நகர்ப்புற திட்டமிடல் தளங்களில் ஒன்றாகும்."
+    }
+  },
+  {
+    "id": "sig_030",
+    "landmark": "Sigiriya",
+    "category": "facts",
+    "text": "It is listed as a UNESCO World Heritage Site since 1982.",
+    "translations": {
+      "hi": "यह 1982 से यूनेस्को विश्व धरोहर स्थल के रूप में सूचीबद्ध है।",
+      "zh": "自1982年以来，它被列为联合国教科文组织世界遗产。",
+      "ru": "С 1982 года он внесен в список Всемирного наследия ЮНЕСКО.",
+      "de": "Seit 1982 gehört es zum UNESCO-Weltkulturerbe.",
+      "si": "එය 1982 සිට යුනෙස්කෝ ලෝක උරුම අඩවියක් ලෙස ලැයිස්තුගත කර ඇත.",
+      "ta": "இது 1982 முதல் யுனெஸ்கோ உலக பாரம்பரிய தளமாக பட்டியலிடப்பட்டுள்ளது."
+    }
+  },
+  {
+    "id": "sig_031",
+    "landmark": "Sigiriya",
+    "category": "architecture",
+    "text": "The main entrance to Sigiriya was designed in the shape of a giant lion.",
+    "translations": {
+      "hi": "सिगिरिया का मुख्य प्रवेश द्वार एक विशाल शेर के आकार में बनाया गया था।",
+      "zh": "锡吉里耶的主入口被设计成一只巨大的狮子的形状。",
+      "ru": "Главный вход в Сигирию выполнен в форме гигантского льва.",
+      "de": "Der Haupteingang von Sigiriya wurde in Form eines riesigen Löwen gestaltet.",
+      "si": "සීගිරියේ ප්‍රධාන දොරටුව යෝධ සිංහයෙකුගේ හැඩයෙන් නිර්මාණය කර ඇත.",
+      "ta": "சிகிரியாவின் பிரதான நுழைவாயில் மாபெரும் சிங்கத்தின் வடிவில் வடிவமைக்கப்பட்டுள்ளது."
+    }
+  },
+  {
+    "id": "sig_032",
+    "landmark": "Sigiriya",
+    "category": "architecture",
+    "text": "The Lion’s Paw remains as two large carved stone feet at the entrance.",
+    "translations": {
+      "hi": "प्रवेश द्वार पर शेर का पंजा दो बड़े नक्काशीदार पत्थर के पैरों के रूप में बना हुआ है।",
+      "zh": "狮爪仍然是入口处的两个巨大的雕刻石脚。",
+      "ru": "Львиная лапа сохранилась в виде двух больших резных каменных ступней у входа.",
+      "de": "Die Löwentatze ist in Form von zwei großen geschnitzten Steinfüßen am Eingang erhalten.",
+      "si": "සිංහ පාදය දොරටුවේ විශාල කැටයම් කළ ගල් පාද දෙකක් ලෙස පවතී.",
+      "ta": "சிங்கத்தின் பாதம் நுழைவாயிலில் இரண்டு பெரிய செதுக்கப்பட்ட கல் பாதங்களாக உள்ளது."
+    }
+  },
+  {
+    "id": "sig_033",
+    "landmark": "Sigiriya",
+    "category": "architecture",
+    "text": "The site includes symmetrical gardens divided into water, boulder, and terraced gardens.",
+    "translations": {
+      "hi": "साइट में सममित उद्यान शामिल हैं जो पानी, बोल्डर और सीढ़ीदार उद्यानों में विभाजित हैं।",
+      "zh": "该场地包括对称花园，分为水花园、巨石花园和露台花园。",
+      "ru": "На территории расположены симметричные сады, разделенные на водные, валунные и террасные сады.",
+      "de": "Das Gelände umfasst symmetrische Gärten, die in Wasser-, Fels- und Terrassengärten unterteilt sind.",
+      "si": "වෙබ් අඩවියට ජලය, ගල් කැට සහ ටෙරස් උද්‍යාන ලෙස බෙදා ඇති සමමිතික උද්‍යාන ඇතුළත් වේ.",
+      "ta": "நீர், பாறாங்கல் மற்றும் மாடித் தோட்டங்களாகப் பிரிக்கப்பட்ட சமச்சீர் தோட்டங்கள் தளத்தில் அடங்கும்."
+    }
+  },
+  {
+    "id": "sig_034",
+    "landmark": "Sigiriya",
+    "category": "engineering",
+    "text": "Sigiriya gardens are aligned with geometric precision and water flow systems.",
+    "translations": {
+      "hi": "सिगिरिया उद्यान ज्यामितीय परिशुद्धता और जल प्रवाह प्रणालियों के साथ संरेखित हैं।",
+      "zh": "锡吉里耶花园具有几何精度和水流系统。",
+      "ru": "Сады Сигирии выверены с геометрической точностью и системами стока воды.",
+      "de": "Die Gärten von Sigiriya sind auf geometrische Präzision und Wasserflusssysteme ausgerichtet.",
+      "si": "සීගිරි උද්‍යාන ජ්‍යාමිතික නිරවද්‍යතාවයෙන් සහ ජල ප්‍රවාහ පද්ධති සමඟ සමපාත වේ.",
+      "ta": "சிகிரியா தோட்டங்கள் வடிவியல் துல்லியம் மற்றும் நீர் ஓட்ட அமைப்புகளுடன் சீரமைக்கப்பட்டுள்ளன."
+    }
+  },
+  {
+    "id": "sig_035",
+    "landmark": "Sigiriya",
+    "category": "engineering",
+    "text": "Underground drainage systems prevent water damage to structures.",
+    "translations": {
+      "hi": "भूमिगत जल निकासी प्रणालियाँ संरचनाओं को पानी से होने वाली क्षति को रोकती हैं।",
+      "zh": "地下排水系统可防止水对建筑物造成损害。",
+      "ru": "Подземные дренажные системы предотвращают повреждение сооружений водой.",
+      "de": "Unterirdische Entwässerungssysteme verhindern Wasserschäden an Bauwerken.",
+      "si": "භූගත ජලාපවහන පද්ධති ව්යුහයන්ට ජල හානි වළක්වයි.",
+      "ta": "நிலத்தடி வடிகால் அமைப்புகள் கட்டமைப்புகளுக்கு நீர் சேதத்தைத் தடுக்கின்றன."
+    }
+  },
+  {
+    "id": "sig_036",
+    "landmark": "Sigiriya",
+    "category": "history",
+    "text": "The site was rediscovered in the 19th century by British archaeologists.",
+    "translations": {
+      "hi": "इस स्थल को 19वीं शताब्दी में ब्रिटिश पुरातत्वविदों द्वारा फिर से खोजा गया था।",
+      "zh": "该遗址于 19 世纪被英国考古学家重新发现。",
+      "ru": "Это место было вновь открыто в 19 веке британскими археологами.",
+      "de": "Die Stätte wurde im 19. Jahrhundert von britischen Archäologen wiederentdeckt.",
+      "si": "මෙම ස්ථානය 19 වැනි සියවසේදී බ්‍රිතාන්‍ය පුරාවිද්‍යාඥයන් විසින් නැවත සොයා ගන්නා ලදී.",
+      "ta": "இந்த இடம் 19 ஆம் நூற்றாண்டில் பிரிட்டிஷ் தொல்பொருள் ஆராய்ச்சியாளர்களால் மீண்டும் கண்டுபிடிக்கப்பட்டது."
+    }
+  },
+  {
+    "id": "sig_037",
+    "landmark": "Sigiriya",
+    "category": "history",
+    "text": "Excavations revealed hidden gardens and palace foundations.",
+    "translations": {
+      "hi": "उत्खनन से छिपे हुए बगीचों और महल की नींव का पता चला।",
+      "zh": "挖掘工作发现了隐藏的花园和宫殿地基。",
+      "ru": "Раскопки выявили скрытые сады и фундаменты дворцов.",
+      "de": "Bei Ausgrabungen wurden verborgene Gärten und Palastfundamente freigelegt.",
+      "si": "කැණීම්වලින් සැඟවුණු උද්‍යාන සහ මාලිගා අත්තිවාරම් අනාවරණය විය.",
+      "ta": "அகழ்வாராய்ச்சியில் மறைக்கப்பட்ட தோட்டங்கள் மற்றும் அரண்மனை அடித்தளங்கள் கண்டறியப்பட்டன."
+    }
+  },
+  {
+    "id": "sig_038",
+    "landmark": "Sigiriya",
+    "category": "culture",
+    "text": "Sigiriya is a symbol of ancient Sri Lankan innovation and creativity.",
+    "translations": {
+      "hi": "सिगिरिया प्राचीन श्रीलंकाई नवाचार और रचनात्मकता का प्रतीक है।",
+      "zh": "锡吉里亚是古代斯里兰卡创新和创造力的象征。",
+      "ru": "Сигирия – символ древних инноваций и творчества Шри-Ланки.",
+      "de": "Sigiriya ist ein Symbol der alten Innovation und Kreativität Sri Lankas.",
+      "si": "සීගිරිය පැරණි ශ්‍රී ලාංකේය නව්‍යකරණයේ සහ නිර්මාණශීලීත්වයේ සංකේතයකි.",
+      "ta": "சிகிரியா இலங்கையின் பண்டைய புத்தாக்கம் மற்றும் படைப்பாற்றலின் சின்னமாகும்."
+    }
+  },
+  {
+    "id": "sig_039",
+    "landmark": "Sigiriya",
+    "category": "culture",
+    "text": "The site blends natural landscape with human engineering.",
+    "translations": {
+      "hi": "यह साइट प्राकृतिक परिदृश्य को मानव इंजीनियरिंग के साथ मिश्रित करती है।",
+      "zh": "该场地将自然景观与人文工程融为一体。",
+      "ru": "Это место сочетает в себе природный ландшафт и инженерную деятельность человека.",
+      "de": "Der Standort verbindet natürliche Landschaft mit menschlicher Ingenieurskunst.",
+      "si": "මෙම වෙබ් අඩවිය ස්වභාවික භූ දර්ශනය මානව ඉංජිනේරු විද්‍යාව සමඟ මුසු කරයි.",
+      "ta": "இந்த தளம் இயற்கை நிலப்பரப்பை மனித பொறியியலுடன் கலக்கிறது."
+    }
+  },
+  {
+    "id": "sig_040",
+    "landmark": "Sigiriya",
+    "category": "facts",
+    "text": "The climb to Sigiriya summit involves over 1,200 steps.",
+    "translations": {
+      "hi": "सिगिरिया शिखर की चढ़ाई में 1,200 से अधिक सीढ़ियाँ शामिल हैं।",
+      "zh": "攀登锡吉里耶山顶需要 1,200 多个台阶。",
+      "ru": "Восхождение на вершину Сигирии включает более 1200 ступенек.",
+      "de": "Der Aufstieg zum Sigiriya-Gipfel umfasst über 1.200 Stufen.",
+      "si": "සීගිරි කඳු මුදුනට නැගීම සඳහා පියවර 1,200 කට වැඩි ප්‍රමාණයක් ඇතුළත් වේ.",
+      "ta": "சிகிரியா உச்சியில் ஏறுவது 1,200 படிகளை உள்ளடக்கியது."
+    }
+  },
+  {
+    "id": "sig_041",
+    "landmark": "Sigiriya",
+    "category": "facts",
+    "text": "Sigiriya is one of the most visited tourist attractions in Sri Lanka.",
+    "translations": {
+      "hi": "सिगिरिया श्रीलंका में सबसे अधिक देखे जाने वाले पर्यटक आकर्षणों में से एक है।",
+      "zh": "锡吉里亚是斯里兰卡最受欢迎的旅游景点之一。",
+      "ru": "Сигирия – одна из самых посещаемых туристических достопримечательностей Шри-Ланки.",
+      "de": "Sigiriya ist eine der meistbesuchten Touristenattraktionen in Sri Lanka.",
+      "si": "සීගිරිය ශ්‍රී ලංකාවේ වැඩිපුරම නරඹන සංචාරක ආකර්ෂණයන්ගෙන් එකකි.",
+      "ta": "சிகிரியா இலங்கையில் அதிகம் பார்வையிடப்படும் சுற்றுலாத்தலங்களில் ஒன்றாகும்."
+    }
+  },
+  {
+    "id": "sig_042",
+    "landmark": "Sigiriya",
+    "category": "art",
+    "text": "The frescoes are painted on a sheltered rock surface protected from weather.",
+    "translations": {
+      "hi": "भित्तिचित्रों को मौसम से सुरक्षित चट्टान की सतह पर चित्रित किया गया है।",
+      "zh": "这些壁画绘制在不受天气影响的受遮蔽的岩石表面上。",
+      "ru": "Фрески написаны на защищенной от непогоды скальной поверхности.",
+      "de": "Die Fresken sind auf einer geschützten, vor Witterungseinflüssen geschützten Felsoberfläche gemalt.",
+      "si": "කාලගුණයෙන් ආරක්ෂා වූ ආරක්ෂිත පාෂාණ මතුපිටක් මත බිතුසිතුවම් පින්තාරු කර ඇත.",
+      "ta": "சுவரோவியங்கள் வானிலையிலிருந்து பாதுகாக்கப்பட்ட பாறை மேற்பரப்பில் வரையப்பட்டுள்ளன."
+    }
+  },
+  {
+    "id": "sig_043",
+    "landmark": "Sigiriya",
+    "category": "art",
+    "text": "Only a small group of frescoes remains due to natural erosion and vandalism.",
+    "translations": {
+      "hi": "प्राकृतिक क्षरण और बर्बरता के कारण भित्तिचित्रों का केवल एक छोटा समूह ही बचा है।",
+      "zh": "由于自然侵蚀和人为破坏，只剩下一小部分壁画。",
+      "ru": "Лишь небольшая группа фресок сохранилась из-за естественной эрозии и вандализма.",
+      "de": "Aufgrund natürlicher Erosion und Vandalismus ist nur noch eine kleine Gruppe von Fresken übrig.",
+      "si": "ස්වාභාවික ඛාදනය සහ විනාශකාරී ක්‍රියා හේතුවෙන් ඉතිරිව ඇත්තේ කුඩා බිතුසිතුවම් සමූහයක් පමණි.",
+      "ta": "இயற்கை அரிப்பு மற்றும் காழ்ப்புணர்ச்சி காரணமாக ஒரு சிறிய குழு ஓவியங்கள் மட்டுமே எஞ்சியுள்ளன."
+    }
+  },
+  {
+    "id": "sig_044",
+    "landmark": "Sigiriya",
+    "category": "engineering",
+    "text": "Cooling and ventilation techniques were used in the palace design.",
+    "translations": {
+      "hi": "महल के डिजाइन में शीतलन और वेंटिलेशन तकनीकों का उपयोग किया गया था।",
+      "zh": "宫殿设计中采用了冷却和通风技术。",
+      "ru": "При проектировании дворца использовались методы охлаждения и вентиляции.",
+      "de": "Bei der Gestaltung des Palastes kamen Kühl- und Belüftungstechniken zum Einsatz.",
+      "si": "මාලිගාවේ සැලසුමේදී සිසිලනය සහ වාතාශ්‍රය ලබා දීමේ ක්‍රම භාවිතා කරන ලදී.",
+      "ta": "அரண்மனை வடிவமைப்பில் குளிரூட்டும் மற்றும் காற்றோட்டம் நுட்பங்கள் பயன்படுத்தப்பட்டன."
+    }
+  },
+  {
+    "id": "sig_045",
+    "landmark": "Sigiriya",
+    "category": "engineering",
+    "text": "The site demonstrates early use of landscape architecture principles.",
+    "translations": {
+      "hi": "साइट परिदृश्य वास्तुकला सिद्धांतों के प्रारंभिक उपयोग को प्रदर्शित करती है।",
+      "zh": "该网站展示了景观设计原理的早期应用。",
+      "ru": "Сайт демонстрирует раннее использование принципов ландшафтной архитектуры.",
+      "de": "Die Website zeigt den frühen Einsatz landschaftsarchitektonischer Prinzipien.",
+      "si": "වෙබ් අඩවිය භූ දර්ශන ගෘහ නිර්මාණ මූලධර්මවල මුල් භාවිතය පෙන්නුම් කරයි.",
+      "ta": "இந்த தளம் இயற்கை கட்டிடக்கலை கொள்கைகளின் ஆரம்பகால பயன்பாட்டை நிரூபிக்கிறது."
+    }
+  },
+  {
+    "id": "sig_046",
+    "landmark": "Sigiriya",
+    "category": "history",
+    "text": "Sigiriya was built as both a fortress and a royal pleasure garden.",
+    "translations": {
+      "hi": "सिगिरिया को एक किले और शाही आनंद उद्यान दोनों के रूप में बनाया गया था।",
+      "zh": "锡吉里耶既是一座堡垒，也是一座皇家游乐花园。",
+      "ru": "Сигирия была построена как крепость и королевский сад развлечений.",
+      "de": "Sigiriya wurde sowohl als Festung als auch als königlicher Vergnügungsgarten erbaut.",
+      "si": "සීගිරිය ඉදිකර ඇත්තේ බලකොටුවක් මෙන්ම රාජකීය විනෝද උද්‍යානයක් ලෙසය.",
+      "ta": "சிகிரியா ஒரு கோட்டையாகவும், அரச இன்பத் தோட்டமாகவும் கட்டப்பட்டது."
+    }
+  },
+  {
+    "id": "sig_047",
+    "landmark": "Sigiriya",
+    "category": "culture",
+    "text": "The site reflects the transition between monarchy and monastic use.",
+    "translations": {
+      "hi": "यह साइट राजशाही और मठवासी उपयोग के बीच संक्रमण को दर्शाती है।",
+      "zh": "该遗址反映了君主制和修道院用途之间的过渡。",
+      "ru": "Сайт отражает переход от монархии к монастырскому использованию.",
+      "de": "Die Stätte spiegelt den Übergang zwischen Monarchie und klösterlicher Nutzung wider.",
+      "si": "මෙම වෙබ් අඩවිය රාජාණ්ඩුව සහ පැවිදි භාවිතය අතර සංක්‍රමණය පිළිබිඹු කරයි.",
+      "ta": "இந்த தளம் முடியாட்சி மற்றும் துறவற பயன்பாட்டிற்கு இடையிலான மாற்றத்தை பிரதிபலிக்கிறது."
+    }
+  },
+  {
+    "id": "sig_048",
+    "landmark": "Sigiriya",
+    "category": "facts",
+    "text": "The surrounding area includes wildlife and forest ecosystems.",
+    "translations": {
+      "hi": "आसपास के क्षेत्र में वन्य जीवन और वन पारिस्थितिकी तंत्र शामिल हैं।",
+      "zh": "周边地区包括野生动物和森林生态系统。",
+      "ru": "Окрестности включают дикую природу и лесные экосистемы.",
+      "de": "Die Umgebung umfasst Wildtiere und Waldökosysteme.",
+      "si": "අවට ප්රදේශය වනජීවී සහ වනාන්තර පරිසර පද්ධති ඇතුළත් වේ.",
+      "ta": "சுற்றியுள்ள பகுதி வனவிலங்குகள் மற்றும் வன சுற்றுச்சூழல் அமைப்புகளை உள்ளடக்கியது."
+    }
+  },
+  {
+    "id": "sig_049",
+    "landmark": "Sigiriya",
+    "category": "facts",
+    "text": "Sigiriya is part of Sri Lanka’s Cultural Triangle.",
+    "translations": {
+      "hi": "सिगिरिया श्रीलंका के सांस्कृतिक त्रिभुज का हिस्सा है।",
+      "zh": "锡吉里亚是斯里兰卡文化三角的一部分。",
+      "ru": "Сигирия является частью культурного треугольника Шри-Ланки.",
+      "de": "Sigiriya ist Teil des Kulturdreiecks Sri Lankas.",
+      "si": "සීගිරිය ශ්‍රී ලංකාවේ සංස්කෘතික ත්‍රිකෝණයේ කොටසකි.",
+      "ta": "சிகிரியா இலங்கையின் கலாச்சார முக்கோணத்தின் ஒரு பகுதியாகும்."
+    }
+  },
+  {
+    "id": "sig_050",
+    "landmark": "Sigiriya",
+    "category": "architecture",
+    "text": "Stone pathways and staircases were carved to blend with natural rock formations.",
+    "translations": {
+      "hi": "पत्थर के रास्ते और सीढ़ियाँ प्राकृतिक चट्टान संरचनाओं के साथ मिश्रण करने के लिए बनाई गई थीं।",
+      "zh": "石头通道和楼梯经过雕刻，与天然岩层融为一体。",
+      "ru": "Каменные дорожки и лестницы были высечены так, чтобы гармонировать с естественными скальными образованиями.",
+      "de": "Steinwege und Treppen wurden so geschnitzt, dass sie mit den natürlichen Felsformationen harmonieren.",
+      "si": "ස්වාභාවික පාෂාණ සැකැස්ම සමඟ මිශ්‍ර වන පරිදි ගල් මාර්ග සහ පඩිපෙළ කැටයම් කර ඇත.",
+      "ta": "கல் பாதைகள் மற்றும் படிக்கட்டுகள் இயற்கையான பாறை அமைப்புகளுடன் கலக்கும் வகையில் செதுக்கப்பட்டன."
+    }
+  },
+  {
+    "id": "sig_051",
+    "landmark": "Sigiriya",
+    "category": "engineering",
+    "text": "The irrigation system allowed gardens to function even in dry seasons.",
+    "translations": {
+      "hi": "सिंचाई प्रणाली ने बगीचों को शुष्क मौसम में भी काम करने की अनुमति दी।",
+      "zh": "灌溉系统使花园即使在旱季也能正常运转。",
+      "ru": "Система орошения позволяла садам функционировать даже в засушливые сезоны.",
+      "de": "Dank des Bewässerungssystems konnten die Gärten auch in Trockenzeiten funktionieren.",
+      "si": "වාරිමාර්ග පද්ධතිය වියළි කාලවලදී පවා උද්යාන ක්රියාත්මක කිරීමට ඉඩ ලබා දුන්නේය.",
+      "ta": "நீர்ப்பாசன முறையானது வறண்ட காலங்களிலும் தோட்டங்களைச் செயல்பட அனுமதித்தது."
+    }
+  },
+  {
+    "id": "sig_052",
+    "landmark": "Sigiriya",
+    "category": "culture",
+    "text": "Sigiriya remains a major symbol of Sri Lankan heritage identity.",
+    "translations": {
+      "hi": "सिगिरिया श्रीलंकाई विरासत पहचान का एक प्रमुख प्रतीक बना हुआ है।",
+      "zh": "锡吉里亚仍然是斯里兰卡遗产身份的主要象征。",
+      "ru": "Сигирия остается главным символом наследия Шри-Ланки.",
+      "de": "Sigiriya bleibt ein wichtiges Symbol der kulturellen Identität Sri Lankas.",
+      "si": "සීගිරිය ශ්‍රී ලාංකීය උරුම අනන්‍යතාවයේ ප්‍රධාන සංකේතයක් ලෙස පවතී.",
+      "ta": "சிகிரியா இலங்கையின் பாரம்பரிய அடையாளத்தின் முக்கிய அடையாளமாக உள்ளது."
+    }
+  },
+  {
+    "id": "sig_053",
+    "landmark": "Sigiriya",
+    "category": "art",
+    "text": "The artistic style shows influence of South Asian classical painting traditions.",
+    "translations": {
+      "hi": "कलात्मक शैली दक्षिण एशियाई शास्त्रीय चित्रकला परंपराओं का प्रभाव दिखाती है।",
+      "zh": "艺术风格受到南亚古典绘画传统的影响。",
+      "ru": "Художественный стиль демонстрирует влияние традиций классической живописи Южной Азии.",
+      "de": "Der künstlerische Stil zeigt Einflüsse südasiatischer klassischer Maltraditionen.",
+      "si": "කලාත්මක ශෛලිය දකුණු ආසියානු සම්භාව්‍ය සිතුවම් සම්ප්‍රදායේ බලපෑම පෙන්නුම් කරයි.",
+      "ta": "கலை பாணி தெற்காசிய பாரம்பரிய ஓவிய மரபுகளின் செல்வாக்கைக் காட்டுகிறது."
+    }
+  },
+  {
+    "id": "sig_054",
+    "landmark": "Sigiriya",
+    "category": "history",
+    "text": "Sigiriya represents one of the earliest examples of planned city design in the region.",
+    "translations": {
+      "hi": "सिगिरिया क्षेत्र में नियोजित शहर डिजाइन के शुरुआती उदाहरणों में से एक का प्रतिनिधित्व करता है।",
+      "zh": "锡吉里耶是该地区最早规划城市设计的例子之一。",
+      "ru": "Сигирия представляет собой один из самых ранних примеров планового городского дизайна в регионе.",
+      "de": "Sigiriya ist eines der frühesten Beispiele geplanter Stadtgestaltung in der Region.",
+      "si": "සීගිරිය කලාපයේ සැලසුම්ගත නගර නිර්මාණයේ මුල්ම උදාහරණවලින් එකකි.",
+      "ta": "சிகிரியா பிராந்தியத்தில் திட்டமிடப்பட்ட நகர வடிவமைப்பின் ஆரம்பகால உதாரணங்களில் ஒன்றாகும்."
+    }
+  },
+  {
+    "id": "sig_055",
+    "landmark": "Sigiriya",
+    "category": "facts",
+    "text": "The site is protected by the Department of Archaeology of Sri Lanka.",
+    "translations": {
+      "hi": "यह स्थल श्रीलंका के पुरातत्व विभाग द्वारा संरक्षित है।",
+      "zh": "该遗址受到斯里兰卡考古部的保护。",
+      "ru": "Объект находится под охраной Департамента археологии Шри-Ланки.",
+      "de": "Die Stätte wird vom Ministerium für Archäologie Sri Lankas geschützt.",
+      "si": "මෙම ස්ථානය ශ්‍රී ලංකා පුරාවිද්‍යා දෙපාර්තමේන්තුව මගින් ආරක්ෂා කර ඇත.",
+      "ta": "இத்தலம் இலங்கையின் தொல்பொருள் திணைக்களத்தால் பாதுகாக்கப்படுகிறது."
+    }
+  },
+  {
+    "id": "sig_056",
+    "landmark": "Sigiriya",
+    "category": "tourism",
+    "text": "Sigiriya attracts visitors from around the world because of its historical and architectural importance.",
+    "translations": {
+      "hi": "सिगिरिया अपने ऐतिहासिक और स्थापत्य महत्व के कारण दुनिया भर से पर्यटकों को आकर्षित करता है।",
+      "zh": "锡吉里耶因其历史和建筑的重要性而吸引了来自世界各地的游客。",
+      "ru": "Сигирия привлекает посетителей со всего мира своим историческим и архитектурным значением.",
+      "de": "Aufgrund seiner historischen und architektonischen Bedeutung zieht Sigiriya Besucher aus der ganzen Welt an.",
+      "si": "සීගිරිය එහි ඓතිහාසික හා වාස්තුවිද්‍යාත්මක වැදගත්කම නිසා ලොව පුරා නරඹන්නන් ආකර්ෂණය කරයි.",
+      "ta": "சிகிரியா அதன் வரலாற்று மற்றும் கட்டிடக்கலை முக்கியத்துவம் காரணமாக உலகம் முழுவதிலுமிருந்து பார்வையாளர்களை ஈர்க்கிறது."
+    }
+  },
+  {
+    "id": "sig_057",
+    "landmark": "Sigiriya",
+    "category": "tourism",
+    "text": "Early morning is considered one of the best times to climb Sigiriya due to cooler weather.",
+    "translations": {
+      "hi": "ठंडे मौसम के कारण सिगिरिया पर चढ़ने के लिए सुबह का समय सबसे अच्छे समय में से एक माना जाता है।",
+      "zh": "由于天气凉爽，清晨被认为是攀登锡吉里亚的最佳时间之一。",
+      "ru": "Раннее утро считается одним из лучших времен для восхождения на Сигирию из-за более прохладной погоды.",
+      "de": "Aufgrund des kühleren Wetters gilt der frühe Morgen als eine der besten Zeiten, um Sigiriya zu besteigen.",
+      "si": "සිසිල් කාලගුණය හේතුවෙන් සීගිරිය තරණය කිරීමට හොඳම කාලය ලෙස සැලකෙන්නේ හිමිදිරි උදෑසනයි.",
+      "ta": "குளிர்ந்த காலநிலை காரணமாக சீகிரியாவில் ஏறுவதற்கு அதிகாலை வேளை சிறந்த நேரமாக கருதப்படுகிறது."
+    }
+  },
+  {
+    "id": "sig_058",
+    "landmark": "Sigiriya",
+    "category": "tourism",
+    "text": "Tourists visiting Sigiriya often explore nearby heritage sites within the Cultural Triangle.",
+    "translations": {
+      "hi": "सिगिरिया आने वाले पर्यटक अक्सर सांस्कृतिक त्रिभुज के भीतर आस-पास के विरासत स्थलों का पता लगाते हैं।",
+      "zh": "游览锡吉里亚的游客经常探索文化三角区内的附近遗产地。",
+      "ru": "Туристы, посещающие Сигирию, часто исследуют близлежащие объекты культурного наследия в рамках Культурного треугольника.",
+      "de": "Touristen, die Sigiriya besuchen, erkunden oft die nahe gelegenen Kulturdenkmäler des Kulturdreiecks.",
+      "si": "සීගිරියට පැමිණෙන සංචාරකයින් බොහෝ විට සංස්කෘතික ත්‍රිකෝණය තුළ අවට උරුම ස්ථාන ගවේෂණය කරයි.",
+      "ta": "சிகிரியாவிற்கு வருகை தரும் சுற்றுலாப் பயணிகள் பெரும்பாலும் கலாச்சார முக்கோணத்திற்குள் அருகிலுள்ள பாரம்பரிய தளங்களை ஆராய்கின்றனர்."
+    }
+  },
+  {
+    "id": "sig_059",
+    "landmark": "Sigiriya",
+    "category": "tourism",
+    "text": "The summit of Sigiriya provides panoramic views of forests and surrounding villages.",
+    "translations": {
+      "hi": "सिगिरिया का शिखर जंगलों और आसपास के गांवों का मनोरम दृश्य प्रदान करता है।",
+      "zh": "锡吉里亚的山顶可以欣赏到森林和周围村庄的全景。",
+      "ru": "С вершины Сигирии открывается панорамный вид на леса и окружающие деревни.",
+      "de": "Der Gipfel von Sigiriya bietet einen Panoramablick auf die Wälder und die umliegenden Dörfer.",
+      "si": "සීගිරි කඳු මුදුන වනාන්තර සහ අවට ගම්මානවල පරිදර්ශක දසුන් සපයයි.",
+      "ta": "சிகிரியாவின் உச்சி மாநாடு காடுகள் மற்றும் சுற்றியுள்ள கிராமங்களின் பரந்த காட்சிகளை வழங்குகிறது."
+    }
+  },
+  {
+    "id": "sig_060",
+    "landmark": "Sigiriya",
+    "category": "tourism",
+    "text": "Sigiriya has become one of the most photographed landmarks in Sri Lanka.",
+    "translations": {
+      "hi": "सिगिरिया श्रीलंका में सबसे अधिक फोटो खींचे जाने वाले स्थलों में से एक बन गया है।",
+      "zh": "锡吉里耶已成为斯里兰卡最出镜的地标之一。",
+      "ru": "Сигирия стала одной из самых фотографируемых достопримечательностей Шри-Ланки.",
+      "de": "Sigiriya ist zu einem der meistfotografierten Wahrzeichen Sri Lankas geworden.",
+      "si": "සීගිරිය ශ්‍රී ලංකාවේ වඩාත්ම ඡායාරූප ගත කරන ලද සන්ධිස්ථානයක් බවට පත්ව ඇත.",
+      "ta": "சிகிரியா இலங்கையில் அதிகம் புகைப்படம் எடுக்கப்பட்ட அடையாளங்களில் ஒன்றாக மாறியுள்ளது."
+    }
+  },
+  {
+    "id": "sig_061",
+    "landmark": "Sigiriya",
+    "category": "tourism",
+    "text": "Guided tours at Sigiriya help visitors understand the historical significance of the site.",
+    "translations": {
+      "hi": "सिगिरिया में निर्देशित पर्यटन आगंतुकों को साइट के ऐतिहासिक महत्व को समझने में मदद करते हैं।",
+      "zh": "锡吉里耶的导游服务可以帮助游客了解该遗址的历史意义。",
+      "ru": "Экскурсии по Сигирии помогают посетителям понять историческое значение этого места.",
+      "de": "Führungen durch Sigiriya helfen Besuchern, die historische Bedeutung der Stätte zu verstehen.",
+      "si": "සීගිරියේ මාර්ගෝපදේශක චාරිකා නරඹන්නන්ට අඩවියේ ඓතිහාසික වැදගත්කම අවබෝධ කර ගැනීමට උපකාර කරයි.",
+      "ta": "சிகிரியாவில் வழிகாட்டப்பட்ட சுற்றுப்பயணங்கள் பார்வையாளர்கள் தளத்தின் வரலாற்று முக்கியத்துவத்தைப் புரிந்துகொள்ள உதவுகின்றன."
+    }
+  },
+  {
+    "id": "sig_062",
+    "landmark": "Sigiriya",
+    "category": "tourism",
+    "text": "The site includes resting areas for visitors climbing the rock fortress.",
+    "translations": {
+      "hi": "इस साइट में चट्टानी किले पर चढ़ने वाले आगंतुकों के लिए विश्राम क्षेत्र शामिल हैं।",
+      "zh": "该遗址包括供攀登岩石堡垒的游客休息的区域。",
+      "ru": "На территории предусмотрены зоны отдыха для посетителей, поднимающихся на скальную крепость.",
+      "de": "Auf dem Gelände gibt es Rastplätze für Besucher, die die Felsenfestung erklimmen.",
+      "si": "මෙම වෙබ් අඩවියට පාෂාණ බලකොටුව තරණය කරන අමුත්තන් සඳහා විවේක ස්ථාන ඇතුළත් වේ.",
+      "ta": "இந்த தளத்தில் பாறை கோட்டையில் ஏறும் பார்வையாளர்களுக்கு ஓய்வு இடங்கள் உள்ளன."
+    }
+  },
+  {
+    "id": "sig_063",
+    "landmark": "Sigiriya",
+    "category": "tourism",
+    "text": "Tourists are advised to carry water while climbing Sigiriya due to the long staircase.",
+    "translations": {
+      "hi": "सीढ़ियाँ लंबी होने के कारण पर्यटकों को सिगिरिया पर चढ़ते समय पानी ले जाने की सलाह दी जाती है।",
+      "zh": "由于楼梯较长，建议游客在攀登锡吉里耶时携带水。",
+      "ru": "Туристам рекомендуется брать с собой воду при восхождении на Сигирию из-за длинной лестницы.",
+      "de": "Aufgrund der langen Treppe wird Touristen empfohlen, beim Aufstieg auf Sigiriya Wasser mitzunehmen.",
+      "si": "දිගු පඩිපෙළ නිසා සංචාරකයින්ට සීගිරිය තරණය කිරීමේදී ජලය රැගෙන යන ලෙස උපදෙස් දෙනු ලැබේ.",
+      "ta": "சிகிரியாவில் நீண்ட படிக்கட்டுகள் இருப்பதால் சுற்றுலாப் பயணிகள் தண்ணீர் எடுத்துச் செல்ல அறிவுறுத்தப்படுகிறார்கள்."
+    }
+  },
+  {
+    "id": "sig_064",
+    "landmark": "Sigiriya",
+    "category": "tourism",
+    "text": "Local and foreign tourists visit Sigiriya throughout the year.",
+    "translations": {
+      "hi": "सिगिरिया में साल भर स्थानीय और विदेशी पर्यटक आते हैं।",
+      "zh": "当地和外国游客全年都会游览锡吉里亚。",
+      "ru": "Местные и иностранные туристы посещают Сигирию круглый год.",
+      "de": "Einheimische und ausländische Touristen besuchen Sigiriya das ganze Jahr über.",
+      "si": "දෙස් විදෙස් සංචාරකයෝ වසර පුරා සීගිරිය නැරඹීමට පැමිණෙති.",
+      "ta": "ஆண்டு முழுவதும் உள்ளூர் மற்றும் வெளிநாட்டு சுற்றுலாப் பயணிகள் சீகிரியாவிற்கு வருகை தருகின்றனர்."
+    }
+  },
+  {
+    "id": "sig_065",
+    "landmark": "Sigiriya",
+    "category": "tourism",
+    "text": "The Sigiriya museum displays artifacts and historical information related to the site.",
+    "translations": {
+      "hi": "सिगिरिया संग्रहालय साइट से संबंधित कलाकृतियों और ऐतिहासिक जानकारी को प्रदर्शित करता है।",
+      "zh": "锡吉里亚博物馆展示与该遗址相关的文物和历史信息。",
+      "ru": "В музее Сигирии представлены артефакты и историческая информация, связанная с этим местом.",
+      "de": "Das Sigiriya-Museum zeigt Artefakte und historische Informationen zur Stätte.",
+      "si": "සීගිරිය කෞතුකාගාරය එම ස්ථානයට අදාළ පුරාවස්තු සහ ඓතිහාසික තොරතුරු ප්‍රදර්ශනය කරයි.",
+      "ta": "சிகிரியா அருங்காட்சியகத்தில் கலைப்பொருட்கள் மற்றும் தளம் தொடர்பான வரலாற்று தகவல்கள் காட்சிப்படுத்தப்பட்டுள்ளன."
+    }
+  },
+  {
+    "id": "sig_066",
+    "landmark": "Sigiriya",
+    "category": "archaeology",
+    "text": "Archaeological excavations at Sigiriya revealed foundations of ancient buildings.",
+    "translations": {
+      "hi": "सिगिरिया में पुरातत्व उत्खनन से प्राचीन इमारतों की नींव का पता चला।",
+      "zh": "锡吉里亚的考古发掘揭示了古代建筑的地基。",
+      "ru": "Археологические раскопки в Сигирии выявили фундаменты древних построек.",
+      "de": "Archäologische Ausgrabungen in Sigiriya brachten Fundamente antiker Gebäude zum Vorschein.",
+      "si": "සීගිරියේ පුරාවිද්‍යා කැණීම්වලින් පෞරාණික ගොඩනැඟිලිවල අත්තිවාරම් අනාවරණය විය.",
+      "ta": "சிகிரியாவில் தொல்பொருள் ஆய்வுகள் பழங்கால கட்டிடங்களின் அடித்தளங்களை வெளிப்படுத்தின."
+    }
+  },
+  {
+    "id": "sig_067",
+    "landmark": "Sigiriya",
+    "category": "archaeology",
+    "text": "Researchers discovered evidence of sophisticated city planning at Sigiriya.",
+    "translations": {
+      "hi": "शोधकर्ताओं ने सिगिरिया में परिष्कृत शहर योजना के साक्ष्य खोजे।",
+      "zh": "研究人员在锡吉里亚发现了复杂城市规划的证据。",
+      "ru": "Исследователи обнаружили доказательства сложной городской планировки в Сигирии.",
+      "de": "Forscher entdeckten Hinweise auf eine ausgeklügelte Stadtplanung in Sigiriya.",
+      "si": "පර්යේෂකයන් විසින් සීගිරියෙන් නවීන නගර සැලසුම් පිළිබඳ සාක්ෂි සොයා ගන්නා ලදී.",
+      "ta": "சிகிரியாவில் அதிநவீன நகர திட்டமிடலுக்கான ஆதாரங்களை ஆராய்ச்சியாளர்கள் கண்டுபிடித்துள்ளனர்."
+    }
+  },
+  {
+    "id": "sig_068",
+    "landmark": "Sigiriya",
+    "category": "archaeology",
+    "text": "Ancient brick structures were uncovered during archaeological studies.",
+    "translations": {
+      "hi": "पुरातात्विक अध्ययन के दौरान प्राचीन ईंट संरचनाओं का पता चला था।",
+      "zh": "考古研究期间发现了古代砖结构。",
+      "ru": "Древние кирпичные постройки были обнаружены в ходе археологических исследований.",
+      "de": "Bei archäologischen Untersuchungen wurden antike Ziegelstrukturen freigelegt.",
+      "si": "පුරාවිද්‍යාත්මක අධ්‍යයනයන්හිදී පෞරාණික ගඩොල් ව්‍යුහයන් අනාවරණය විය.",
+      "ta": "தொல்பொருள் ஆய்வுகளின் போது பண்டைய செங்கல் கட்டமைப்புகள் கண்டுபிடிக்கப்பட்டன."
+    }
+  },
+  {
+    "id": "sig_069",
+    "landmark": "Sigiriya",
+    "category": "archaeology",
+    "text": "Archaeologists identified royal gardens surrounding the rock fortress.",
+    "translations": {
+      "hi": "पुरातत्वविदों ने चट्टानी किले के आसपास के शाही उद्यानों की पहचान की है।",
+      "zh": "考古学家发现岩石堡垒周围有皇家花园。",
+      "ru": "Археологи определили царские сады, окружающие скальную крепость.",
+      "de": "Archäologen identifizierten königliche Gärten rund um die Felsenfestung.",
+      "si": "පුරාවිද්යාඥයන් ගල් බලකොටුව වටා රාජකීය උද්යාන හඳුනාගෙන ඇත.",
+      "ta": "தொல்பொருள் ஆராய்ச்சியாளர்கள் பாறை கோட்டையைச் சுற்றியுள்ள அரச தோட்டங்களை அடையாளம் கண்டுள்ளனர்."
+    }
+  },
+  {
+    "id": "sig_070",
+    "landmark": "Sigiriya",
+    "category": "archaeology",
+    "text": "Excavations at Sigiriya revealed remains of ancient water management systems.",
+    "translations": {
+      "hi": "सिगिरिया में उत्खनन से प्राचीन जल प्रबंधन प्रणालियों के अवशेष मिले।",
+      "zh": "锡吉里耶的发掘揭示了古代水管理系统的遗迹。",
+      "ru": "Раскопки в Сигирии выявили остатки древних систем управления водными ресурсами.",
+      "de": "Bei Ausgrabungen in Sigiriya wurden Überreste antiker Wassermanagementsysteme entdeckt.",
+      "si": "සීගිරියේ කැණීම්වලින් පෞරාණික ජල කළමනාකරණ පද්ධතිවල නටබුන් හමු විය.",
+      "ta": "சிகிரியாவில் மேற்கொள்ளப்பட்ட அகழ்வாராய்ச்சியில் பண்டைய நீர் மேலாண்மை அமைப்புகளின் எச்சங்கள் கண்டறியப்பட்டன."
+    }
+  },
+  {
+    "id": "sig_071",
+    "landmark": "Sigiriya",
+    "category": "archaeology",
+    "text": "Stone inscriptions discovered near Sigiriya provide historical insights into the site.",
+    "translations": {
+      "hi": "सिगिरिया के पास खोजे गए पत्थर के शिलालेख इस स्थल के बारे में ऐतिहासिक जानकारी प्रदान करते हैं।",
+      "zh": "锡吉里亚附近发现的石刻提供了对该遗址的历史见解。",
+      "ru": "Каменные надписи, обнаруженные недалеко от Сигирии, дают историческое представление об этом месте.",
+      "de": "In der Nähe von Sigiriya entdeckte Steininschriften geben historische Einblicke in die Stätte.",
+      "si": "සීගිරිය අසලින් සොයාගත් ශිලා ලේඛන මෙම ස්ථානය පිළිබඳ ඓතිහාසික අවබෝධයක් සපයයි.",
+      "ta": "சிகிரியாவிற்கு அருகாமையில் கண்டுபிடிக்கப்பட்ட கல்வெட்டுகள் அந்த இடத்தின் வரலாற்று நுண்ணறிவுகளை வழங்குகின்றன."
+    }
+  },
+  {
+    "id": "sig_072",
+    "landmark": "Sigiriya",
+    "category": "archaeology",
+    "text": "Archaeologists believe Sigiriya served both military and ceremonial purposes.",
+    "translations": {
+      "hi": "पुरातत्वविदों का मानना ​​है कि सिगिरिया ने सैन्य और औपचारिक दोनों उद्देश्यों को पूरा किया।",
+      "zh": "考古学家认为锡吉里耶同时具有军事和仪式目的。",
+      "ru": "Археологи полагают, что Сигирия служила как военным, так и церемониальным целям.",
+      "de": "Archäologen glauben, dass Sigiriya sowohl militärischen als auch zeremoniellen Zwecken diente.",
+      "si": "පුරාවිද්‍යාඥයන් විශ්වාස කරන්නේ සීගිරිය යුධමය සහ චාරිත්‍රානුකූල අරමුණු දෙකටම සේවය කළ බවයි.",
+      "ta": "சிகிரியா இராணுவ மற்றும் சடங்கு நோக்கங்களுக்காக சேவை செய்ததாக தொல்பொருள் ஆராய்ச்சியாளர்கள் நம்புகின்றனர்."
+    }
+  },
+  {
+    "id": "sig_073",
+    "landmark": "Sigiriya",
+    "category": "archaeology",
+    "text": "Ancient pathways discovered around Sigiriya connected different parts of the fortress.",
+    "translations": {
+      "hi": "सिगिरिया के आसपास खोजे गए प्राचीन रास्ते किले के विभिन्न हिस्सों को जोड़ते थे।",
+      "zh": "锡吉里亚周围发现的古代通道连接了堡垒的不同部分。",
+      "ru": "Древние тропы, обнаруженные вокруг Сигирии, соединяли разные части крепости.",
+      "de": "Rund um Sigiriya entdeckte alte Wege verbanden verschiedene Teile der Festung.",
+      "si": "සීගිරිය අවටින් සොයා ගත් පුරාණ මංපෙත් බලකොටුවේ විවිධ කොටස් සම්බන්ධ කර ඇත.",
+      "ta": "சிகிரியாவைச் சுற்றி கண்டுபிடிக்கப்பட்ட பண்டைய பாதைகள் கோட்டையின் பல்வேறு பகுதிகளை இணைக்கின்றன."
+    }
+  },
+  {
+    "id": "sig_074",
+    "landmark": "Sigiriya",
+    "category": "archaeology",
+    "text": "Artifacts found at Sigiriya include pottery, tools, and decorative objects.",
+    "translations": {
+      "hi": "सिगिरिया में पाई गई कलाकृतियों में मिट्टी के बर्तन, उपकरण और सजावटी वस्तुएँ शामिल हैं।",
+      "zh": "锡吉里耶发现的文物包括陶器、工具和装饰品。",
+      "ru": "Артефакты, найденные в Сигирии, включают керамику, инструменты и декоративные предметы.",
+      "de": "Zu den in Sigiriya gefundenen Artefakten gehören Töpferwaren, Werkzeuge und Dekorationsgegenstände.",
+      "si": "සීගිරියෙන් හමුවූ පුරාවස්තු අතර මැටි භාණ්ඩ, මෙවලම් සහ අලංකාර භාණ්ඩ ඇතුළත් වේ.",
+      "ta": "சிகிரியாவில் காணப்படும் கலைப்பொருட்கள் மட்பாண்டங்கள், கருவிகள் மற்றும் அலங்கார பொருட்கள் ஆகியவை அடங்கும்."
+    }
+  },
+  {
+    "id": "sig_075",
+    "landmark": "Sigiriya",
+    "category": "archaeology",
+    "text": "The archaeological site continues to be studied by local and international researchers.",
+    "translations": {
+      "hi": "स्थानीय और अंतर्राष्ट्रीय शोधकर्ताओं द्वारा पुरातात्विक स्थल का अध्ययन जारी है।",
+      "zh": "当地和国际研究人员仍在继续研究该考古遗址。",
+      "ru": "Археологический объект продолжает изучаться местными и международными исследователями.",
+      "de": "Die archäologische Stätte wird weiterhin von lokalen und internationalen Forschern untersucht.",
+      "si": "පුරාවිද්‍යා ස්ථානය දේශීය හා ජාත්‍යන්තර පර්යේෂකයන් විසින් අඛණ්ඩව අධ්‍යයනය කරමින් පවතී.",
+      "ta": "தொல்பொருள் தளம் உள்ளூர் மற்றும் சர்வதேச ஆராய்ச்சியாளர்களால் தொடர்ந்து ஆய்வு செய்யப்படுகிறது."
+    }
+  },
+  {
+    "id": "sig_076",
+    "landmark": "Sigiriya",
+    "category": "religion",
+    "text": "After the fall of King Kashyapa, Sigiriya became a Buddhist monastic complex.",
+    "translations": {
+      "hi": "राजा कश्यप के पतन के बाद, सिगिरिया एक बौद्ध मठ परिसर बन गया।",
+      "zh": "迦叶波国王倒台后，锡吉里亚成为佛教寺院建筑群。",
+      "ru": "После падения короля Кашьяпы Сигирия превратилась в буддийский монастырский комплекс.",
+      "de": "Nach dem Sturz von König Kashyapa wurde Sigiriya zu einem buddhistischen Klosterkomplex.",
+      "si": "කාශ්‍යප රජුගේ වැටීමෙන් පසු සීගිරිය බෞද්ධ ආරාම සංකීර්ණයක් බවට පත් විය.",
+      "ta": "மன்னன் காஷ்யபாவின் வீழ்ச்சிக்குப் பிறகு, சிகிரியா ஒரு புத்த மடாலய வளாகமாக மாறியது."
+    }
+  },
+  {
+    "id": "sig_077",
+    "landmark": "Sigiriya",
+    "category": "religion",
+    "text": "Monks used caves around Sigiriya for meditation and religious practices.",
+    "translations": {
+      "hi": "भिक्षुओं ने ध्यान और धार्मिक प्रथाओं के लिए सिगिरिया के आसपास की गुफाओं का उपयोग किया।",
+      "zh": "僧侣们利用锡吉里亚周围的洞穴进行冥想和宗教活动。",
+      "ru": "Монахи использовали пещеры вокруг Сигирии для медитации и религиозных практик.",
+      "de": "Mönche nutzten Höhlen rund um Sigiriya für Meditation und religiöse Praktiken.",
+      "si": "භික්ෂූන් වහන්සේ භාවනාව සහ ආගමික වතාවත් සඳහා සීගිරිය අවට ලෙන් භාවිතා කළහ.",
+      "ta": "துறவிகள் சிகிரியாவைச் சுற்றியுள்ள குகைகளை தியானம் மற்றும் மத நடைமுறைகளுக்குப் பயன்படுத்தினர்."
+    }
+  },
+  {
+    "id": "sig_078",
+    "landmark": "Sigiriya",
+    "category": "religion",
+    "text": "Several rock shelters near Sigiriya contain ancient Buddhist inscriptions.",
+    "translations": {
+      "hi": "सिगिरिया के निकट कई शैलाश्रयों में प्राचीन बौद्ध शिलालेख मौजूद हैं।",
+      "zh": "锡吉里耶附近的几个岩石庇护所包含着古代佛教铭文。",
+      "ru": "Несколько каменных убежищ возле Сигирии содержат древние буддийские надписи.",
+      "de": "Mehrere Felsunterkünfte in der Nähe von Sigiriya enthalten alte buddhistische Inschriften.",
+      "si": "සීගිරිය ආසන්නයේ පිහිටි ගල් පර්වත කිහිපයක පැරණි බෞද්ධ සෙල්ලිපි ඇත.",
+      "ta": "சிகிரியாவிற்கு அருகிலுள்ள பல பாறை தங்குமிடங்களில் பண்டைய பௌத்த கல்வெட்டுகள் உள்ளன."
+    }
+  },
+  {
+    "id": "sig_079",
+    "landmark": "Sigiriya",
+    "category": "religion",
+    "text": "Buddhist monks occupied Sigiriya for many centuries after the royal period ended.",
+    "translations": {
+      "hi": "शाही काल समाप्त होने के बाद बौद्ध भिक्षुओं ने कई शताब्दियों तक सिगिरिया पर कब्जा किया।",
+      "zh": "皇家时期结束后，佛教僧侣占领了锡吉里亚几个世纪。",
+      "ru": "Буддийские монахи оккупировали Сигирию на протяжении многих столетий после окончания королевского периода.",
+      "de": "Buddhistische Mönche besetzten Sigiriya noch viele Jahrhunderte nach dem Ende der königlichen Periode.",
+      "si": "රජ සමය අවසන් වී සියවස් ගණනාවක් පුරා බෞද්ධ භික්ෂූන් වහන්සේ සීගිරිය අල්ලා ගත්හ.",
+      "ta": "அரச காலம் முடிந்து பல நூற்றாண்டுகளாக சிகிரியாவை புத்த பிக்குகள் ஆக்கிரமித்தனர்."
+    }
+  },
+  {
+    "id": "sig_080",
+    "landmark": "Sigiriya",
+    "category": "religion",
+    "text": "Religious influence shaped many cultural aspects of Sigiriya after its transformation into a monastery.",
+    "translations": {
+      "hi": "मठ में परिवर्तन के बाद धार्मिक प्रभाव ने सिगिरिया के कई सांस्कृतिक पहलुओं को आकार दिया।",
+      "zh": "锡吉里亚转变为修道院后，宗教影响塑造了锡吉里亚的许多文化方面。",
+      "ru": "Религиозное влияние сформировало многие культурные аспекты Сигирии после ее превращения в монастырь.",
+      "de": "Religiöser Einfluss prägte viele kulturelle Aspekte von Sigiriya nach seiner Umwandlung in ein Kloster.",
+      "si": "සීගිරිය ආරාමයක් බවට පරිවර්තනය වීමෙන් පසු ආගමික බලපෑම බොහෝ සංස්කෘතික අංගයන් හැඩගස්වා ඇත.",
+      "ta": "சிகிரியா ஒரு மடாலயமாக மாறிய பின்னர் மத தாக்கம் அதன் பல கலாச்சார அம்சங்களை வடிவமைத்தது."
+    }
+  },
+  {
+    "id": "sig_081",
+    "landmark": "Sigiriya",
+    "category": "environment",
+    "text": "The forests surrounding Sigiriya are home to various species of birds and wildlife.",
+    "translations": {
+      "hi": "सिगिरिया के आसपास के जंगल विभिन्न प्रजातियों के पक्षियों और वन्यजीवों का घर हैं।",
+      "zh": "锡吉里亚周围的森林是各种鸟类和野生动物的家园。",
+      "ru": "Леса, окружающие Сигирию, являются домом для различных видов птиц и диких животных.",
+      "de": "Die Wälder rund um Sigiriya sind die Heimat verschiedener Vogel- und Wildtierarten.",
+      "si": "සීගිරිය අවට වනාන්තර විවිධ පක්ෂීන්ගේ සහ වන සතුන්ගේ නිවහන වේ.",
+      "ta": "சிகிரியாவைச் சுற்றியுள்ள காடுகள் பல்வேறு வகையான பறவைகள் மற்றும் வனவிலங்குகளின் தாயகமாகும்."
+    }
+  },
+  {
+    "id": "sig_082",
+    "landmark": "Sigiriya",
+    "category": "environment",
+    "text": "The area around Sigiriya contains rich biodiversity and natural ecosystems.",
+    "translations": {
+      "hi": "सिगिरिया के आसपास के क्षेत्र में समृद्ध जैव विविधता और प्राकृतिक पारिस्थितिकी तंत्र हैं।",
+      "zh": "锡吉里耶周边地区拥有丰富的生物多样性和自然生态系统。",
+      "ru": "Территория вокруг Сигирии богата биоразнообразием и природными экосистемами.",
+      "de": "Die Gegend um Sigiriya verfügt über eine reiche Artenvielfalt und natürliche Ökosysteme.",
+      "si": "සීගිරිය අවට ප්‍රදේශය පොහොසත් ජෛව විවිධත්වයකින් සහ ස්වභාවික පරිසර පද්ධති වලින් සමන්විත වේ.",
+      "ta": "சிகிரியாவைச் சுற்றியுள்ள பகுதி வளமான பல்லுயிர் மற்றும் இயற்கை சுற்றுச்சூழல் அமைப்புகளைக் கொண்டுள்ளது."
+    }
+  },
+  {
+    "id": "sig_083",
+    "landmark": "Sigiriya",
+    "category": "environment",
+    "text": "Large water gardens at Sigiriya contribute to the ecological balance of the site.",
+    "translations": {
+      "hi": "सिगिरिया में बड़े जल उद्यान साइट के पारिस्थितिक संतुलन में योगदान करते हैं।",
+      "zh": "锡吉里耶的大型水上花园有助于该地区的生态平衡。",
+      "ru": "Большие водные сады в Сигирии способствуют экологическому балансу этого места.",
+      "de": "Große Wassergärten in Sigiriya tragen zum ökologischen Gleichgewicht des Ortes bei.",
+      "si": "සීගිරියේ ඇති විශාල ජල උද්‍යාන අඩවියේ පාරිසරික සමතුලිතතාවයට දායක වේ.",
+      "ta": "சிகிரியாவில் உள்ள பெரிய நீர் தோட்டங்கள் தளத்தின் சுற்றுச்சூழல் சமநிலைக்கு பங்களிக்கின்றன."
+    }
+  },
+  {
+    "id": "sig_084",
+    "landmark": "Sigiriya",
+    "category": "environment",
+    "text": "The surrounding landscape includes forests, lakes, and rocky terrain.",
+    "translations": {
+      "hi": "आसपास के परिदृश्य में जंगल, झीलें और चट्टानी इलाके शामिल हैं।",
+      "zh": "周围的景观包括森林、湖泊和岩石地形。",
+      "ru": "Окружающий ландшафт включает леса, озера и скалистую местность.",
+      "de": "Die umliegende Landschaft umfasst Wälder, Seen und felsiges Gelände.",
+      "si": "අවට භූ දර්ශනයට වනාන්තර, විල් සහ පාෂාණමය භූමි ඇතුළත් වේ.",
+      "ta": "சுற்றியுள்ள நிலப்பரப்பில் காடுகள், ஏரிகள் மற்றும் பாறை நிலப்பரப்பு ஆகியவை அடங்கும்."
+    }
+  },
+  {
+    "id": "sig_085",
+    "landmark": "Sigiriya",
+    "category": "environment",
+    "text": "Environmental conservation is important for preserving Sigiriya’s natural beauty.",
+    "translations": {
+      "hi": "सिगिरिया की प्राकृतिक सुंदरता को संरक्षित करने के लिए पर्यावरण संरक्षण महत्वपूर्ण है।",
+      "zh": "环境保护对于保护锡吉里耶的自然美景非常重要。",
+      "ru": "Охрана окружающей среды важна для сохранения природной красоты Сигирии.",
+      "de": "Umweltschutz ist wichtig, um die natürliche Schönheit Sigiriyas zu bewahren.",
+      "si": "සීගිරියේ ස්වභාව සෞන්දර්යය රැක ගැනීමට පරිසර සංරක්ෂණය වැදගත් වේ.",
+      "ta": "சீகிரியாவின் இயற்கை அழகைப் பாதுகாப்பதற்கு சுற்றுச்சூழல் பாதுகாப்பு முக்கியமானது."
+    }
+  },
+  {
+    "id": "sig_086",
+    "landmark": "Sigiriya",
+    "category": "environment",
+    "text": "Wild elephants are occasionally seen in forested areas near Sigiriya.",
+    "translations": {
+      "hi": "जंगली हाथी कभी-कभी सिगिरिया के निकट जंगली इलाकों में देखे जाते हैं।",
+      "zh": "锡吉里亚附近的森林地区偶尔会看到野生大象。",
+      "ru": "Диких слонов иногда можно увидеть в лесных массивах недалеко от Сигирии.",
+      "de": "In Waldgebieten in der Nähe von Sigiriya werden gelegentlich wilde Elefanten gesichtet.",
+      "si": "සීගිරියට ආසන්න වනාන්තර ප්‍රදේශවල වල් අලි ඉඳහිට දක්නට ලැබේ.",
+      "ta": "சீகிரியாவை அண்மித்த வனப்பகுதிகளில் காட்டு யானைகள் அவ்வப்போது காணப்படுகின்றன."
+    }
+  },
+  {
+    "id": "sig_087",
+    "landmark": "Sigiriya",
+    "category": "environment",
+    "text": "Native trees around Sigiriya provide shade and support local wildlife habitats.",
+    "translations": {
+      "hi": "सिगिरिया के आसपास के देशी पेड़ छाया प्रदान करते हैं और स्थानीय वन्यजीवों के आवास का समर्थन करते हैं।",
+      "zh": "锡吉里耶周围的原生树木为当地野生动物提供遮荫和栖息地。",
+      "ru": "Местные деревья вокруг Сигирии создают тень и поддерживают среду обитания местных диких животных.",
+      "de": "Einheimische Bäume rund um Sigiriya spenden Schatten und unterstützen die Lebensräume der lokalen Tierwelt.",
+      "si": "සීගිරිය අවට ඇති ස්වදේශික ගස් සෙවණ සහ දේශීය වනජීවී වාසස්ථාන සඳහා සහාය වේ.",
+      "ta": "சிகிரியாவைச் சுற்றியுள்ள பூர்வீக மரங்கள் நிழலை வழங்குகின்றன மற்றும் உள்ளூர் வனவிலங்குகளின் வாழ்விடங்களை ஆதரிக்கின்றன."
+    }
+  },
+  {
+    "id": "sig_088",
+    "landmark": "Sigiriya",
+    "category": "environment",
+    "text": "Seasonal rainfall supports the functioning of Sigiriya’s ancient fountains.",
+    "translations": {
+      "hi": "मौसमी वर्षा सिगिरिया के प्राचीन फव्वारों के कामकाज में सहायता करती है।",
+      "zh": "季节性降雨支持锡吉里亚古老喷泉的功能。",
+      "ru": "Сезонные осадки поддерживают работу древних фонтанов Сигирии.",
+      "de": "Saisonale Regenfälle unterstützen die Funktion der alten Brunnen von Sigiriya.",
+      "si": "සෘතුමය වර්ෂාපතනය සීගිරියේ ඉපැරණි දිය උල්පත්වල ක්‍රියාකාරිත්වයට සහාය වේ.",
+      "ta": "பருவகால மழை சிகிரியாவின் பழமையான நீரூற்றுகளின் செயல்பாட்டை ஆதரிக்கிறது."
+    }
+  },
+  {
+    "id": "sig_089",
+    "landmark": "Sigiriya",
+    "category": "environment",
+    "text": "The natural rock formation of Sigiriya stands prominently above dense greenery.",
+    "translations": {
+      "hi": "सिगिरिया की प्राकृतिक चट्टान संरचना घनी हरियाली के ऊपर प्रमुखता से खड़ी है।",
+      "zh": "锡吉里耶的天然岩层突出地矗立在茂密的绿色植物之上。",
+      "ru": "Естественные скальные образования Сигирии возвышаются над густой зеленью.",
+      "de": "Die natürliche Felsformation von Sigiriya erhebt sich deutlich über dichtem Grün.",
+      "si": "සීගිරියේ ස්වාභාවික පාෂාණ සැකැස්ම ඝන හරිතයට ඉහළින් කැපී පෙනේ.",
+      "ta": "சிகிரியாவின் இயற்கையான பாறை உருவாக்கம் அடர்ந்த பசுமைக்கு மேலே உள்ளது."
+    }
+  },
+  {
+    "id": "sig_090",
+    "landmark": "Sigiriya",
+    "category": "environment",
+    "text": "The site combines natural landscapes with human-made architectural features.",
+    "translations": {
+      "hi": "यह साइट प्राकृतिक परिदृश्यों को मानव निर्मित वास्तुशिल्प विशेषताओं के साथ जोड़ती है।",
+      "zh": "该遗址将自然景观与人造建筑特色融为一体。",
+      "ru": "Это место сочетает в себе природные ландшафты и рукотворные архитектурные особенности.",
+      "de": "Der Standort kombiniert natürliche Landschaften mit von Menschenhand geschaffenen architektonischen Merkmalen.",
+      "si": "මෙම වෙබ් අඩවිය ස්වභාවික භූ දර්ශන සහ මිනිසා විසින් සාදන ලද වාස්තුවිද්යාත්මක ලක්ෂණ ඒකාබද්ධ කරයි.",
+      "ta": "இந்த தளம் மனிதனால் உருவாக்கப்பட்ட கட்டிடக்கலை அம்சங்களுடன் இயற்கை நிலப்பரப்புகளை ஒருங்கிணைக்கிறது."
+    }
+  },
+  {
+    "id": "sig_091",
+    "landmark": "Sigiriya",
+    "category": "gardens",
+    "text": "The water gardens of Sigiriya are among the oldest landscaped gardens in Asia.",
+    "translations": {
+      "hi": "सिगिरिया के जल उद्यान एशिया के सबसे पुराने प्राकृतिक उद्यानों में से एक हैं।",
+      "zh": "锡吉里耶的水上花园是亚洲最古老的园景花园之一。",
+      "ru": "Водные сады Сигирии являются одними из старейших ландшафтных садов в Азии.",
+      "de": "Die Wassergärten von Sigiriya gehören zu den ältesten Landschaftsgärten Asiens.",
+      "si": "සීගිරියේ ජල උද්‍යාන ආසියාවේ පැරණිතම භූ දර්ශන උද්‍යාන අතර වේ.",
+      "ta": "சீகிரியாவின் நீர் தோட்டங்கள் ஆசியாவிலேயே பழமையான நிலப்பரப்பு தோட்டங்களில் ஒன்றாகும்."
+    }
+  },
+  {
+    "id": "sig_092",
+    "landmark": "Sigiriya",
+    "category": "gardens",
+    "text": "Sigiriya gardens include symmetrical pools and fountains.",
+    "translations": {
+      "hi": "सिगिरिया उद्यान में सममित पूल और फव्वारे शामिल हैं।",
+      "zh": "锡吉里耶花园设有对称的水池和喷泉。",
+      "ru": "Сады Сигирии включают симметричные бассейны и фонтаны.",
+      "de": "Zu den Sigiriya-Gärten gehören symmetrische Pools und Springbrunnen.",
+      "si": "සීගිරි උද්‍යානයට සමමිතික තටාක සහ උල්පත් ඇතුළත් වේ.",
+      "ta": "சிகிரியா தோட்டங்களில் சமச்சீர் குளங்கள் மற்றும் நீரூற்றுகள் அடங்கும்."
+    }
+  },
+  {
+    "id": "sig_093",
+    "landmark": "Sigiriya",
+    "category": "gardens",
+    "text": "Boulder gardens at Sigiriya contain pathways between massive natural rocks.",
+    "translations": {
+      "hi": "सिगिरिया के बोल्डर उद्यानों में विशाल प्राकृतिक चट्टानों के बीच रास्ते हैं।",
+      "zh": "锡吉里耶的巨石花园在巨大的天然岩石之间有通道。",
+      "ru": "Сады валунов в Сигирии содержат тропы между массивными природными камнями.",
+      "de": "Die Felsgärten in Sigiriya umfassen Wege zwischen massiven Naturfelsen.",
+      "si": "සීගිරියේ ගල් උයන්වල දැවැන්ත ස්වාභාවික පාෂාණ අතර මංපෙත් අඩංගු වේ.",
+      "ta": "சிகிரியாவில் உள்ள கற்பாறை தோட்டங்கள் பாரிய இயற்கை பாறைகளுக்கு இடையேயான பாதைகளை கொண்டிருக்கின்றன."
+    }
+  },
+  {
+    "id": "sig_094",
+    "landmark": "Sigiriya",
+    "category": "gardens",
+    "text": "Terraced gardens were built along the slopes leading to the summit.",
+    "translations": {
+      "hi": "शिखर तक जाने वाली ढलानों के किनारे सीढ़ीदार बगीचे बनाए गए थे।",
+      "zh": "沿着通向山顶的斜坡修建了梯田花园。",
+      "ru": "Вдоль склонов, ведущих к вершине, были построены террасные сады.",
+      "de": "Entlang der Hänge, die zum Gipfel führen, wurden Terrassengärten angelegt.",
+      "si": "කඳු මුදුනට යන බෑවුම් දිගේ ටෙරස් උද්‍යාන ඉදිකර ඇත.",
+      "ta": "உச்சிக்குச் செல்லும் சரிவுகளில் மாடித் தோட்டங்கள் கட்டப்பட்டன."
+    }
+  },
+  {
+    "id": "sig_095",
+    "landmark": "Sigiriya",
+    "category": "gardens",
+    "text": "Ancient landscape architects carefully designed Sigiriya’s garden layouts.",
+    "translations": {
+      "hi": "प्राचीन परिदृश्य वास्तुकारों ने सिगिरिया के उद्यान लेआउट को सावधानीपूर्वक डिजाइन किया था।",
+      "zh": "古代景观设计师精心设计了锡吉里耶的花园布局。",
+      "ru": "Древние ландшафтные архитекторы тщательно разработали планировку сада Сигирии.",
+      "de": "Antike Landschaftsarchitekten haben die Gartenanlagen von Sigiriya sorgfältig entworfen.",
+      "si": "පුරාණ භූ දර්ශන නිර්මාණ ශිල්පීන් සීගිරියේ උද්‍යාන පිරිසැලසුම් ඉතා පරිස්සමින් නිර්මාණය කර ඇත.",
+      "ta": "பழங்கால நிலப்பரப்பு கட்டிடக் கலைஞர்கள் சிகிரியாவின் தோட்ட அமைப்பை கவனமாக வடிவமைத்துள்ளனர்."
+    }
+  },
+  {
+    "id": "sig_096",
+    "landmark": "Sigiriya",
+    "category": "gardens",
+    "text": "Water channels in the gardens were designed to control water movement efficiently.",
+    "translations": {
+      "hi": "बगीचों में जल चैनल पानी की आवाजाही को कुशलतापूर्वक नियंत्रित करने के लिए डिज़ाइन किए गए थे।",
+      "zh": "花园中的水道旨在有效控制水流。",
+      "ru": "Водяные каналы в садах были спроектированы так, чтобы эффективно контролировать движение воды.",
+      "de": "Wasserkanäle in den Gärten wurden entworfen, um die Wasserbewegung effizient zu steuern.",
+      "si": "උද්‍යානවල ජල මාර්ග සැලසුම් කර ඇත්තේ ජල චලනය කාර්යක්ෂමව පාලනය කිරීම සඳහා ය.",
+      "ta": "தோட்டங்களில் உள்ள நீர் வழித்தடங்கள் நீர் இயக்கத்தை திறமையாக கட்டுப்படுத்த வடிவமைக்கப்பட்டுள்ளன."
+    }
+  },
+  {
+    "id": "sig_097",
+    "landmark": "Sigiriya",
+    "category": "gardens",
+    "text": "The gardens demonstrate advanced planning techniques from ancient Sri Lanka.",
+    "translations": {
+      "hi": "उद्यान प्राचीन श्रीलंका की उन्नत योजना तकनीकों को प्रदर्शित करते हैं।",
+      "zh": "这些花园展示了古代斯里兰卡先进的规划技术。",
+      "ru": "Сады демонстрируют передовые методы планирования древней Шри-Ланки.",
+      "de": "Die Gärten demonstrieren fortschrittliche Planungstechniken aus dem alten Sri Lanka.",
+      "si": "උද්‍යාන පුරාණ ශ්‍රී ලංකාවේ දියුණු සැලසුම් ශිල්පීය ක්‍රම විදහා දක්වයි.",
+      "ta": "பழங்கால இலங்கையில் இருந்து மேம்பட்ட திட்டமிடல் நுட்பங்களை தோட்டங்கள் நிரூபிக்கின்றன."
+    }
+  },
+  {
+    "id": "sig_098",
+    "landmark": "Sigiriya",
+    "category": "gardens",
+    "text": "The combination of water, rocks, and greenery creates a balanced garden design.",
+    "translations": {
+      "hi": "पानी, चट्टानों और हरियाली का संयोजन एक संतुलित उद्यान डिजाइन बनाता है।",
+      "zh": "水、岩石和绿色植物的结合创造了一个平衡的花园设计。",
+      "ru": "Сочетание воды, камней и зелени создает сбалансированный дизайн сада.",
+      "de": "Die Kombination aus Wasser, Steinen und Grün schafft eine ausgewogene Gartengestaltung.",
+      "si": "ජලය, පාෂාණ සහ හරිත වර්ණ සංයෝජනය සමබර උද්යාන නිර්මාණයක් නිර්මාණය කරයි.",
+      "ta": "நீர், பாறைகள் மற்றும் பசுமை ஆகியவற்றின் கலவையானது ஒரு சீரான தோட்ட வடிவமைப்பை உருவாக்குகிறது."
+    }
+  },
+  {
+    "id": "sig_099",
+    "landmark": "Sigiriya",
+    "category": "gardens",
+    "text": "Sigiriya gardens are divided into water gardens, cave gardens, and terraced gardens.",
+    "translations": {
+      "hi": "सिगिरिया उद्यान जल उद्यान, गुफा उद्यान और सीढ़ीदार उद्यान में विभाजित हैं।",
+      "zh": "锡吉里耶花园分为水上花园、洞穴花园和梯田花园。",
+      "ru": "Сады Сигирии делятся на водные сады, пещерные сады и террасные сады.",
+      "de": "Die Gärten von Sigiriya sind in Wassergärten, Höhlengärten und Terrassengärten unterteilt.",
+      "si": "සීගිරි උද්‍යාන ජල උද්‍යාන, ගුහා උද්‍යාන සහ ටෙරස් උද්‍යාන ලෙස බෙදා ඇත.",
+      "ta": "சிகிரியா தோட்டங்கள் நீர் தோட்டங்கள், குகை தோட்டங்கள் மற்றும் மாடி தோட்டங்கள் என பிரிக்கப்பட்டுள்ளன."
+    }
+  },
+  {
+    "id": "sig_100",
+    "landmark": "Sigiriya",
+    "category": "gardens",
+    "text": "The garden complex reflects the luxurious lifestyle of the royal palace era.",
+    "translations": {
+      "hi": "उद्यान परिसर शाही महल युग की विलासितापूर्ण जीवनशैली को दर्शाता है।",
+      "zh": "花园建筑群体现了皇宫时代奢华的生活方式。",
+      "ru": "Садовый комплекс отражает роскошный образ жизни эпохи королевского дворца.",
+      "de": "Die Gartenanlage spiegelt den luxuriösen Lebensstil der königlichen Palastzeit wider.",
+      "si": "උද්යාන සංකීර්ණය රාජකීය මාලිගා යුගයේ සුඛෝපභෝගී ජීවන රටාව පිළිබිඹු කරයි.",
+      "ta": "தோட்ட வளாகம் அரச அரண்மனை காலத்தின் ஆடம்பரமான வாழ்க்கை முறையை பிரதிபலிக்கிறது."
+    }
+  },
+  {
+    "id": "sig_101",
+    "landmark": "Sigiriya",
+    "category": "fortress",
+    "text": "Sigiriya was strategically built as a fortress for protection against enemies.",
+    "translations": {
+      "hi": "सिगिरिया को रणनीतिक रूप से दुश्मनों से सुरक्षा के लिए एक किले के रूप में बनाया गया था।",
+      "zh": "锡吉里耶是作为防御敌人的堡垒而精心建造的。",
+      "ru": "Сигирия была стратегически построена как крепость для защиты от врагов.",
+      "de": "Sigiriya wurde strategisch als Festung zum Schutz vor Feinden gebaut.",
+      "si": "සීගිරිය සතුරන්ගෙන් ආරක්ෂාව සඳහා බලකොටුවක් ලෙස උපක්‍රමශීලීව ඉදිකරන ලද්දකි.",
+      "ta": "சிகிரியா, எதிரிகளுக்கு எதிரான பாதுகாப்பிற்கான ஒரு கோட்டையாக மூலோபாய ரீதியாக கட்டப்பட்டது."
+    }
+  },
+  {
+    "id": "sig_102",
+    "landmark": "Sigiriya",
+    "category": "fortress",
+    "text": "The height of the rock provided a natural defensive advantage.",
+    "translations": {
+      "hi": "चट्टान की ऊंचाई ने प्राकृतिक रक्षात्मक लाभ प्रदान किया।",
+      "zh": "岩石的高度提供了天然的防御优势。",
+      "ru": "Высота скалы давала естественное преимущество в обороне.",
+      "de": "Die Höhe des Felsens bot einen natürlichen Verteidigungsvorteil.",
+      "si": "පර්වතයේ උස ස්වභාවික ආරක්ෂක වාසියක් ලබා දුන්නේය.",
+      "ta": "பாறையின் உயரம் இயற்கையான தற்காப்பு நன்மையை வழங்கியது."
+    }
+  },
+  {
+    "id": "sig_103",
+    "landmark": "Sigiriya",
+    "category": "fortress",
+    "text": "Ancient guards likely monitored the surrounding area from the summit.",
+    "translations": {
+      "hi": "प्राचीन रक्षक संभवतः शिखर से आसपास के क्षेत्र की निगरानी करते थे।",
+      "zh": "古代守卫很可能在山顶监视着周围地区。",
+      "ru": "Древние стражи, вероятно, наблюдали за окрестностями с вершины.",
+      "de": "Wahrscheinlich überwachten alte Wächter vom Gipfel aus die Umgebung.",
+      "si": "පුරාණ ආරක්ෂකයින් කඳු මුදුනේ සිට අවට ප්‍රදේශය නිරීක්ෂණය කළා විය හැකිය.",
+      "ta": "பண்டைய காவலர்கள் உச்சிமாநாட்டிலிருந்து சுற்றியுள்ள பகுதியைக் கண்காணித்திருக்கலாம்."
+    }
+  },
+  {
+    "id": "sig_104",
+    "landmark": "Sigiriya",
+    "category": "fortress",
+    "text": "The narrow staircases helped control access to the upper palace.",
+    "translations": {
+      "hi": "संकीर्ण सीढ़ियों ने ऊपरी महल तक पहुंच को नियंत्रित करने में मदद की।",
+      "zh": "狭窄的楼梯有助于控制通往上层宫殿的通道。",
+      "ru": "Узкие лестницы помогали контролировать доступ в верхний дворец.",
+      "de": "Die schmalen Treppen trugen dazu bei, den Zugang zum Oberpalast zu kontrollieren.",
+      "si": "පටු පඩිපෙළ ඉහළ මාලිගාවට ප්‍රවේශය පාලනය කිරීමට උපකාරී විය.",
+      "ta": "குறுகிய படிக்கட்டுகள் மேல் அரண்மனைக்கு அணுகலைக் கட்டுப்படுத்த உதவியது."
+    }
+  },
+  {
+    "id": "sig_105",
+    "landmark": "Sigiriya",
+    "category": "fortress",
+    "text": "Moats and walls surrounding Sigiriya strengthened its defensive structure.",
+    "translations": {
+      "hi": "सिगिरिया के आसपास की खाईयों और दीवारों ने इसकी रक्षात्मक संरचना को मजबूत किया।",
+      "zh": "锡吉里耶周围的护城河和城墙加强了其防御结构。",
+      "ru": "Рвы и стены, окружавшие Сигирию, укрепляли ее оборонительное сооружение.",
+      "de": "Wassergräben und Mauern rund um Sigiriya stärkten seine Verteidigungsstruktur.",
+      "si": "සීගිරිය අවට දිය අගල් සහ බිත්ති එහි ආරක්ෂක ව්‍යුහය ශක්තිමත් කළේය.",
+      "ta": "சிகிரியாவைச் சுற்றியுள்ள அகழிகள் மற்றும் சுவர்கள் அதன் தற்காப்பு கட்டமைப்பை பலப்படுத்தியது."
+    }
+  }
 ]
