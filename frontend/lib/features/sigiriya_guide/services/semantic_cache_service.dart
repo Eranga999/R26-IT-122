@@ -23,7 +23,7 @@ class SemanticCache {
 
   // Bump this when the Sigiriya knowledge base content changes so stale
   // cached answers are not reused after data updates.
-  static const int _cacheSchemaVersion = 4;
+  static const int _cacheSchemaVersion = 7;
 
   // Mirrors Python: CACHE_SIM_THRESHOLD = 0.92
   static const double _simThreshold = 0.92;
