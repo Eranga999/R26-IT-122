@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../data/sigiriya_knowledge_base.dart';
 import 'embedding_service.dart';
 import 'vector_store_service.dart';
 import 'semantic_cache_service.dart';
@@ -103,6 +104,22 @@ class RagService {
     String mode, {
     void Function(String token)? onToken,
   }) async {
+    final location = findLocation(place);
+
+    if (location != null) {
+      final directAnswer =
+          mode == 'brief' ? location.briefSummary : location.detailedInfo;
+
+      try {
+        await _cache.init();
+        await _cache.set(place, mode, directAnswer, const <double>[]);
+      } catch (e) {
+        debugPrint('[RagService] Cache write failed for direct answer: $e');
+      }
+
+      return directAnswer;
+    }
+
     // Ensure core services are initialised (lazy init when user asks).
     try {
       await _cache.init();
