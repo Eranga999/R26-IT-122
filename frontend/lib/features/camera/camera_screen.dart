@@ -14,7 +14,7 @@ import '../../features/database/landmark_model.dart';
 import '../../features/database/sub_landmark_model.dart';
 // recognition service already imported above
 import '../ar/ar_screen.dart';
-import '../rag/rag_screen.dart';
+import '../chat/rag_chat_screen.dart';
 import '../navigation/nav_screen.dart';
 import '../home/home_screen.dart';
 
@@ -54,7 +54,9 @@ class _CameraScreenState extends State<CameraScreen>
 
   // ── Bounding-box smoothing ────────────────────────────────────────────────
   Rect? _smoothedBoxRect; // exponentially smoothed box
-  static const double _boxAlpha = 0.75; // Smoother tracking (less jitter)
+  // Lower alpha = gentler smoothing = less jitter/jumping.
+  // 0.35 means the box moves 35% toward the new position each frame.
+  static const double _boxAlpha = 0.35;
 
   // ── False positive protection (Stable detection tracking) ──────────────────
   String? _candidateLabel;
@@ -77,12 +79,29 @@ class _CameraScreenState extends State<CameraScreen>
   bool _boxVisible = false;                 // guard: prevents stale painter data
 
   bool get _isGpsLocked => _verifyStatus == _VerifyStatus.locked;
-  // GPS-locked: lower thresholds – the site is confirmed by GPS.
-  // Manual mode: slightly higher to reduce noise, but still detectable.
-  double get _modelThreshold => _isGpsLocked ? 0.60 : 0.72;
-  double get _cardThreshold  => _isGpsLocked ? 0.72 : 0.78;
-  // GPS-locked: 2 consecutive frames; manual: 3 frames for stability.
-  int get _requiredFrames => _isGpsLocked ? 2 : 3;
+  bool get _isManualMode => _verifyStatus == _VerifyStatus.manual;
+  // GPS-locked: lower thresholds because the site is already confirmed.
+  // Manual mode: more permissive so detections feel responsive.
+  double get _modelThreshold {
+    if (_isGpsLocked) return 0.60;
+    if (_isManualMode) return 0.52;
+    return 0.72;
+  }
+
+  double get _cardThreshold {
+    if (_isGpsLocked) return 0.72;
+    if (_isManualMode) return 0.62;
+    return 0.78;
+  }
+
+  // GPS-locked: 2 consecutive frames; manual: 2 frames for faster feedback.
+  int get _requiredFrames => _isGpsLocked ? 2 : (_isManualMode ? 2 : 3);
+
+  List<String> _labelsForSite(String? siteName, {required bool allowFallback}) {
+    final labels = RecognitionService.labelsForSite(siteName);
+    if (labels.isNotEmpty || !allowFallback) return labels;
+    return RecognitionService.labels;
+  }
 
   bool _isStableDetection(DetectionResult bestDetection) {
     if (bestDetection.confidence < _cardThreshold) {
@@ -137,7 +156,7 @@ class _CameraScreenState extends State<CameraScreen>
   Future<void> _verifyGpsInBackground() async {
     final result = await SiteLockService.instance.lockSiteByGps();
     if (!mounted) return;
-    final labels = RecognitionService.labelsForSite(result.site?.landmarkName);
+    final labels = _labelsForSite(result.site?.landmarkName, allowFallback: false);
     setState(() {
       _siteLock = result;
       _allowedLabels = labels;
@@ -195,7 +214,7 @@ class _CameraScreenState extends State<CameraScreen>
                   fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
           const Text(
-              'GPS is unavailable — choose your heritage site manually.',
+              'Choose a site manually. Detection is more reliable when the selected site matches the detector model.',
               style: TextStyle(color: Colors.white54, fontSize: 12)),
           const SizedBox(height: 16),
           ...sites.map((site) => ListTile(
@@ -209,8 +228,10 @@ class _CameraScreenState extends State<CameraScreen>
                         const TextStyle(color: Colors.white54, fontSize: 12)),
                 onTap: () async {
                   Navigator.pop(context);
-                  final labels =
-                      RecognitionService.labelsForSite(site.landmarkName);
+                  final labels = _labelsForSite(
+                    site.landmarkName,
+                    allowFallback: true,
+                  );
                   setState(() {
                     _siteLock = SiteLockResult.manual(site: site);
                     _allowedLabels = labels;
@@ -374,8 +395,10 @@ class _CameraScreenState extends State<CameraScreen>
     final id = _labelToId(detection.label);
     if (id == null) return;
 
-    // Use current site lock if available to filter relevant detections
-    if (_siteLock?.site?.landmarkDbId != null &&
+    // GPS mode stays site-locked. Manual mode is allowed to surface detections
+    // from the trained model instead of suppressing them completely.
+    if (_siteLock?.source == 'gps' &&
+        _siteLock?.site?.landmarkDbId != null &&
         id != _siteLock!.site!.landmarkDbId) {
       return;
     }
@@ -537,6 +560,12 @@ class _CameraScreenState extends State<CameraScreen>
                         confidence: 0.94,
                         boundingBox: simulatedBox,
                         classIndex: 0);
+                    // Show the bounding box alongside the detection popup.
+                    setState(() {
+                      _liveDetections = [detection];
+                      _smoothedBoxRect = simulatedBox;
+                      _boxVisible = true;
+                    });
                     _onLandmarkDetected(detection);
                   },
                 )),
@@ -569,20 +598,27 @@ class _CameraScreenState extends State<CameraScreen>
           CameraPreview(_controller!),
 
         // Live bounding-box overlay – only shown when _boxVisible is true.
-        // This is a strict gate: the painter never receives stale data after
-        // detection loss, even if the info card is still visible.
+        // While the panel is open we still prefer live detections so the box
+        // keeps tracking the subject; fall back to the activeDetection snapshot
+        // only when no live result is currently available.
         if (_boxVisible &&
             (_liveDetections.isNotEmpty || _activeDetection != null))
           Positioned.fill(
             child: RepaintBoundary(
               child: CustomPaint(
                 painter: _DetectionOverlayPainter(
-                  detections: _panelVisible && _activeDetection != null
-                      ? [_activeDetection!]
-                      : _liveDetections,
+                  detections: _liveDetections.isNotEmpty
+                      ? _liveDetections
+                      : (_panelVisible && _activeDetection != null
+                          ? [_activeDetection!]
+                          : const []),
                   previewSize: _controller?.value.previewSize,
                   sensorOrientation:
                       _controller?.description.sensorOrientation ?? 0,
+                  // Show scanning ring while accumulating frames (manual mode)
+                  scanningProgress: (!_panelVisible && _candidateCount > 0)
+                      ? _candidateCount / _requiredFrames
+                      : null,
                 ),
               ),
             ),
@@ -678,6 +714,10 @@ class _CameraScreenState extends State<CameraScreen>
 
   Widget _buildUnsupportedSiteBanner() {
     final siteName = _siteLock?.site?.landmarkName ?? 'this site';
+    final isManual = _siteLock?.source == 'manual';
+    final message = isManual
+        ? 'Manual mode is previewing the trained landmark model for $siteName. Detection is available, but the current model is tuned for the Sigiriya classes.'
+        : 'Live recognition is limited to the locked site profile. $siteName is available in the app, but no detector is running for unsupported labels.';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
@@ -690,7 +730,7 @@ class _CameraScreenState extends State<CameraScreen>
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            'Live recognition is limited to the locked site profile. $siteName is available in the app, but no detector is running for unsupported labels.',
+            message,
             style: const TextStyle(
                 color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
           ),
@@ -1014,7 +1054,10 @@ class _CameraScreenState extends State<CameraScreen>
                               context,
                               MaterialPageRoute(
                                   builder: (_) =>
-                                      RagScreen(landmarkName: lm.name))),
+                                      RagChatScreen(
+                                          landmarkName: lm.name,
+                                          landmarkId: 'sigiriya', // Defaulting to sigiriya as per current scope
+                                      ))),
                         ),
                       ),
                     ]),
@@ -1306,11 +1349,15 @@ class _DetectionOverlayPainter extends CustomPainter {
   final List<DetectionResult> detections;
   final Size? previewSize; // CameraValue.previewSize (always landscape)
   final int sensorOrientation; // degrees (0, 90, 180, 270)
+  /// 0.0–1.0 scanning progress shown while accumulating confirmation frames.
+  /// Null means not scanning (panel open or no candidate).
+  final double? scanningProgress;
 
   const _DetectionOverlayPainter({
     required this.detections,
     required this.previewSize,
     required this.sensorOrientation,
+    this.scanningProgress,
   });
 
   @override
@@ -1398,8 +1445,8 @@ class _DetectionOverlayPainter extends CustomPainter {
             const Radius.circular(10)),
         Paint()..color = Colors.black.withOpacity(0.75),
       );
-      
-      // Chip subtle border
+
+      // Chip subtle border; amber when scanning, normal when confirmed
       canvas.drawRRect(
         RRect.fromRectAndRadius(Rect.fromLTWH(chipX, chipY, chipW, chipH),
             const Radius.circular(10)),
@@ -1410,6 +1457,34 @@ class _DetectionOverlayPainter extends CustomPainter {
       );
 
       tp.paint(canvas, Offset(chipX + padH, chipY + padV));
+
+      // ── Scanning progress arc (shown while accumulating confirmation frames)
+      if (scanningProgress != null) {
+        final cx2 = (x1 + x2) / 2;
+        final cy2 = (y1 + y2) / 2;
+        final radius = (box.width < box.height ? box.width : box.height) / 2 + 10;
+        // Background ring
+        canvas.drawCircle(
+          Offset(cx2, cy2),
+          radius,
+          Paint()
+            ..color = colour.withOpacity(0.15)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 3.5,
+        );
+        // Progress arc
+        canvas.drawArc(
+          Rect.fromCircle(center: Offset(cx2, cy2), radius: radius),
+          -3.14159 / 2, // Start from top
+          2 * 3.14159 * scanningProgress!,
+          false,
+          Paint()
+            ..color = colour
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 3.5
+            ..strokeCap = StrokeCap.round,
+        );
+      }
     }
   }
 
@@ -1445,6 +1520,7 @@ class _DetectionOverlayPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _DetectionOverlayPainter old) {
+    if (old.scanningProgress != scanningProgress) return true;
     // Always repaint when the list size changes.
     if (old.detections.length != detections.length) return true;
     if (detections.isEmpty && old.detections.isEmpty) return false;
