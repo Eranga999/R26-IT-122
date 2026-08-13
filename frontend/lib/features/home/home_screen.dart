@@ -10,6 +10,7 @@ import '../../features/database/database_helper.dart';
 import '../../features/database/landmark_model.dart';
 import '../../features/database/sub_landmark_model.dart';
 import '../../widgets/landmark_info_card.dart';
+import '../camera/ar_translator_screen.dart'; // newly added translate screen
 import '../camera/camera_screen.dart';
 import '../chat/rag_chat_screen.dart';
 import '../navigation/nav_screen.dart';
@@ -159,17 +160,77 @@ class _HomeScreenState extends State<HomeScreen> {
           )
         : null;
 
-    return Scaffold(
-      appBar: topAppBar,
-      backgroundColor: AppTheme.surface,
-      bottomNavigationBar: _buildBottomNav(),
-      body: _navIndex == 0 ? _buildExploreBody() : _buildHeritageMap(),
-      floatingActionButton: _navIndex == 0 ? _buildScanFab() : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+    return PopScope(
+      canPop: _navIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_navIndex != 0) {
+          setState(() => _navIndex = 0);
+        }
+      },
+      child: Scaffold(
+        appBar: topAppBar,
+        backgroundColor: AppTheme.surface,
+        drawer: _buildDrawer(), // Adding the drawer menu
+        bottomNavigationBar: _buildBottomNav(),
+        body: _navIndex == 0 ? _buildExploreBody() : _buildHeritageMap(),
+        floatingActionButton: _navIndex == 0 ? _buildScanFab() : null,
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      ),
     );
   }
 
-  // â”€â”€ Bottom NAV â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Sidebar Drawer ────────────────────────────────────────────────────────
+  Widget _buildDrawer() {
+    return Drawer(
+      backgroundColor: AppTheme.surface,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          DrawerHeader(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF3E1D0A), Color(0xFF8D4E1A)],
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.account_balance, color: Colors.white, size: 28),
+                ),
+                const SizedBox(height: 12),
+                const Text('HeritageAR', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, fontFamily: 'Georgia')),
+                const Text('Offline Explorer Mode', style: TextStyle(color: Colors.white70, fontSize: 13)),
+              ],
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.g_translate_rounded, color: AppTheme.primary),
+            title: const Text('Live AR Sign Translator', style: TextStyle(fontWeight: FontWeight.w600, color: AppTheme.textBase)),
+            subtitle: const Text('Offline OCR & Translation', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            onTap: () {
+              Navigator.pop(context); // Close drawer
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ArTranslatorScreen()),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Bottom NAV ─────────────────────────────────────────────────────────────
   Widget _buildBottomNav() {
     return BottomAppBar(
       color: Colors.white,
@@ -201,7 +262,9 @@ class _HomeScreenState extends State<HomeScreen> {
             MaterialPageRoute(builder: (_) => const sigiriya_home.HomeScreen()),
           );
         } else {
-          setState(() => _navIndex = index);
+          if (_navIndex != index) {
+            setState(() => _navIndex = index);
+          }
         }
       },
       child: Padding(
@@ -258,12 +321,14 @@ class _HomeScreenState extends State<HomeScreen> {
       stretch: true,
       backgroundColor: AppTheme.primary,
       leadingWidth: 56,
-      leading: IconButton(
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints.tightFor(width: 40, height: 40),
-        splashRadius: 22,
-        icon: const Icon(Icons.menu, color: Colors.white, size: 24),
-        onPressed: () {},
+      leading: Builder(
+        builder: (context) => IconButton(
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+          splashRadius: 22,
+          icon: const Icon(Icons.menu, color: Colors.white, size: 24),
+          onPressed: () => Scaffold.of(context).openDrawer(), // Open the drawer
+        ),
       ),
       actions: const [],
       flexibleSpace: FlexibleSpaceBar(
