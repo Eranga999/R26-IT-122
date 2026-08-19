@@ -64,8 +64,12 @@ class _CameraScreenState extends State<CameraScreen>
   static const int _panelHoldMs = 6000;
 
   // ── Frame-rate throttle ───────────────────────────────────────────────────
-  // Limit inference to ~8 fps to prevent a processing backlog (lag).
-  static const int _minFrameIntervalMs = 125;
+  // Upper bound only — the _isProcessing gate below is what actually paces
+  // inference to the device's real speed, so this just stops us from trying
+  // more often than ~16 fps on fast devices. Now that preprocessing writes
+  // straight into a flat tensor buffer instead of nested Lists, inference is
+  // fast enough that this no longer is the bottleneck it used to be.
+  static const int _minFrameIntervalMs = 60;
 
   // ── Stale bounding-box protection ────────────────────────────────────────
   // The bounding box clears quickly (1.2 s or 6 empty frames), but the
@@ -654,7 +658,11 @@ class _CameraScreenState extends State<CameraScreen>
               ]),
             )),
 
-        if (_controller?.value.isInitialized == true && !_panelVisible)
+        // Hide the static center guide frame the moment a live detection box
+        // is on screen — showing both at once is the "two boxes" overlap.
+        if (_controller?.value.isInitialized == true &&
+            !_panelVisible &&
+            !_boxVisible)
           _buildScanFrame(),
 
         if (_panelVisible && _detectedLandmark != null) _buildFloatingDetectionCard(),
