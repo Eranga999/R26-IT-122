@@ -17,12 +17,19 @@ import '../ar/ar_screen.dart';
 import '../rag/rag_screen.dart';
 import '../navigation/nav_screen.dart';
 import '../home/home_screen.dart';
+import '../../widgets/site_selector_sheet.dart';
 
 /// Verification state of the GPS geofence check.
 enum _VerifyStatus { verifying, locked, outside, failed, manual }
 
 class CameraScreen extends StatefulWidget {
-  const CameraScreen({super.key});
+  /// When provided (e.g. picked on the home screen before opening the
+  /// camera), the GPS geofence check is skipped entirely and this site is
+  /// used straight away — GPS-locked or manual, matching how it was resolved
+  /// upstream.
+  final SiteLockResult? initialSiteLock;
+
+  const CameraScreen({super.key, this.initialSiteLock});
 
   @override
   State<CameraScreen> createState() => _CameraScreenState();
@@ -133,104 +140,78 @@ class _CameraScreenState extends State<CameraScreen>
     if (!_isDesktop) {
       _initCamera();
     }
-    // GPS verification runs concurrently in the background.
-    _verifyGpsInBackground();
+    // A site chosen up front on the home screen skips the GPS check
+    // entirely; otherwise verify via GPS in the background as before.
+    final preset = widget.initialSiteLock;
+    if (preset != null && preset.isLocked) {
+      _applySiteLock(preset);
+    } else {
+      _verifyGpsInBackground();
+    }
   }
 
   /// Runs GPS geofencing in the background after the camera is already open.
   Future<void> _verifyGpsInBackground() async {
     final result = await SiteLockService.instance.lockSiteByGps();
     if (!mounted) return;
-    final labels = RecognitionService.labelsForSite(result.site?.landmarkName);
+    if (result.status == SiteLockStatus.locked) {
+      _applySiteLock(result);
+      return;
+    }
+    setState(() {
+      _siteLock = result;
+      _allowedLabels = const [];
+      _verifyStatus = result.status == SiteLockStatus.outOfRange
+          ? _VerifyStatus.outside
+          // permissionDenied, serviceDisabled, timeout, error
+          : _VerifyStatus.failed;
+    });
+  }
+
+  /// Locks the screen onto a confirmed site — whether it came from a live
+  /// GPS fix or a manual pick (on the home screen or in-camera fallback) —
+  /// and kicks off model loading / DB cache warm-up if that site actually
+  /// has a detector (some sites are guide-only, see [RecognitionService.labelsForSite]).
+  void _applySiteLock(SiteLockResult result) {
+    final site = result.site;
+    if (!mounted || site == null) return;
+    final labels = RecognitionService.labelsForSite(site.landmarkName);
     setState(() {
       _siteLock = result;
       _allowedLabels = labels;
-      switch (result.status) {
-        case SiteLockStatus.locked:
-          _verifyStatus = _VerifyStatus.locked;
-        case SiteLockStatus.outOfRange:
-          _verifyStatus = _VerifyStatus.outside;
-        default:
-          // permissionDenied, serviceDisabled, timeout, error
-          _verifyStatus = _VerifyStatus.failed;
+      _verifyStatus =
+          result.source == 'gps' ? _VerifyStatus.locked : _VerifyStatus.manual;
+    });
+    if (labels.isEmpty) return;
+    RecognitionService.instance.loadModel();
+    // Pre-warm DB cache once the site is confirmed.
+    Future.microtask(() async {
+      final all = await DatabaseHelper.instance.getAllLandmarks();
+      for (final lm in all) {
+        if (lm.id == null || !mounted) continue;
+        _landmarkCache[lm.id!] = lm;
+        _subCache[lm.id!] =
+            await DatabaseHelper.instance.getSubLandmarks(lm.id!);
       }
     });
-    if (_canRunDetector) {
-      RecognitionService.instance.loadModel();
-      // Pre-warm DB cache once the site is confirmed.
-      Future.microtask(() async {
-        final all = await DatabaseHelper.instance.getAllLandmarks();
-        for (final lm in all) {
-          if (lm.id == null || !mounted) continue;
-          _landmarkCache[lm.id!] = lm;
-          _subCache[lm.id!] =
-              await DatabaseHelper.instance.getSubLandmarks(lm.id!);
-        }
-      });
-    }
   }
 
-  /// Shows the manual site-selection bottom sheet from within the camera screen.
+  /// Shows the manual site-selection bottom sheet from within the camera screen
+  /// (GPS fallback — the home screen also has its own entry point into the
+  /// same picker that skips this screen's GPS check altogether).
   Future<void> _selectManualSite() async {
     final sites = await SiteLockService.instance.loadSites();
     if (!mounted) return;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF1A0A00),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Center(
-              child: Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                      color: Colors.white30,
-                      borderRadius: BorderRadius.circular(2)))),
-          const Text('Select Your Current Site',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
-          const Text(
-              'GPS is unavailable — choose your heritage site manually.',
-              style: TextStyle(color: Colors.white54, fontSize: 12)),
-          const SizedBox(height: 16),
-          ...sites.map((site) => ListTile(
-                leading: const Icon(Icons.place_rounded,
-                    color: Color(0xFFFFB300)),
-                title: Text(site.landmarkName,
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.w600)),
-                subtitle: Text(site.landmarkId,
-                    style:
-                        const TextStyle(color: Colors.white54, fontSize: 12)),
-                onTap: () async {
-                  Navigator.pop(context);
-                  final labels =
-                      RecognitionService.labelsForSite(site.landmarkName);
-                  setState(() {
-                    _siteLock = SiteLockResult.manual(site: site);
-                    _allowedLabels = labels;
-                    _verifyStatus = _VerifyStatus.manual;
-                  });
-                  RecognitionService.instance.loadModel();
-                  final all = await DatabaseHelper.instance.getAllLandmarks();
-                  for (final lm in all) {
-                    if (lm.id == null || !mounted) continue;
-                    _landmarkCache[lm.id!] = lm;
-                    _subCache[lm.id!] =
-                        await DatabaseHelper.instance.getSubLandmarks(lm.id!);
-                  }
-                },
-              )),
-        ]),
+      builder: (_) => SiteSelectorSheet(
+        sites: sites,
+        subtitle: 'GPS is unavailable — choose your heritage site manually.',
+        onSiteSelected: (site) {
+          Navigator.pop(context);
+          _applySiteLock(SiteLockResult.manual(site: site));
+        },
       ),
     );
   }
@@ -476,80 +457,6 @@ class _CameraScreenState extends State<CameraScreen>
     });
   }
 
-  Future<void> _showDemoPicker() async {
-    final landmarks = await DatabaseHelper.instance.getAllLandmarks();
-    final options = _siteLock?.site?.landmarkDbId == null
-        ? landmarks
-        : landmarks
-            .where((lm) => lm.id == _siteLock?.site?.landmarkDbId)
-            .toList();
-
-    if (!mounted) return;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF1A0A00),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-                child: Container(
-                    width: 36,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                        color: Colors.white30,
-                        borderRadius: BorderRadius.circular(2)))),
-            const Text('Simulate Detection',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            Text(
-                _siteLock?.site?.landmarkName == null
-                    ? 'Select a landmark to preview the AR overlay'
-                    : 'Site lock active: ${_siteLock?.site?.landmarkName}',
-                style: const TextStyle(color: Colors.white54, fontSize: 12)),
-            const SizedBox(height: 16),
-            ...options.map((lm) => ListTile(
-                  leading: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                          color: AppTheme.primary.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(10)),
-                      child: const Icon(Icons.account_balance_rounded,
-                          color: Color(0xFFFFB300), size: 20)),
-                  title: Text(lm.name,
-                      style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Tap to simulate',
-                      style: TextStyle(color: Colors.white38, fontSize: 11)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    // Simulate a detection result centered on screen
-                    const simulatedBox = Rect.fromLTWH(0.25, 0.25, 0.5, 0.5);
-                    final detection = DetectionResult(
-                        label: lm.name.toLowerCase(),
-                        confidence: 0.94,
-                        boundingBox: simulatedBox,
-                        classIndex: 0);
-                    _onLandmarkDetected(detection);
-                  },
-                )),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   void dispose() {
     _pulseAnim.dispose();
@@ -631,30 +538,7 @@ class _CameraScreenState extends State<CameraScreen>
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.5,
                           fontFamily: 'Georgia')),
-                  if (_canRunDetector && !_panelVisible && _cameraError == null && _controller?.value.isInitialized == true)
-                    GestureDetector(
-                        onTap: _showDemoPicker,
-                        child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            decoration: BoxDecoration(
-                                color: AppTheme.secondary.withOpacity(0.9),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: AppTheme.secondary, width: 1.0),
-                                boxShadow: [
-                                  BoxShadow(color: AppTheme.secondary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))
-                                ]
-                            ),
-                            child: const Row(
-                                children: [
-                                  Icon(Icons.science_rounded, color: Colors.white, size: 16),
-                                  SizedBox(width: 6),
-                                  Text('Demo', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold))
-                                ]
-                            )
-                        ),
-                    )
-                  else
-                    const SizedBox(width: 48),
+                  const SizedBox(width: 48),
               ]),
             )),
 
