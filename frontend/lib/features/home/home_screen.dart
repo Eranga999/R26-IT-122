@@ -11,6 +11,7 @@ import '../../features/database/database_helper.dart';
 import '../../features/database/landmark_model.dart';
 import '../../features/database/sub_landmark_model.dart';
 import '../../widgets/landmark_info_card.dart';
+import '../../widgets/site_selector_sheet.dart';
 import '../camera/ar_translator_screen.dart'; // newly added translate screen
 import '../camera/camera_screen.dart';
 import '../chat/rag_chat_screen.dart';
@@ -159,9 +160,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _launchCamera() async {
     if (!mounted) return;
+    final lock = _siteLock;
+    // A site already confirmed here (GPS or manual) is handed straight to
+    // the camera screen so it doesn't re-run the GPS check on open.
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const CameraScreen()),
+      MaterialPageRoute(
+        builder: (_) => CameraScreen(
+          initialSiteLock: (lock != null && lock.isLocked) ? lock : null,
+        ),
+      ),
     );
   }
 
@@ -178,64 +186,18 @@ class _HomeScreenState extends State<HomeScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF1A0A00),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white30,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const Text(
-                'Select Current Site',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Use manual lock when GPS is unavailable.',
-                style: TextStyle(color: Colors.white60, fontSize: 12),
-              ),
-              const SizedBox(height: 16),
-              ...sites.map((site) => ListTile(
-                    leading: const Icon(Icons.place_rounded,
-                        color: Color(0xFFFFB300)),
-                    title: Text(site.landmarkName,
-                        style: const TextStyle(color: Colors.white)),
-                    subtitle: Text(site.landmarkId,
-                        style: const TextStyle(
-                            color: Colors.white54, fontSize: 12)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      if (!mounted) {
-                        return;
-                      }
-                      setState(() {
-                        _siteLock = SiteLockResult.manual(site: site);
-                      });
-                    },
-                  )),
-            ],
-          ),
-        );
-      },
+      builder: (_) => SiteSelectorSheet(
+        sites: sites,
+        subtitle: 'Use manual selection when GPS is unavailable — this '
+            'carries straight into the camera without rechecking GPS.',
+        onSiteSelected: (site) {
+          Navigator.pop(context);
+          if (!mounted) return;
+          setState(() {
+            _siteLock = SiteLockResult.manual(site: site);
+          });
+        },
+      ),
     );
   }
 
