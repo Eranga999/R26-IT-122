@@ -1,6 +1,6 @@
-import 'dart:io';
 import 'dart:isolate';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/services.dart';
@@ -83,6 +83,17 @@ void _inferenceIsolateEntry(SendPort mainSendPort) async {
   int inputHeight = 640;
   List<int> outputShape = [];
   bool isTransposed = false;
+
+  // ── Quantization info ────────────────────────────────────────────────────
+  // Populated from the tensors at load time so both a plain float32 export
+  // and an int8-quantized export (input/output tensors as uint8 or int8)
+  // work without needing to know in advance which one was bundled.
+  TensorType inputTensorType = TensorType.float32;
+  double inputScale = 1.0;
+  int inputZeroPoint = 0;
+  TensorType outputTensorType = TensorType.float32;
+  double outputScale = 1.0;
+  int outputZeroPoint = 0;
 
   final labels = [
     'sigiriya_lion_paws',
@@ -186,6 +197,49 @@ void _inferenceIsolateEntry(SendPort mainSendPort) async {
       }
     }
     return tensor;
+  }
+
+  // ── Quantized tensor conversion ──────────────────────────────────────────
+  // An int8/uint8-quantized TFLite export needs its input written as
+  // integers (real = (quantized - zeroPoint) * scale, i.e. the inverse of
+  // this) and its output read back as real numbers via that same formula.
+  // A plain float32 export needs neither and is handled inline where these
+  // are called.
+  Uint8List quantizeInput(
+      Float32List normalized, TensorType type, double scale, int zeroPoint) {
+    final n = normalized.length;
+    if (type == TensorType.int8) {
+      final out = Int8List(n);
+      for (int i = 0; i < n; i++) {
+        final q = (normalized[i] / scale + zeroPoint).round();
+        out[i] = q.clamp(-128, 127);
+      }
+      return out.buffer.asUint8List();
+    }
+    // uint8 (default assumption for any other quantized type)
+    final out = Uint8List(n);
+    for (int i = 0; i < n; i++) {
+      final q = (normalized[i] / scale + zeroPoint).round();
+      out[i] = q.clamp(0, 255);
+    }
+    return out;
+  }
+
+  Float32List dequantizeOutput(
+      Uint8List raw, TensorType type, double scale, int zeroPoint) {
+    final out = Float32List(raw.length);
+    if (type == TensorType.int8) {
+      final signed = Int8List.sublistView(raw);
+      for (int i = 0; i < signed.length; i++) {
+        out[i] = (signed[i] - zeroPoint) * scale;
+      }
+    } else {
+      // uint8
+      for (int i = 0; i < raw.length; i++) {
+        out[i] = (raw[i] - zeroPoint) * scale;
+      }
+    }
+    return out;
   }
 
   List<DetectionResult> _parseOutput(Float32List flat, _InferenceRequest req) {
@@ -318,17 +372,39 @@ void _inferenceIsolateEntry(SendPort mainSendPort) async {
       try {
         interpreter = Interpreter.fromBuffer(msg.modelBytes, options: InterpreterOptions()..threads = 4);
         interpreter.allocateTensors();
-        
-        final inShape = interpreter.getInputTensor(0).shape;
+
+        final inTensor = interpreter.getInputTensor(0);
+        final inShape = inTensor.shape;
         if (inShape.length >= 4) {
           inputHeight = inShape[1];
           inputWidth = inShape[2];
         }
-        
+        inputTensorType = inTensor.type;
+        if (inputTensorType == TensorType.uint8 || inputTensorType == TensorType.int8) {
+          inputScale = inTensor.params.scale;
+          inputZeroPoint = inTensor.params.zeroPoint;
+        } else if (inputTensorType != TensorType.float32) {
+          debugPrint('[RecognitionService] Unexpected input tensor type '
+              '$inputTensorType — treating as float32.');
+          inputTensorType = TensorType.float32;
+        }
+
         final outTensor = interpreter.getOutputTensor(0);
         final outShape = outTensor.shape;
         outputShape = outShape.length > 1 ? outShape.sublist(1) : outShape;
         isTransposed = outputShape.length >= 2 && outputShape[0] < outputShape[1];
+        outputTensorType = outTensor.type;
+        if (outputTensorType == TensorType.uint8 || outputTensorType == TensorType.int8) {
+          outputScale = outTensor.params.scale;
+          outputZeroPoint = outTensor.params.zeroPoint;
+        } else if (outputTensorType != TensorType.float32) {
+          debugPrint('[RecognitionService] Unexpected output tensor type '
+              '$outputTensorType — treating as float32.');
+          outputTensorType = TensorType.float32;
+        }
+        debugPrint('[RecognitionService] Model loaded: input=$inputTensorType '
+            '(scale=$inputScale, zp=$inputZeroPoint), '
+            'output=$outputTensorType (scale=$outputScale, zp=$outputZeroPoint)');
 
         msg.replyPort.send(_InferenceWorkerReady(
           sendPort: receivePort.sendPort,
@@ -354,10 +430,18 @@ void _inferenceIsolateEntry(SendPort mainSendPort) async {
 
          // 2. Run Inference — write/read tensor bytes directly, skipping the
          // nested List<List<...>> copy that runForMultipleInputs would do.
+         // Branches on the tensor's actual type so both a float32 export and
+         // an int8-quantized export (uint8/int8 in+out tensors) work as-is.
          final inferSw = Stopwatch()..start();
-         interpreter.getInputTensor(0).data = inputFloats.buffer.asUint8List();
+         final inputBytes = inputTensorType == TensorType.float32
+             ? inputFloats.buffer.asUint8List()
+             : quantizeInput(inputFloats, inputTensorType, inputScale, inputZeroPoint);
+         interpreter.getInputTensor(0).data = inputBytes;
          interpreter.invoke();
-         final flat = Float32List.sublistView(interpreter.getOutputTensor(0).data);
+         final outRaw = interpreter.getOutputTensor(0).data;
+         final flat = outputTensorType == TensorType.float32
+             ? Float32List.sublistView(outRaw)
+             : dequantizeOutput(outRaw, outputTensorType, outputScale, outputZeroPoint);
          final inferMs = inferSw.elapsedMilliseconds;
 
          // 3. Postprocess (Decode, NMS)
