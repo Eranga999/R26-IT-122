@@ -82,7 +82,6 @@ void _inferenceIsolateEntry(SendPort mainSendPort) async {
   int inputWidth = 640;
   int inputHeight = 640;
   List<int> outputShape = [];
-  List<int> fullOutputShape = [];
   bool isTransposed = false;
 
   final labels = [
@@ -94,12 +93,19 @@ void _inferenceIsolateEntry(SendPort mainSendPort) async {
   ];
 
   // Helper functions inside isolate
-  List<List<List<List<double>>>> preprocessImage(_InferenceRequest req) {
+  //
+  // Writes straight into a flat Float32List instead of building a
+  // List<List<List<List<double>>>> tensor. The nested-list version allocates
+  // ~410k tiny List<double> objects per frame (640*640), which dominates
+  // frame time and is the main reason the bounding box used to lag behind
+  // the live camera feed. A flat typed buffer avoids all of that boxing.
+  Float32List preprocessImage(_InferenceRequest req) {
     final int inW = req.width;
     final int inH = req.height;
     final int outW = req.inputW;
     final int outH = req.inputH;
     final orientation = req.sensorOrientation;
+    final tensor = Float32List(outH * outW * 3);
 
     if (req.format != 'yuv420') {
       // Fallback for BGRA8888 (e.g. iOS simulator) which isn't the primary bottleneck
@@ -109,14 +115,16 @@ void _inferenceIsolateEntry(SendPort mainSendPort) async {
       if (orientation == 180) src = img.copyRotate(src, angle: 180);
       if (orientation == 270) src = img.copyRotate(src, angle: 270);
       final resized = img.copyResize(src, width: outW, height: outH, interpolation: img.Interpolation.linear);
-      return List.generate(
-        1,
-        (_) => List.generate(outH, (y) => List.generate(outW, (x) {
+      int i = 0;
+      for (int y = 0; y < outH; y++) {
+        for (int x = 0; x < outW; x++) {
           final p = resized.getPixel(x, y);
-          return <double>[p.r / 255.0, p.g / 255.0, p.b / 255.0];
-        }, growable: false), growable: false),
-        growable: false,
-      );
+          tensor[i++] = p.r / 255.0;
+          tensor[i++] = p.g / 255.0;
+          tensor[i++] = p.b / 255.0;
+        }
+      }
+      return tensor;
     }
 
     // --- Fast Direct YUV420 to Normalized Float32 Tensor ---
@@ -129,83 +137,55 @@ void _inferenceIsolateEntry(SendPort mainSendPort) async {
     final uvStride = req.planes[1]['bytesPerRow'] as int;
     final uvPixelStride = req.planes[1]['bytesPerPixel'] as int? ?? 1;
 
-    return List<List<List<List<double>>>>.generate(
-      1,
-      (_) => List<List<List<double>>>.generate(
-        outH,
-        (y) => List<List<double>>.generate(
-          outW,
-          (x) {
-            // 1. Map target tensor (x, y) back to normalized [0..1] space
-            double normX = x / outW;
-            double normY = y / outH;
+    final bool rot90 = orientation == 90;
+    final bool rot180 = orientation == 180;
+    final bool rot270 = orientation == 270;
 
-            // 2. Reverse the camera rotation
-            double srcNormX = normX;
-            double srcNormY = normY;
-            if (orientation == 90) {
-              srcNormX = normY;
-              srcNormY = 1.0 - normX;
-            } else if (orientation == 180) {
-              srcNormX = 1.0 - normX;
-              srcNormY = 1.0 - normY;
-            } else if (orientation == 270) {
-              srcNormX = 1.0 - normY;
-              srcNormY = normX;
-            }
+    int i = 0;
+    for (int y = 0; y < outH; y++) {
+      // 1. Map target tensor row back to normalized [0..1] space
+      final double normY = y / outH;
+      for (int x = 0; x < outW; x++) {
+        final double normX = x / outW;
 
-            // 3. Map to original camera buffer dimensions
-            int srcX = (srcNormX * inW).floor().clamp(0, inW - 1);
-            int srcY = (srcNormY * inH).floor().clamp(0, inH - 1);
+        // 2. Reverse the camera rotation
+        double srcNormX = normX;
+        double srcNormY = normY;
+        if (rot90) {
+          srcNormX = normY;
+          srcNormY = 1.0 - normX;
+        } else if (rot180) {
+          srcNormX = 1.0 - normX;
+          srcNormY = 1.0 - normY;
+        } else if (rot270) {
+          srcNormX = 1.0 - normY;
+          srcNormY = normX;
+        }
 
-            // 4. Sample the Y, U, V channels at this exact pixel
-            final yIdx = yStride * srcY + srcX;
-            final uvIdx = uvStride * (srcY >> 1) + (srcX >> 1) * uvPixelStride;
+        // 3. Map to original camera buffer dimensions
+        final int srcX = (srcNormX * inW).floor().clamp(0, inW - 1);
+        final int srcY = (srcNormY * inH).floor().clamp(0, inH - 1);
 
-            final yf = yBytes[yIdx].toDouble();
-            final uf = uBytes[uvIdx].toDouble() - 128.0;
-            final vf = vBytes[uvIdx].toDouble() - 128.0;
+        // 4. Sample the Y, U, V channels at this exact pixel
+        final yIdx = yStride * srcY + srcX;
+        final uvIdx = uvStride * (srcY >> 1) + (srcX >> 1) * uvPixelStride;
 
-            // 5. Convert to RGB
-            final r = (yf + 1.402 * vf).round().clamp(0, 255);
-            final g = (yf - 0.344136 * uf - 0.714136 * vf).round().clamp(0, 255);
-            final b = (yf + 1.772 * uf).round().clamp(0, 255);
+        final yf = yBytes[yIdx].toDouble();
+        final uf = uBytes[uvIdx].toDouble() - 128.0;
+        final vf = vBytes[uvIdx].toDouble() - 128.0;
 
-            // 6. Normalize to [0...1] float and return innermost tensor array
-            return <double>[r / 255.0, g / 255.0, b / 255.0];
-          },
-          growable: false,
-        ),
-        growable: false,
-      ),
-      growable: false,
-    );
-  }
+        // 5. Convert to RGB
+        final r = (yf + 1.402 * vf).round().clamp(0, 255);
+        final g = (yf - 0.344136 * uf - 0.714136 * vf).round().clamp(0, 255);
+        final b = (yf + 1.772 * uf).round().clamp(0, 255);
 
-  dynamic _buildNestedOutputBuffer(List<int> shape) {
-    if (shape.isEmpty) return 0.0;
-    if (shape.length == 1) return List<double>.filled(shape[0], 0.0, growable: false);
-    return List.generate(
-      shape[0],
-      (_) => _buildNestedOutputBuffer(shape.sublist(1)),
-      growable: false,
-    );
-  }
-
-  void _collectOutputValues(dynamic value, List<double> buffer) {
-    if (value is num) {
-      buffer.add(value.toDouble());
-    } else if (value is List) {
-      for (final item in value) {
-        _collectOutputValues(item, buffer);
+        // 6. Normalize to [0...1] float straight into the tensor buffer
+        tensor[i++] = r / 255.0;
+        tensor[i++] = g / 255.0;
+        tensor[i++] = b / 255.0;
       }
     }
-  }
-
-  Float32List _flattenOutput(dynamic value) {
-    final buffer = <double>[];
-    _collectOutputValues(value, buffer);
-    return Float32List.fromList(buffer);
+    return tensor;
   }
 
   List<DetectionResult> _parseOutput(Float32List flat, _InferenceRequest req) {
@@ -347,7 +327,6 @@ void _inferenceIsolateEntry(SendPort mainSendPort) async {
         
         final outTensor = interpreter.getOutputTensor(0);
         final outShape = outTensor.shape;
-        fullOutputShape = outShape;
         outputShape = outShape.length > 1 ? outShape.sublist(1) : outShape;
         isTransposed = outputShape.length >= 2 && outputShape[0] < outputShape[1];
 
@@ -368,20 +347,21 @@ void _inferenceIsolateEntry(SendPort mainSendPort) async {
       try {
          final totalSw = Stopwatch()..start();
 
-         // 1. Preprocess (YUV -> Resize -> Normalize)
+         // 1. Preprocess (YUV -> Resize -> Normalize) directly into a flat tensor buffer
          final preSw = Stopwatch()..start();
-         final inputTensor = preprocessImage(msg);
+         final inputFloats = preprocessImage(msg);
          final preMs = preSw.elapsedMilliseconds;
-         
-         // 2. Run Inference
+
+         // 2. Run Inference — write/read tensor bytes directly, skipping the
+         // nested List<List<...>> copy that runForMultipleInputs would do.
          final inferSw = Stopwatch()..start();
-         final rawOutput = _buildNestedOutputBuffer(fullOutputShape);
-         interpreter.runForMultipleInputs([inputTensor], {0: rawOutput});
+         interpreter.getInputTensor(0).data = inputFloats.buffer.asUint8List();
+         interpreter.invoke();
+         final flat = Float32List.sublistView(interpreter.getOutputTensor(0).data);
          final inferMs = inferSw.elapsedMilliseconds;
 
-         // 3. Postprocess (Flatten, Decode, NMS)
+         // 3. Postprocess (Decode, NMS)
          final postSw = Stopwatch()..start();
-         final flat = _flattenOutput(rawOutput);
          final detections = _parseOutput(flat, msg);
          final finalResults = _nms(detections, msg.nmsIouThreshold);
          final postMs = postSw.elapsedMilliseconds;
