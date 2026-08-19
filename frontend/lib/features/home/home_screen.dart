@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import '../../core/location/site_geofence.dart';
 import '../../core/location/site_lock_service.dart';
@@ -35,7 +36,20 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadLandmarks();
-    _resolveGpsSiteLock();
+    // Only auto-check GPS if permission was already granted — never popup on launch.
+    _checkSiteLockIfAlreadyPermitted();
+  }
+
+  Future<void> _checkSiteLockIfAlreadyPermitted() async {
+    final permission = await Geolocator.checkPermission();
+    final alreadyGranted = permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always;
+
+    if (alreadyGranted) {
+      await _resolveGpsSiteLock(requestPermission: false, showFeedback: false);
+    } else if (mounted) {
+      setState(() => _siteLockLoading = false);
+    }
   }
 
   Future<void> _loadLandmarks() async {
@@ -48,12 +62,17 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _resolveGpsSiteLock() async {
+  Future<void> _resolveGpsSiteLock({
+    bool requestPermission = true,
+    bool showFeedback = true,
+  }) async {
     if (mounted) {
       setState(() => _siteLockLoading = true);
     }
 
-    final result = await SiteLockService.instance.lockSiteByGps();
+    final result = await SiteLockService.instance.lockSiteByGps(
+      requestPermission: requestPermission,
+    );
     if (!mounted) {
       return;
     }
@@ -62,6 +81,80 @@ class _HomeScreenState extends State<HomeScreen> {
       _siteLock = result;
       _siteLockLoading = false;
     });
+
+    if (showFeedback) {
+      _showSiteLockFeedback(result);
+    }
+  }
+
+  void _showSiteLockFeedback(SiteLockResult result) {
+    if (!mounted) return;
+
+    final String text;
+    final Color bg;
+    final IconData icon;
+
+    switch (result.status) {
+      case SiteLockStatus.locked:
+        text = 'Location verified — ${result.site?.landmarkName ?? 'Heritage site'}';
+        bg = const Color(0xFF2E7D32);
+        icon = Icons.check_circle_rounded;
+      case SiteLockStatus.outOfRange:
+        text = result.message ??
+            'You are not near a supported heritage site. Use Choose Site for manual mode.';
+        bg = const Color(0xFFE65100);
+        icon = Icons.location_off_rounded;
+      case SiteLockStatus.serviceDisabled:
+        text = 'Turn on GPS/Location in your phone settings, then tap Verify Location again.';
+        bg = const Color(0xFF1565C0);
+        icon = Icons.gps_off_rounded;
+      case SiteLockStatus.permissionDenied:
+        text = result.message ??
+            'Location permission denied. Allow location access for this app in Settings.';
+        bg = const Color(0xFFC62828);
+        icon = Icons.block_rounded;
+      case SiteLockStatus.timeout:
+        text = result.message ??
+            'GPS signal weak. Move to an open area and try again.';
+        bg = const Color(0xFFEF6C00);
+        icon = Icons.signal_wifi_off_rounded;
+      case SiteLockStatus.error:
+        text = result.message ?? 'Could not verify location. Please try again.';
+        bg = const Color(0xFFC62828);
+        icon = Icons.error_outline_rounded;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(icon, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(text, style: const TextStyle(fontSize: 13)),
+              ),
+            ],
+          ),
+          backgroundColor: bg,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          action: result.openSettings
+              ? SnackBarAction(
+                  label: 'Settings',
+                  textColor: Colors.white,
+                  onPressed: () async {
+                    if (result.status == SiteLockStatus.serviceDisabled) {
+                      await Geolocator.openLocationSettings();
+                    } else {
+                      await Geolocator.openAppSettings();
+                    }
+                  },
+                )
+              : null,
+        ),
+      );
   }
 
   Future<void> _launchCamera() async {
@@ -603,7 +696,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   borderRadius: BorderRadius.circular(10)),
               textStyle: const TextStyle(fontSize: 12),
             ),
-            onPressed: _resolveGpsSiteLock,
+            onPressed: _siteLockLoading ? null : () => _resolveGpsSiteLock(requestPermission: true),
             child: const Text('Refresh'),
           ),
         ]),
@@ -611,9 +704,12 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     // ── Failed or Outside state ───────────────────────────────────────────────
+    final statusDetail = lock?.message;
     final message = outside
-        ? 'You\'re not near a heritage site — Choose a site manually to start exploring.'
-        : 'Location not verified — Enable GPS or choose a heritage site to begin exploration.';
+        ? (statusDetail ??
+            'You\'re not near a heritage site — Choose a site manually or verify again if you moved closer.')
+        : (statusDetail ??
+            'Location not verified — Enable GPS or choose a heritage site to begin exploration.');
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -651,23 +747,22 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 10),
           Row(children: [
-            if (!outside)
-              Expanded(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.primary,
-                    side: const BorderSide(color: AppTheme.primary),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                    textStyle: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w600),
-                  ),
-                  onPressed: _resolveGpsSiteLock,
-                  child: const Text('Verify Location'),
+            Expanded(
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.primary,
+                  side: const BorderSide(color: AppTheme.primary),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  textStyle: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600),
                 ),
+                onPressed: _siteLockLoading ? null : () => _resolveGpsSiteLock(requestPermission: true),
+                child: Text(outside ? 'Verify Again' : 'Verify Location'),
               ),
-            if (!outside) const SizedBox(width: 8),
+            ),
+            const SizedBox(width: 8),
             Expanded(
               child: OutlinedButton(
                 style: OutlinedButton.styleFrom(
