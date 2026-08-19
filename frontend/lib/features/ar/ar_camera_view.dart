@@ -61,8 +61,17 @@ class _ArCameraViewState extends State<ArCameraView>
   // Frame throttle for YOLO in nav mode
   bool _isProcessingFrame = false;
   int _lastFrameMs = 0;
-  static const int _frameThrottleMs = 500;
+  // 200 ms (5 fps) – enough for smooth box updates without overwhelming the isolate.
+  static const int _frameThrottleMs = 200;
   List<DetectionResult> _liveDetections = [];
+
+  // ── Nav-mode bounding-box smoothing & stale-box timeout ────────────────
+  Rect? _smoothedNavBox;
+  int _lastNavDetectionMs = 0;
+  /// 0.35 → 35% toward new position per frame – glides without snapping.
+  static const double _navBoxAlpha = 0.35;
+  /// After 1 s with no detection the box is cleared to avoid stale ghosts.
+  static const int _navBoxHoldMs = 1000;
 
 
   // GPS accuracy warning
@@ -225,30 +234,61 @@ class _ArCameraViewState extends State<ArCameraView>
 
       if (!mounted) return;
 
-      setState(() {
-        _liveDetections = results;
-      });
-
       if (results.isEmpty) {
+        // ── No detection ────────────────────────────────────────────────
+        final staleMs = now - _lastNavDetectionMs;
+        if (staleMs > _navBoxHoldMs) {
+          // Box has been empty long enough – clear it so it doesn’t ghost.
+          if (mounted && _liveDetections.isNotEmpty) {
+            setState(() {
+              _liveDetections = const [];
+              _smoothedNavBox = null;
+            });
+          }
+        }
         final s = _navService.onDetectionUpdate(
           label: null,
           confidence: 0,
           bboxCenterX: null,
           bboxCenterY: null,
         );
-        setState(() => _navSnapshot = s);
+        if (mounted) setState(() => _navSnapshot = s);
       } else {
+        // ── Live detection ─────────────────────────────────────────────
+        _lastNavDetectionMs = now;
         final best =
             results.reduce((a, b) => a.confidence > b.confidence ? a : b);
-        final cx = best.boundingBox.left + best.boundingBox.width / 2;
-        final cy = best.boundingBox.top + best.boundingBox.height / 2;
+
+        // Exponential smoothing on the box position to reduce jitter.
+        final ref = best.boundingBox;
+        _smoothedNavBox = _smoothedNavBox == null
+            ? ref
+            : Rect.fromLTRB(
+                _smoothedNavBox!.left   * (1 - _navBoxAlpha) + ref.left   * _navBoxAlpha,
+                _smoothedNavBox!.top    * (1 - _navBoxAlpha) + ref.top    * _navBoxAlpha,
+                _smoothedNavBox!.right  * (1 - _navBoxAlpha) + ref.right  * _navBoxAlpha,
+                _smoothedNavBox!.bottom * (1 - _navBoxAlpha) + ref.bottom * _navBoxAlpha,
+              );
+
+        final smoothedBest = DetectionResult(
+          label: best.label,
+          confidence: best.confidence,
+          boundingBox: _smoothedNavBox!,
+          classIndex: best.classIndex,
+        );
+
+        final cx = _smoothedNavBox!.left + _smoothedNavBox!.width / 2;
+        final cy = _smoothedNavBox!.top + _smoothedNavBox!.height / 2;
+
+        setState(() => _liveDetections = [smoothedBest]);
+
         final s = _navService.onDetectionUpdate(
           label: best.label,
           confidence: best.confidence,
           bboxCenterX: cx,
           bboxCenterY: cy,
         );
-        setState(() => _navSnapshot = s);
+        if (mounted) setState(() => _navSnapshot = s);
       }
     } catch (_) {
       // ignore inference errors; keep navigating
