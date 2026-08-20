@@ -343,7 +343,6 @@ class _ArTranslatorScreenState extends State<ArTranslatorScreen>
 
       await _applyRecognizedText(
         combinedRecognizedText,
-        maxBlocks: 8,
         cancelToken: myToken,
       );
 
@@ -395,12 +394,11 @@ class _ArTranslatorScreenState extends State<ArTranslatorScreen>
     }
   }
 
-  // Signboards occasionally contain a full paragraph of text. Translating
-  // (and later laying out / painting) hundreds of characters per block is
-  // what made captures of long text feel laggy — cap each candidate so the
-  // OCR→translate→paint pipeline stays bounded regardless of how much text
-  // was on the sign. The AR overlay only ever shows 3 lines anyway.
-  static const int _maxCandidateChars = 240;
+  // A capture can contain a lot of text. Translating (and later laying out
+  // / painting) an unbounded amount of it is what made captures of long
+  // text feel laggy — cap the merged candidate so the OCR→translate→paint
+  // pipeline stays bounded regardless of how much text was on the sign.
+  static const int _maxCandidateChars = 600;
 
   String _capText(String text) => text.length > _maxCandidateChars
       ? text.substring(0, _maxCandidateChars)
@@ -408,16 +406,12 @@ class _ArTranslatorScreenState extends State<ArTranslatorScreen>
 
   Future<void> _applyRecognizedText(
     RecognizedText recognizedText, {
-    int? maxBlocks,
     int? cancelToken,
   }) async {
     // Flatten every recognized line, ignoring which ML Kit "block" it was
-    // grouped into — ML Kit frequently splits one visual paragraph into
-    // several blocks (different font weights, a line with slightly more
-    // spacing, etc.), which was exactly why one signboard paragraph used to
-    // show up as many small overlapping boxes. Clustering below regroups
-    // lines by actual on-screen layout instead of trusting ML Kit's block
-    // boundaries, so a paragraph becomes one box with one translation.
+    // grouped into, and merge the whole capture into a single translation
+    // candidate — one photo should read as one translated card, not a
+    // scatter of small boxes per OCR fragment.
     final lines = <({String text, Rect box})>[];
     for (final block in recognizedText.blocks) {
       for (final line in block.lines) {
@@ -427,11 +421,7 @@ class _ArTranslatorScreenState extends State<ArTranslatorScreen>
       }
     }
 
-    final candidates = _clusterLinesIntoParagraphs(lines, maxBlocks: maxBlocks)
-        .map((c) => (text: _capText(c.text), box: c.box))
-        .toList();
-
-    if (candidates.isEmpty) {
+    if (lines.isEmpty) {
       if (mounted && (cancelToken == null || cancelToken == _captureToken)) {
         setState(() {
           _translatedBlocks = [];
@@ -441,57 +431,49 @@ class _ArTranslatorScreenState extends State<ArTranslatorScreen>
       return;
     }
 
-    // ML Kit sometimes emits multiple overlapping blocks/lines for the same
-    // physical text (e.g. a block plus a near-duplicate line region), which
-    // used to render as stacked, unreadable ghost boxes on screen. Keep only
-    // the longest candidate among any set of significantly overlapping ones.
-    final dedupedCandidates = _dedupeOverlappingCandidates(candidates);
+    // Cluster into paragraphs purely to keep reading order sane when
+    // concatenating (a heading and a body paragraph get a break between
+    // them instead of being smashed onto one line) — the result is still
+    // combined into a single candidate below.
+    final paragraphs = _clusterLinesIntoParagraphs(lines);
+    final mergedText = _capText(paragraphs.map((p) => p.text).join('\n\n'));
 
-    // Translate all candidates in parallel with per-call timeout
-    final results = await Future.wait(
-      dedupedCandidates.map((c) async {
-        try {
-          final result = await _translationEngine
-              .translate(
-                rawInput: c.text,
-                targetLanguage: _targetLanguageCode,
-              )
-              .timeout(
-                const Duration(seconds: 3),
-                onTimeout: () => TranslationResult.unsupported(
-                  inputText: c.text,
-                  normalizedText: c.text,
-                  sourceLanguage: 'unknown',
-                  targetLanguage: _targetLanguageCode,
-                ),
-              );
-          return (text: c.text, box: c.box, result: result);
-        } catch (_) {
-          return (
-            text: c.text,
-            box: c.box,
-            result: TranslationResult.unsupported(
-              inputText: c.text,
-              normalizedText: c.text,
+    var mergedBox = lines.first.box;
+    for (final l in lines.skip(1)) {
+      mergedBox = mergedBox.expandToInclude(l.box);
+    }
+
+    TranslationResult result;
+    try {
+      result = await _translationEngine
+          .translate(rawInput: mergedText, targetLanguage: _targetLanguageCode)
+          .timeout(
+            const Duration(seconds: 4),
+            onTimeout: () => TranslationResult.unsupported(
+              inputText: mergedText,
+              normalizedText: mergedText,
               sourceLanguage: 'unknown',
               targetLanguage: _targetLanguageCode,
             ),
           );
-        }
-      }),
-    );
+    } catch (_) {
+      result = TranslationResult.unsupported(
+        inputText: mergedText,
+        normalizedText: mergedText,
+        sourceLanguage: 'unknown',
+        targetLanguage: _targetLanguageCode,
+      );
+    }
 
     final List<_TranslatedBlock> newBlocks = [];
-    for (final r in results) {
-      if (r.result.translatedText.isNotEmpty &&
-          r.result.status != TranslationStatus.empty) {
-        final id = _blockId(r.text, r.box);
-        newBlocks.add(_TranslatedBlock(
-          id: id,
-          boundingBox: _smoothBox(id, r.box),
-          result: r.result,
-        ));
-      }
+    if (result.translatedText.isNotEmpty &&
+        result.status != TranslationStatus.empty) {
+      final id = _blockId(mergedText, mergedBox);
+      newBlocks.add(_TranslatedBlock(
+        id: id,
+        boundingBox: _smoothBox(id, mergedBox),
+        result: result,
+      ));
     }
 
     final activeIds = newBlocks.map((b) => b.id).toSet();
@@ -544,13 +526,12 @@ class _ArTranslatorScreenState extends State<ArTranslatorScreen>
 
   /// Groups OCR lines into paragraph-shaped clusters by actual layout
   /// (vertical adjacency + horizontal overlap) rather than by ML Kit's own
-  /// block boundaries, then merges each cluster into a single candidate
-  /// (concatenated text, union bounding box). This is what turns "one
-  /// paragraph → five small boxes" into "one paragraph → one box".
+  /// block boundaries, then merges each cluster into one paragraph
+  /// (concatenated text, union bounding box), in top-to-bottom reading
+  /// order. The caller joins these into the single overall candidate.
   List<({String text, Rect box})> _clusterLinesIntoParagraphs(
-    List<({String text, Rect box})> lines, {
-    int? maxBlocks,
-  }) {
+    List<({String text, Rect box})> lines,
+  ) {
     if (lines.isEmpty) return const [];
 
     final sorted = [...lines]..sort((a, b) => a.box.top.compareTo(b.box.top));
@@ -585,7 +566,7 @@ class _ArTranslatorScreenState extends State<ArTranslatorScreen>
       }
     }
 
-    final merged = clusters.map((cluster) {
+    return clusters.map((cluster) {
       final text = cluster.map((l) => l.text).join(' ');
       var box = cluster.first.box;
       for (final l in cluster.skip(1)) {
@@ -593,35 +574,6 @@ class _ArTranslatorScreenState extends State<ArTranslatorScreen>
       }
       return (text: text, box: box);
     }).toList();
-
-    // Keep the most substantial paragraphs if capped — a partial word
-    // fragment shouldn't bump a full sentence off the list.
-    merged.sort((a, b) => b.text.length.compareTo(a.text.length));
-    if (maxBlocks != null && merged.length > maxBlocks) {
-      return merged.sublist(0, maxBlocks);
-    }
-    return merged;
-  }
-
-  List<({String text, Rect box})> _dedupeOverlappingCandidates(
-      List<({String text, Rect box})> candidates) {
-    final sorted = [...candidates]
-      ..sort((a, b) => b.text.length.compareTo(a.text.length));
-    final kept = <({String text, Rect box})>[];
-    for (final c in sorted) {
-      final overlapsKept = kept.any((k) => _iou(c.box, k.box) > 0.4);
-      if (!overlapsKept) kept.add(c);
-    }
-    return kept;
-  }
-
-  double _iou(Rect a, Rect b) {
-    final intersection = a.intersect(b);
-    if (intersection.width <= 0 || intersection.height <= 0) return 0.0;
-    final interArea = intersection.width * intersection.height;
-    final unionArea = a.width * a.height + b.width * b.height - interArea;
-    if (unionArea <= 0) return 0.0;
-    return interArea / unionArea;
   }
 
   Rect _smoothBox(String id, Rect raw) {
@@ -669,24 +621,12 @@ class _ArTranslatorScreenState extends State<ArTranslatorScreen>
 
   void _onOverlayTap(TapUpDetails details, Size widgetSize) {
     if (_translatedBlocks.isEmpty) return;
-    final previewSize = _effectivePreviewSize;
-    if (previewSize == null || _cameraImageSize == Size.zero) return;
-
-    for (var i = 0; i < _translatedBlocks.length; i++) {
-      final screenRect = _OcrOverlayMapper.mapPixelRectToWidget(
-        pixelRect: _translatedBlocks[i].boundingBox,
-        cameraImageSize: _cameraImageSize,
-        previewSize: previewSize,
-        sensorOrientation: _sensorOrientation,
-        widgetSize: widgetSize,
-        isNormalized: _translatedBlocks[i].isNormalized,
-      );
-      if (screenRect.contains(details.localPosition)) {
-        setState(() => _selectedBlockIndex = i);
-        return;
-      }
-    }
-    setState(() => _selectedBlockIndex = null);
+    // Only one merged translation candidate exists per capture now, so any
+    // tap on the overlay simply opens/closes its detail card — no more
+    // per-box hit testing needed.
+    setState(() {
+      _selectedBlockIndex = _selectedBlockIndex == 0 ? null : 0;
+    });
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -1309,29 +1249,10 @@ class _ArTranslatorScreenState extends State<ArTranslatorScreen>
   Widget _buildDetailCard(_TranslatedBlock block, Size screenSize) {
     final result = block.result;
 
-    final (statusLabel, statusColor) = switch (result.matchType) {
-      MatchType.exactCanonical ||
-      MatchType.normalizedExact ||
-      MatchType.alias ||
-      MatchType.phraseContainment ||
-      MatchType.fuzzy =>
-        ('Verified · Heritage dictionary', const Color(0xFF66BB6A)),
-      MatchType.mlKit => (
-          'AI · Offline ML translation',
-          const Color(0xFF42A5F5)
-        ),
-      MatchType.wordLevel => (
-          'Partial · Word-level match',
-          const Color(0xFFFF9800)
-        ),
-      MatchType.none => switch (result.status) {
-          TranslationStatus.unsupported => (
-              'Not in dictionary',
-              Colors.orange.shade300
-            ),
-          _ => ('', Colors.white54),
-        },
-    };
+    final meta = _matchTypeMeta(result);
+    final statusLabel = meta.label;
+    final statusColor = meta.color;
+    final statusIcon = meta.icon;
 
     return Positioned(
       left: 16,
@@ -1554,8 +1475,7 @@ class _ArTranslatorScreenState extends State<ArTranslatorScreen>
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.verified_rounded,
-                                    color: statusColor, size: 13),
+                                Icon(statusIcon, color: statusColor, size: 13),
                                 const SizedBox(width: 6),
                                 Text(
                                   statusLabel,
@@ -1739,6 +1659,53 @@ class _ArTranslatorScreenState extends State<ArTranslatorScreen>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  Shared translation-source styling — one source of truth for how a
+//  match type is labelled/colored, used by both the detail card and the
+//  AR overlay card so they always agree.
+// ─────────────────────────────────────────────────────────────────────────────
+
+({String label, Color color, IconData icon}) _matchTypeMeta(
+    TranslationResult result) {
+  switch (result.matchType) {
+    case MatchType.exactCanonical:
+    case MatchType.normalizedExact:
+    case MatchType.alias:
+    case MatchType.phraseContainment:
+    case MatchType.fuzzy:
+      return (
+        label: 'Heritage dictionary',
+        color: const Color(0xFF4CAF50),
+        icon: Icons.verified_rounded,
+      );
+    case MatchType.mlKit:
+      return (
+        label: 'AI translation',
+        color: const Color(0xFF3B82F6),
+        icon: Icons.auto_awesome_rounded,
+      );
+    case MatchType.wordLevel:
+      return (
+        label: 'Partial match',
+        color: const Color(0xFFFF9800),
+        icon: Icons.info_outline_rounded,
+      );
+    case MatchType.none:
+      if (result.status == TranslationStatus.unsupported) {
+        return (
+          label: 'Not in dictionary',
+          color: const Color(0xFF9E9E9E),
+          icon: Icons.help_outline_rounded,
+        );
+      }
+      return (
+        label: '',
+        color: const Color(0xFF9E9E9E),
+        icon: Icons.translate_rounded,
+      );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  Data class
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1841,9 +1808,9 @@ class _GoogleLensArTextPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (blocks.isEmpty || previewSize == null) return;
 
-    // Keep AR boxes clear of the top app bar and bottom control bar — they
-    // used to render underneath those gradients too, stacking with the UI
-    // chrome into unreadable, overlapping clutter.
+    // Keep everything clear of the top app bar and bottom control bar —
+    // they used to render underneath those gradients too, stacking with
+    // the UI chrome into unreadable, overlapping clutter.
     canvas.save();
     canvas.clipRect(
       Rect.fromLTRB(0, topInset, size.width, math.max(topInset, size.height - bottomInset)),
@@ -1851,7 +1818,7 @@ class _GoogleLensArTextPainter extends CustomPainter {
 
     for (var i = 0; i < blocks.length; i++) {
       final block = blocks[i];
-      final rect = _OcrOverlayMapper.mapPixelRectToWidget(
+      final regionRect = _OcrOverlayMapper.mapPixelRectToWidget(
         pixelRect: block.boundingBox,
         cameraImageSize: cameraImageSize,
         previewSize: previewSize!,
@@ -1859,104 +1826,149 @@ class _GoogleLensArTextPainter extends CustomPainter {
         widgetSize: widgetSize,
         isNormalized: block.isNormalized,
       );
-      if (rect.width < 4 || rect.height < 4) continue;
-
-      final padded = Rect.fromLTRB(
-        math.max(0, rect.left - 6),
-        math.max(0, rect.top - 4),
-        math.min(widgetSize.width, rect.right + 6),
-        math.min(widgetSize.height, rect.bottom + 4),
-      );
+      if (regionRect.width < 4 || regionRect.height < 4) continue;
 
       final isSelected = selectedIndex == i;
-      final isMlKit = block.result.matchType == MatchType.mlKit;
-      final isPartial = block.result.status == TranslationStatus.unsupported ||
-          block.result.matchType == MatchType.wordLevel;
+      final meta = _matchTypeMeta(block.result);
 
-      final rrect = RRect.fromRectAndRadius(padded, const Radius.circular(9));
-
-      // Background fill
-      canvas.drawRRect(
-        rrect,
-        Paint()
-          ..color = Color(
-            isPartial
-                ? 0xF0181208
-                : isMlKit
-                    ? 0xF0090F1A
-                    : 0xF0120B04,
-          ),
+      // Mark the detected region with slim corner brackets instead of a
+      // solid dark panel — shows what got captured without hiding the
+      // photo underneath a colored box.
+      _drawCornerBrackets(
+        canvas,
+        regionRect,
+        meta.color.withValues(alpha: isSelected ? 0.95 : 0.6),
+        isSelected ? 2.4 : 1.6,
       );
 
-      // Border
-      final borderColor = isSelected
-          ? const Color(0xFFFFD54F)
-          : isPartial
-              ? const Color(0xFFFF9800)
-              : isMlKit
-                  ? const Color(0xFF42A5F5)
-                  : const Color(0xFFFFB300);
-
-      canvas.drawRRect(
-        rrect,
-        Paint()
-          ..color = borderColor
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = isSelected ? 2.0 : 1.5,
-      );
-
-      // Small language indicator dot
-      final dotPaint = Paint()..color = borderColor;
-      canvas.drawCircle(
-        Offset(padded.right - 6, padded.top + 6),
-        3,
-        dotPaint,
-      );
-
-      // Translated text — for unsupported blocks, the "translation" is just
-      // the original text echoed back, which reads as a broken/no-op
-      // translation when overlaid in place of the original. Say so plainly
-      // instead of duplicating the sign's own text over itself.
+      // For unsupported text, the "translation" is just the original text
+      // echoed back, which reads as a broken/no-op translation. Say so
+      // plainly instead of duplicating the sign's own text over itself.
       final translatedStr = block.result.status == TranslationStatus.unsupported
-          ? 'No offline translation'
+          ? 'No offline translation found for this text'
           : block.result.translatedText;
 
-      // Devanagari/Tamil/Sinhala/CJK conjuncts and stacked matras get
-      // clipped at small sizes/tight line-height and look smudged under a
-      // forced synthetic bold — give them more room and a real weight the
-      // font actually ships instead of faking one.
+      // Devanagari/Tamil/Sinhala/CJK conjuncts and stacked matras need real
+      // room and a weight the font actually ships, or they look smudged.
       final isComplexScript = const {'hi', 'ta', 'si', 'zh'}.contains(targetLang);
-      final fontSize = (padded.height * 0.44)
-          .clamp(isComplexScript ? 13.0 : 11.0, 24.0);
 
-      final textSpan = TextSpan(
-        text: translatedStr,
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: fontSize,
-          fontWeight: isComplexScript ? FontWeight.w600 : FontWeight.bold,
-          height: isComplexScript ? 1.4 : 1.15,
-          shadows: const [
-            Shadow(color: Colors.black, blurRadius: 3, offset: Offset(0, 1)),
-            Shadow(color: Colors.black54, blurRadius: 6, offset: Offset(0, 2)),
-          ],
-        ),
-      );
+      // A card-sized, screen-relative font instead of one derived from the
+      // (now often huge, whole-capture) region height — that used to blow
+      // translated text up to an oversized, badly-wrapped mess.
+      final fontSize = (widgetSize.width * 0.043).clamp(14.0, 19.0);
 
       final textPainter = TextPainter(
-        text: textSpan,
+        text: TextSpan(
+          text: translatedStr,
+          style: TextStyle(
+            color: const Color(0xFF2A1B0E),
+            fontSize: fontSize,
+            fontWeight: isComplexScript ? FontWeight.w600 : FontWeight.w700,
+            height: isComplexScript ? 1.55 : 1.3,
+          ),
+        ),
         textDirection: textDirection,
-        maxLines: 3,
+        maxLines: 5,
         ellipsis: '…',
       );
-      textPainter.layout(maxWidth: math.max(10.0, padded.width - 14));
+      final maxCardWidth = math.min(widgetSize.width - 32, 420.0);
+      textPainter.layout(maxWidth: maxCardWidth - 28);
 
-      final textX = padded.left + 7;
-      final textY = padded.top + (padded.height - textPainter.height) / 2;
-      textPainter.paint(canvas, Offset(textX, math.max(padded.top + 3, textY)));
+      final headerPainter = TextPainter(
+        text: TextSpan(
+          text: meta.label.isEmpty ? 'Translation' : meta.label,
+          style: TextStyle(
+            color: meta.color,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.3,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: maxCardWidth - 30);
+
+      const headerHeight = 22.0;
+      final cardWidth = math.min(
+        maxCardWidth,
+        math.max(textPainter.width, headerPainter.width + 14) + 28,
+      );
+      final cardHeight = headerHeight + textPainter.height + 24;
+
+      // Center the card under the detected region, then clamp it fully
+      // on-screen (and out from behind the top/bottom chrome).
+      var cardLeft = regionRect.center.dx - cardWidth / 2;
+      cardLeft = cardLeft.clamp(12.0, math.max(12.0, widgetSize.width - cardWidth - 12));
+
+      final minTop = topInset + 8;
+      final maxBottom = widgetSize.height - bottomInset - 8;
+      var cardTop = regionRect.bottom + 12;
+      if (cardTop + cardHeight > maxBottom) {
+        // Not enough room below — try above the region instead.
+        final above = regionRect.top - cardHeight - 12;
+        cardTop = above >= minTop ? above : math.max(minTop, maxBottom - cardHeight);
+      }
+
+      final cardRect = Rect.fromLTWH(cardLeft, cardTop, cardWidth, cardHeight);
+      final cardRRect = RRect.fromRectAndRadius(cardRect, const Radius.circular(16));
+
+      // Soft shadow for depth instead of a flat colored outline.
+      canvas.drawRRect(
+        cardRRect.shift(const Offset(0, 3)),
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.28)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7),
+      );
+
+      // Warm parchment card — matches the app's own palette instead of a
+      // generic dark translucent panel with a clashing accent border.
+      canvas.drawRRect(cardRRect, Paint()..color = const Color(0xFFFBF5E9));
+      canvas.drawRRect(
+        cardRRect,
+        Paint()
+          ..color = isSelected ? const Color(0xFFD4A017) : const Color(0xFFE3D6BC)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = isSelected ? 2.0 : 1.0,
+      );
+
+      canvas.drawCircle(
+        Offset(cardRect.left + 16, cardRect.top + 15),
+        3.5,
+        Paint()..color = meta.color,
+      );
+      headerPainter.paint(canvas, Offset(cardRect.left + 24, cardRect.top + 9));
+      textPainter.paint(
+        canvas,
+        Offset(cardRect.left + 14, cardRect.top + headerHeight + 6),
+      );
     }
 
     canvas.restore();
+  }
+
+  /// Slim L-shaped corner marks around [rect] — a lighter-weight way to
+  /// show "this is what got detected" than filling/outlining the whole box.
+  void _drawCornerBrackets(
+    Canvas canvas,
+    Rect rect,
+    Color color,
+    double strokeWidth,
+  ) {
+    const arm = 14.0;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    void corner(Offset origin, Offset horizontal, Offset vertical) {
+      canvas.drawLine(origin, origin + horizontal, paint);
+      canvas.drawLine(origin, origin + vertical, paint);
+    }
+
+    corner(rect.topLeft, const Offset(arm, 0), const Offset(0, arm));
+    corner(rect.topRight, const Offset(-arm, 0), const Offset(0, arm));
+    corner(rect.bottomLeft, const Offset(arm, 0), const Offset(0, -arm));
+    corner(rect.bottomRight, const Offset(-arm, 0), const Offset(0, -arm));
   }
 
   @override
