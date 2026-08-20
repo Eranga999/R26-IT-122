@@ -321,9 +321,15 @@ void _inferenceIsolateEntry(SendPort mainSendPort) async {
       if (rawW > 1.2 || rawH > 1.2) continue;
 
       // 2. Area Limit: If an out-of-bounds box gets clamped to [0.0, 1.0], it becomes a full-screen box.
-      // A legitimate landmark object almost never occupies symmetrically >90% of a camera feed.
+      // With only 5 known classes and no explicit "background" class, an
+      // ambiguous/generic frame (blank wall, sky, empty ground) still forces
+      // the model to pick one — this is the main source of a full-screen
+      // hallucinated box. 0.90 was too lenient to catch that in practice;
+      // a real sub-landmark essentially never fills more than ~3/4 of the
+      // frame during normal scanning (that would mean the phone is almost
+      // touching it).
       final boxArea = (nx2 - nx1) * (ny2 - ny1);
-      if (boxArea > 0.90) continue;
+      if (boxArea > 0.75) continue;
 
       results.add(DetectionResult(
         label: labelStr,

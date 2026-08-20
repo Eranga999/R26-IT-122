@@ -262,10 +262,16 @@ class _CameraScreenState extends State<CameraScreen>
       if (!mounted) return;
 
       // ── Noise filter ────────────────────────────────────────────────────────
+      // maxArea rejects implausibly large "full-screen" boxes independently
+      // of the isolate's own hallucination guard — belt-and-suspenders
+      // against a model with no explicit "background" class defaulting to a
+      // confident-looking full-frame guess on an ambiguous scene.
       final minArea = _isGpsLocked ? 0.012 : 0.02;
-      final filtered = results
-          .where((r) => (r.boundingBox.width * r.boundingBox.height) >= minArea)
-          .toList();
+      const maxArea = 0.75;
+      final filtered = results.where((r) {
+        final area = r.boundingBox.width * r.boundingBox.height;
+        return area >= minArea && area <= maxArea;
+      }).toList();
 
       final now = DateTime.now().millisecondsSinceEpoch;
 
