@@ -53,6 +53,18 @@ dependencies:
   geolocator: ^14.0.3
   google_mlkit_translation: ^0.11.1
 
+  # Renders the 3D AR navigation arrow (.glb) via an offline local WebView
+  model_viewer_plus: ^1.10.0
+
+  # Step detection for surveyed-segment walking progress (AR nav countdown)
+  pedometer: ^4.2.0
+
+  # Accelerometer motion gate: GPS position drift alone isn't reliable
+  # evidence of walking (a stationary phone's fix can still wander several
+  # meters), so AR nav cross-checks real device motion before crediting any
+  # GPS-derived distance to the route countdown.
+  sensors_plus: ^7.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -64,6 +76,7 @@ flutter:
   assets:
     - assets/models/landmark_model.tflite
     - assets/models/minilm.onnx
+    - "assets/models/Arrow by Max Level - 1TUCDmHZKQY.glb"
     - assets/images/
     - assets/embeddings/
     - assets/config/
