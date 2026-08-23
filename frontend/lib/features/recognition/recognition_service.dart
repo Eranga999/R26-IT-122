@@ -331,6 +331,15 @@ void _inferenceIsolateEntry(SendPort mainSendPort) async {
       final boxArea = (nx2 - nx1) * (ny2 - ny1);
       if (boxArea > 0.75) continue;
 
+      // 3. Size-aware confidence: a real close-up detection has both a
+      // large box AND very high confidence. A hallucination that slips
+      // past the area cap on an ambiguous background (blank wall, plaza,
+      // stonework) typically only reaches moderate confidence, so require
+      // progressively higher confidence for larger boxes rather than
+      // trusting the flat req.threshold alone for everything.
+      if (boxArea > 0.35 && bestScore < 0.80) continue;
+      if (boxArea > 0.55 && bestScore < 0.88) continue;
+
       results.add(DetectionResult(
         label: labelStr,
         confidence: bestScore,
