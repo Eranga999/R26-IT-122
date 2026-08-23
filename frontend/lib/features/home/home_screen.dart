@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:latlong2/latlong.dart';
 import '../../core/location/site_geofence.dart';
 import '../../core/location/site_lock_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -29,7 +27,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   List<LandmarkModel> _landmarks = [];
   bool _loading = true;
-  int _navIndex = 0;
   SiteLockResult? _siteLock;
   bool _siteLockLoading = true;
 
@@ -203,35 +200,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final PreferredSizeWidget? topAppBar = _navIndex == 1
-        ? AppBar(
-            backgroundColor: AppTheme.primary,
-            elevation: 2,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_rounded),
-              onPressed: () => setState(() => _navIndex = 0),
-            ),
-            title: const Text('Heritage Map'),
-          )
-        : null;
-
-    return PopScope(
-      canPop: _navIndex == 0,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
-        if (_navIndex != 0) {
-          setState(() => _navIndex = 0);
-        }
-      },
-      child: Scaffold(
-        appBar: topAppBar,
-        backgroundColor: AppTheme.surface,
-        drawer: _buildDrawer(), // Adding the drawer menu
-        bottomNavigationBar: _buildBottomNav(),
-        body: _navIndex == 0 ? _buildExploreBody() : _buildHeritageMap(),
-        floatingActionButton: _navIndex == 0 ? _buildScanFab() : null,
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      ),
+    return Scaffold(
+      backgroundColor: AppTheme.surface,
+      drawer: _buildDrawer(), // Adding the drawer menu
+      bottomNavigationBar: _buildBottomNav(),
+      body: _buildExploreBody(),
+      floatingActionButton: _buildScanFab(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     );
   }
 
@@ -307,7 +282,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _navItem(int index, IconData icon, String label) {
-    final active = _navIndex == index;
+    final active = index == 0;
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: () {
@@ -317,9 +292,11 @@ class _HomeScreenState extends State<HomeScreen> {
             MaterialPageRoute(builder: (_) => const sigiriya_home.HomeScreen()),
           );
         } else {
-          if (_navIndex != index) {
-            setState(() => _navIndex = index);
-          }
+          // Map opens as its own full-screen route — no bottom nav / Home chrome.
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const HeritageMapScreen()),
+          );
         }
       },
       child: Padding(
@@ -746,67 +723,198 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // -- Heritage Map (flutter_map + OSM) -----------------------------------
-  Widget _buildHeritageMap() {
-    const poisSigiriya = [
-      _PoiMarker(
-          Icons.confirmation_num_rounded, 'Ticket Counter', 7.95470, 80.75549),
-      _PoiMarker(Icons.water_rounded, 'Water Gardens', 7.95670, 80.75655),
-      _PoiMarker(Icons.palette_rounded, 'Fresco Gallery', 7.95700, 80.75970),
-      _PoiMarker(Icons.auto_awesome_rounded, 'Mirror Wall', 7.95725, 80.75988),
-      _PoiMarker(Icons.pets_rounded, 'Lion Paws Gate', 7.95759, 80.75988),
-      _PoiMarker(Icons.castle_rounded, 'Summit Palace', 7.95709, 80.76010),
-    ];
-    return FlutterMap(
-      options: const MapOptions(
-        initialCenter: LatLng(7.9567, 80.7580),
-        initialZoom: 16.0,
-      ),
-      children: [
-        TileLayer(
-          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          userAgentPackageName: 'com.example.r26_it_122',
+}
+
+// ── Heritage Map — separate full-screen route ───────────────────────────────
+// Opened via Navigator.push from Home's Map nav button. Deliberately has no
+// bottomNavigationBar / Camera-Explore-Map nav — just an AppBar with a back
+// button that pops back to whichever screen (Home/Explore) launched it.
+//
+// Fully offline by design: there is no live-tile basemap (that needed
+// `tile.openstreetmap.org` over HTTPS, breaking the app's offline
+// requirement). Instead this draws a hand-laid-out trail schematic — the POIs
+// positioned in visiting order along the ascent, connected by a dashed path —
+// entirely from local widgets/CustomPaint, so it never touches the network.
+class HeritageMapScreen extends StatelessWidget {
+  const HeritageMapScreen({super.key});
+
+  // Fractional (0..1) positions within the trail canvas below, laid out
+  // bottom (entrance) to top (summit) to mirror the real visiting order.
+  // Illustrative only — not derived from GPS/survey coordinates.
+  static const List<_PoiMarker> _trail = [
+    _PoiMarker(Icons.confirmation_num_rounded, 'Ticket Counter', 0.50, 0.93),
+    _PoiMarker(Icons.water_rounded, 'Water Gardens', 0.32, 0.76),
+    _PoiMarker(Icons.palette_rounded, 'Fresco Gallery', 0.64, 0.54),
+    _PoiMarker(Icons.auto_awesome_rounded, 'Mirror Wall', 0.38, 0.38),
+    _PoiMarker(Icons.pets_rounded, 'Lion Paws Gate', 0.58, 0.23),
+    _PoiMarker(Icons.castle_rounded, 'Summit Palace', 0.50, 0.09),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: AppTheme.primary,
+        elevation: 2,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => Navigator.pop(context),
         ),
-        MarkerLayer(
-          markers: poisSigiriya
-              .map((poi) => Marker(
-                    point: LatLng(poi.lat, poi.lng),
+        title: const Text('Heritage Map'),
+      ),
+      backgroundColor: AppTheme.surface,
+      body: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            color: const Color(0xFFFFF3E0),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: const Row(
+              children: [
+                Icon(Icons.offline_pin_rounded, size: 15, color: Color(0xFF8D6E63)),
+                SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Offline trail map — illustrative layout, not to scale.',
+                    style: TextStyle(fontSize: 11.5, color: Color(0xFF6D4C41)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(child: _buildTrailMap()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrailMap() {
+    const canvasSize = Size(380, 720);
+    return InteractiveViewer(
+      minScale: 0.6,
+      maxScale: 3.0,
+      boundaryMargin: const EdgeInsets.all(80),
+      child: Center(
+        child: SizedBox(
+          width: canvasSize.width,
+          height: canvasSize.height,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                colors: [
+                  Color(0xFF6B8F4E), // garden green (entrance)
+                  Color(0xFF8D6E4A), // mid-slope earth
+                  Color(0xFFB0785A), // rock face (summit)
+                ],
+              ),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Stack(
+              children: [
+                CustomPaint(
+                  size: canvasSize,
+                  painter: _TrailPathPainter(_trail),
+                ),
+                for (final poi in _trail)
+                  Positioned(
+                    left: poi.fx * canvasSize.width - 32,
+                    top: poi.fy * canvasSize.height - 40,
                     width: 64,
                     height: 64,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: AppTheme.primary,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                              child: Icon(poi.icon,
-                                  color: Colors.white, size: 18)),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 4, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primary,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            poi.name,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 7,
-                                fontWeight: FontWeight.w600),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ))
-              .toList(),
+                    child: _TrailPin(poi: poi),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Dashed line connecting the trail stops in visiting order.
+class _TrailPathPainter extends CustomPainter {
+  final List<_PoiMarker> stops;
+  const _TrailPathPainter(this.stops);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (stops.length < 2) return;
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.75)
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final path = Path()
+      ..moveTo(stops.first.fx * size.width, stops.first.fy * size.height);
+    for (final poi in stops.skip(1)) {
+      path.lineTo(poi.fx * size.width, poi.fy * size.height);
+    }
+
+    const dashWidth = 8.0;
+    const dashSpace = 6.0;
+    for (final metric in path.computeMetrics()) {
+      double distance = 0;
+      while (distance < metric.length) {
+        final next = distance + dashWidth;
+        canvas.drawPath(
+          metric.extractPath(distance, next.clamp(0, metric.length)),
+          paint,
+        );
+        distance = next + dashSpace;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TrailPathPainter oldDelegate) => false;
+}
+
+/// One pin on the trail map — reuses the icon-badge + label-chip look the
+/// original live-map markers used.
+class _TrailPin extends StatelessWidget {
+  final _PoiMarker poi;
+  const _TrailPin({required this.poi});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: AppTheme.primary,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withOpacity(0.25),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2)),
+            ],
+          ),
+          child: Center(child: Icon(poi.icon, color: Colors.white, size: 18)),
+        ),
+        const SizedBox(height: 2),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+          decoration: BoxDecoration(
+            color: AppTheme.primary,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            poi.name,
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 7,
+                fontWeight: FontWeight.w600),
+            textAlign: TextAlign.center,
+          ),
         ),
       ],
     );
@@ -906,10 +1014,28 @@ class _FeaturedCard extends StatelessWidget {
   }
 }
 
+/// One entry per camera-model class describing how it maps onto the
+/// Points-of-Interest data — see [LandmarkDetailScreenState._detectionInfo].
+class _DetectionInfo {
+  final String? poiKeyword;
+  final String? brief;
+  const _DetectionInfo({required this.poiKeyword, required this.brief});
+}
+
 // â”€â”€ Landmark detail screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class LandmarkDetailScreen extends StatefulWidget {
   final LandmarkModel landmark;
-  const LandmarkDetailScreen({super.key, required this.landmark});
+
+  /// Raw camera-model class label (e.g. 'sigiriya_ticket_counter') when this
+  /// screen was opened right after a live detection — used to auto-highlight
+  /// the matching Point of Interest and offer a Brief/Detail summary of it.
+  final String? highlightSubLandmarkLabel;
+
+  const LandmarkDetailScreen({
+    super.key,
+    required this.landmark,
+    this.highlightSubLandmarkLabel,
+  });
 
   @override
   State<LandmarkDetailScreen> createState() => LandmarkDetailScreenState();
@@ -919,6 +1045,113 @@ class LandmarkDetailScreenState extends State<LandmarkDetailScreen> {
   List<SubLandmarkModel> _subLandmarks = [];
   bool _subLoading = true;
   ArStatus? _arStatus;
+  bool _showDetailView = false; // Brief (false) vs Detail (true)
+
+  /// Explicit entry for every one of the 5 camera-model classes — deliberately
+  /// complete, not a fallback/best-effort map, so each detected class gets an
+  /// accurate Brief description regardless of how loosely its name matches
+  /// the underlying Points-of-Interest record.
+  ///
+  /// [poiKeyword] locates the matching row in `SubLandmarkModel.name`
+  /// (substring match — DB names don't equal the model's class names, e.g.
+  /// "Lion Gate (Lion Paws)" vs 'sigiriya_lion_paws'). Null means there is no
+  /// dedicated POI row for this class ('sigiriya_lion_rock' names the whole
+  /// rock fortress — the parent landmark itself, not a specific stop).
+  ///
+  /// [brief] is written specifically for what the model detected, not a
+  /// truncation of the matched POI's description — that matters most for
+  /// 'sigiriya_throne', whose only matching POI ("Summit Palace") describes
+  /// the whole palace ruin, not just the throne platform within it.
+  static const Map<String, _DetectionInfo> _detectionInfo = {
+    'sigiriya_lion_paws': _DetectionInfo(
+      poiKeyword: 'lion paws',
+      brief:
+          "The colossal brick-and-plaster lion paws flanking Sigiriya's summit "
+          'stairway — the only surviving remnant of the original lion gateway '
+          'that gave the rock its name.',
+    ),
+    'sigiriya_lion_rock': _DetectionInfo(
+      poiKeyword: null, // whole site — no dedicated POI row
+      brief: null, // uses landmark.description instead, see _briefFor()
+    ),
+    'sigiriya_mirror_wall': _DetectionInfo(
+      poiKeyword: 'mirror wall',
+      brief:
+          "A plaster wall on the rock's western face, once polished to a "
+          'mirror finish — now etched with 685+ ancient Sinhala poems, the '
+          'oldest such collection in the world.',
+    ),
+    'sigiriya_throne': _DetectionInfo(
+      poiKeyword: 'summit palace',
+      brief:
+          "The throne platform within King Kassapa's summit palace ruins, "
+          '200 metres above the plains — part of the royal residence that '
+          'once crowned the rock.',
+    ),
+    'sigiriya_ticket_counter': _DetectionInfo(
+      poiKeyword: 'ticket',
+      brief:
+          'The official Sigiriya entry point — ticketing, rest facilities, '
+          'and an information centre with maps and audio guides for your visit.',
+    ),
+  };
+
+  String? get _normalizedLabel =>
+      widget.highlightSubLandmarkLabel?.trim().toLowerCase();
+
+  _DetectionInfo? get _detectionForLabel =>
+      _normalizedLabel == null ? null : _detectionInfo[_normalizedLabel];
+
+  SubLandmarkModel? get _highlightedSub {
+    final keyword = _detectionForLabel?.poiKeyword;
+    if (keyword == null) return null;
+    for (final s in _subLandmarks) {
+      if (s.name.toLowerCase().contains(keyword)) return s;
+    }
+    return null;
+  }
+
+  /// Points of Interest with the detected one (if any) moved to the front,
+  /// so it's immediately visible without scrolling past the others.
+  List<SubLandmarkModel> get _orderedSubLandmarks {
+    final highlighted = _highlightedSub;
+    if (highlighted == null) return _subLandmarks;
+    return [
+      highlighted,
+      ..._subLandmarks.where((s) => s.id != highlighted.id),
+    ];
+  }
+
+  String _briefOf(String text) {
+    final cut = text.indexOf('. ');
+    if (cut != -1 && cut <= 160) return text.substring(0, cut + 1);
+    if (text.length <= 160) return text;
+    return '${text.substring(0, 157).trimRight()}...';
+  }
+
+  /// Brief text for the current detection — the curated [_DetectionInfo.brief]
+  /// when one exists, the whole-site description for the Lion Rock case,
+  /// falling back to a truncated POI description only for a label that isn't
+  /// in [_detectionInfo] at all (defensive — shouldn't happen for the 5
+  /// known classes, but keeps a future/unrecognised label from rendering
+  /// blank instead of degrading gracefully).
+  String get _briefText {
+    final info = _detectionForLabel;
+    if (info?.brief != null) return info!.brief!;
+    if (_normalizedLabel == 'sigiriya_lion_rock') {
+      return widget.landmark.description;
+    }
+    final sub = _highlightedSub;
+    return sub != null ? _briefOf(sub.description) : widget.landmark.description;
+  }
+
+  String get _detailText {
+    final sub = _highlightedSub;
+    if (sub != null) return sub.description;
+    return widget.landmark.history.isNotEmpty
+        ? widget.landmark.history
+        : widget.landmark.description;
+  }
 
   static const _gradients = [
     [Color(0xFFB71C1C), Color(0xFFE53935)],
@@ -1080,6 +1313,18 @@ class LandmarkDetailScreenState extends State<LandmarkDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ── Just-detected banner (opened straight from the camera) ──
+                  if (widget.highlightSubLandmarkLabel != null && !_subLoading) ...[
+                    _DetectedPoiBanner(
+                      title: _highlightedSub?.name ?? widget.landmark.name,
+                      briefText: _briefText,
+                      detailText: _detailText,
+                      showDetail: _showDetailView,
+                      onToggle: (v) => setState(() => _showDetailView = v),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+
                   // â”€â”€ Quick facts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                   Container(
                     padding: const EdgeInsets.all(16),
@@ -1175,11 +1420,12 @@ class LandmarkDetailScreenState extends State<LandmarkDetailScreen> {
                         style: TextStyle(color: Colors.grey, fontSize: 14))
                   else
                     Column(
-                      children: _subLandmarks
+                      children: _orderedSubLandmarks
                           .map((sub) => _SubLandmarkTile(
                                 sub: sub,
                                 accentColor: Color(colors[0].value),
                                 icon: _typeIcon(sub.type),
+                                highlighted: sub.id == _highlightedSub?.id,
                               ))
                           .toList(),
                     ),
@@ -1292,8 +1538,13 @@ class _SubLandmarkTile extends StatefulWidget {
   final SubLandmarkModel sub;
   final Color accentColor;
   final IconData icon;
-  const _SubLandmarkTile(
-      {required this.sub, required this.accentColor, required this.icon});
+  final bool highlighted;
+  const _SubLandmarkTile({
+    required this.sub,
+    required this.accentColor,
+    required this.icon,
+    this.highlighted = false,
+  });
 
   @override
   State<_SubLandmarkTile> createState() => _SubLandmarkTileState();
@@ -1303,15 +1554,27 @@ class _SubLandmarkTileState extends State<_SubLandmarkTile> {
   bool _expanded = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Auto-expand the tile matching what the camera just detected.
+    _expanded = widget.highlighted;
+  }
+
+  @override
   Widget build(BuildContext context) => Container(
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
+          border: widget.highlighted
+              ? Border.all(color: AppTheme.secondary, width: 1.6)
+              : null,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
+              color: widget.highlighted
+                  ? AppTheme.secondary.withOpacity(0.25)
+                  : Colors.black.withOpacity(0.05),
+              blurRadius: widget.highlighted ? 14 : 8,
               offset: const Offset(0, 2),
             ),
           ],
@@ -1322,6 +1585,7 @@ class _SubLandmarkTileState extends State<_SubLandmarkTile> {
             splashColor: Colors.transparent,
           ),
           child: ExpansionTile(
+            initiallyExpanded: widget.highlighted,
             onExpansionChanged: (v) => setState(() => _expanded = v),
             leading: Container(
               width: 40,
@@ -1332,12 +1596,42 @@ class _SubLandmarkTileState extends State<_SubLandmarkTile> {
               ),
               child: Icon(widget.icon, color: widget.accentColor, size: 22),
             ),
-            title: Text(
-              widget.sub.name,
-              style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                  color: Color(0xFF2D1B0E)),
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.sub.name,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        color: Color(0xFF2D1B0E)),
+                  ),
+                ),
+                if (widget.highlighted)
+                  Container(
+                    margin: const EdgeInsets.only(left: 8),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppTheme.secondary,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.center_focus_strong_rounded,
+                            color: Colors.white, size: 10),
+                        SizedBox(width: 3),
+                        Text('DETECTED',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.4)),
+                      ],
+                    ),
+                  ),
+              ],
             ),
             subtitle: Text(
               widget.sub.type.toUpperCase(),
@@ -1371,6 +1665,155 @@ class _SubLandmarkTileState extends State<_SubLandmarkTile> {
       );
 }
 
+// ── "Just scanned" banner — shown when this screen was opened straight from
+// a camera detection, with a Brief/Detail toggle for what was found ────────
+class _DetectedPoiBanner extends StatelessWidget {
+  final String title;
+  final String briefText;
+  final String detailText;
+  final bool showDetail;
+  final ValueChanged<bool> onToggle;
+
+  const _DetectedPoiBanner({
+    required this.title,
+    required this.briefText,
+    required this.detailText,
+    required this.showDetail,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E1),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+            color: AppTheme.secondary.withOpacity(0.4), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.secondary.withOpacity(0.15),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppTheme.secondary,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.center_focus_strong_rounded,
+                    color: Colors.white, size: 12),
+                SizedBox(width: 4),
+                Text('JUST SCANNED',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.6)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(title,
+              style: const TextStyle(
+                  fontFamily: 'Georgia',
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A0A00))),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _ModeChip(
+                  label: 'Brief',
+                  icon: Icons.short_text_rounded,
+                  selected: !showDetail,
+                  onTap: () => onToggle(false),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _ModeChip(
+                  label: 'Detail',
+                  icon: Icons.notes_rounded,
+                  selected: showDetail,
+                  onTap: () => onToggle(true),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            child: Text(
+              showDetail ? detailText : briefText,
+              key: ValueKey(showDetail),
+              style: const TextStyle(
+                  color: Color(0xFF4E342E), fontSize: 13.5, height: 1.6),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModeChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ModeChip({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? AppTheme.secondary : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+              color: selected
+                  ? AppTheme.secondary
+                  : AppTheme.secondary.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon,
+                size: 15, color: selected ? Colors.white : AppTheme.secondary),
+            const SizedBox(width: 6),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: selected ? Colors.white : AppTheme.primary)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _FactCell extends StatelessWidget {
   final String label, value;
   const _FactCell({required this.label, required this.value});
@@ -1389,10 +1832,13 @@ class _FactCell extends StatelessWidget {
       );
 }
 
+/// A stop on the offline trail schematic. [fx]/[fy] are fractional (0..1)
+/// positions within the trail canvas — illustrative layout, not real
+/// GPS/survey coordinates.
 class _PoiMarker {
   final IconData icon;
   final String name;
-  final double lat;
-  final double lng;
-  const _PoiMarker(this.icon, this.name, this.lat, this.lng);
+  final double fx;
+  final double fy;
+  const _PoiMarker(this.icon, this.name, this.fx, this.fy);
 }
