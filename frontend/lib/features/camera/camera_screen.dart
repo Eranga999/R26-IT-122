@@ -95,8 +95,33 @@ class _CameraScreenState extends State<CameraScreen>
   // GPS-locked: 2 consecutive frames; manual: 3 frames for stability.
   int get _requiredFrames => _isGpsLocked ? 2 : 3;
 
+  // ── Per-class calibration (manual mode only) ─────────────────────────────
+  // GPS-locked mode is unaffected — GPS already confirms the site, so the
+  // flat _cardThreshold/_requiredFrames stay as-is there. In manual mode,
+  // classes that are easier to confuse with an unrelated surface at the site
+  // get a modest card-confidence bump plus more required consecutive frames
+  // before the info panel commits. The live bounding box is untouched by
+  // this — it keeps updating every frame regardless of these overrides.
+  static const Map<String, double> _manualCardThresholdByClass = {
+    'sigiriya_mirror_wall': 0.80,
+    'sigiriya_ticket_counter': 0.88,
+  };
+  static const Map<String, int> _manualRequiredFramesByClass = {
+    'sigiriya_mirror_wall': 5,
+    'sigiriya_ticket_counter': 4,
+  };
+
+  double _cardThresholdFor(String label) => _isGpsLocked
+      ? _cardThreshold
+      : (_manualCardThresholdByClass[label] ?? _cardThreshold);
+
+  int _requiredFramesFor(String label) => _isGpsLocked
+      ? _requiredFrames
+      : (_manualRequiredFramesByClass[label] ?? _requiredFrames);
+
   bool _isStableDetection(DetectionResult bestDetection) {
-    if (bestDetection.confidence < _cardThreshold) {
+    final threshold = _cardThresholdFor(bestDetection.label);
+    if (bestDetection.confidence < threshold) {
       _candidateCount = 0;
       return false;
     }
@@ -108,7 +133,7 @@ class _CameraScreenState extends State<CameraScreen>
       _candidateCount = 1;
     }
 
-    return _candidateCount >= _requiredFrames;
+    return _candidateCount >= _requiredFramesFor(bestDetection.label);
   }
 
   // ── Info-panel state (opened when confident enough) ────────────────────────
@@ -265,12 +290,19 @@ class _CameraScreenState extends State<CameraScreen>
       // maxArea rejects implausibly large "full-screen" boxes independently
       // of the isolate's own hallucination guard — belt-and-suspenders
       // against a model with no explicit "background" class defaulting to a
-      // confident-looking full-frame guess on an ambiguous scene.
+      // confident-looking full-frame guess on an ambiguous scene. The
+      // size-aware confidence step below is the same defense-in-depth for
+      // the isolate's graduated confidence gate (a real close-up has both a
+      // large box AND very high confidence; a hallucination on an ambiguous
+      // background usually only reaches moderate confidence).
       final minArea = _isGpsLocked ? 0.012 : 0.02;
       const maxArea = 0.75;
       final filtered = results.where((r) {
         final area = r.boundingBox.width * r.boundingBox.height;
-        return area >= minArea && area <= maxArea;
+        if (area < minArea || area > maxArea) return false;
+        if (area > 0.35 && r.confidence < 0.80) return false;
+        if (area > 0.55 && r.confidence < 0.88) return false;
+        return true;
       }).toList();
 
       final now = DateTime.now().millisecondsSinceEpoch;
@@ -885,8 +917,10 @@ class _CameraScreenState extends State<CameraScreen>
                           onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                  builder: (_) =>
-                                      LandmarkDetailScreen(landmark: lm))),
+                                  builder: (_) => LandmarkDetailScreen(
+                                      landmark: lm,
+                                      highlightSubLandmarkLabel:
+                                          _detectedClassLabel))),
                         ),
                       ),
                       const SizedBox(width: 10),
