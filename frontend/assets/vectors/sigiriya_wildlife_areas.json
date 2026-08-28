@@ -1,0 +1,61 @@
+{
+  "_meta": {
+    "layer": "sigiriya_wildlife_areas",
+    "description": "Wildlife/elephant warning reference points. These represent areas where elephant activity has been observed or reported — NOT live/current elephant locations. Additive only; does not modify the base OpenStreetMap GeoPackage. Mirrored in code at frontend/lib/features/map/heritage_map_screen.dart (kElephantWarningZones) — keep both in sync if edited.",
+    "generated": "2026-08-25"
+  },
+  "areas": [
+    {
+      "id": "sigiriya_wildlife_001",
+      "name": "Elephant Warning Area 1",
+      "type": "wildlife_warning",
+      "subtype": "elephant_warning",
+      "latitude": 7.9544126754,
+      "longitude": 80.7563181363,
+      "geometry": null,
+      "geometry_status": "approximate_warning_visualization",
+      "warning_radius_meters": 150,
+      "description": "Wild elephants may be present in this area. This is a reference point where elephant activity has been observed/reported, not a confirmed current location or a surveyed habitat boundary.",
+      "source": "User-provided GPS coordinates",
+      "verification_status": "verified",
+      "priority": "high",
+      "icon": "elephant_warning_icon"
+    },
+    {
+      "id": "sigiriya_wildlife_002",
+      "name": "Elephant Warning Area 2",
+      "type": "wildlife_warning",
+      "subtype": "elephant_warning",
+      "latitude": 7.9534636278,
+      "longitude": 80.7552407025,
+      "geometry": null,
+      "geometry_status": "approximate_warning_visualization",
+      "warning_radius_meters": 150,
+      "description": "Wild elephants may be present in this area. This is a reference point where elephant activity has been observed/reported, not a confirmed current location or a surveyed habitat boundary.",
+      "source": "User-provided GPS coordinates",
+      "verification_status": "verified",
+      "priority": "high",
+      "icon": "elephant_warning_icon"
+    },
+    {
+      "id": "sigiriya_wildlife_003",
+      "name": "Elephant Warning Area 3",
+      "type": "wildlife_warning",
+      "subtype": "elephant_warning",
+      "latitude": 7.9525135509,
+      "longitude": 80.7494084020,
+      "geometry": null,
+      "geometry_status": "approximate_warning_visualization",
+      "warning_radius_meters": 150,
+      "description": "Wild elephants may be present in this area. This is a reference point where elephant activity has been observed/reported, not a confirmed current location or a surveyed habitat boundary.",
+      "source": "User-provided GPS coordinates",
+      "verification_status": "verified",
+      "priority": "high",
+      "icon": "elephant_warning_icon"
+    }
+  ],
+  "notes": [
+    "No verified ecological habitat boundary or corridor geometry was available from an official source for these points, so no boundary/corridor polygon is stored — the 150m radius is a display-only approximate warning visualization, not a claimed habitat extent.",
+    "News reports (Daily Mirror, Lanka Newspapers — see docs/sigiriya_poi_dataset.md) confirm elephant activity and past incidents in the general Sigiriya/Pidurangala area, corroborating that a wildlife-warning layer is warranted here, but do not provide surveyed corridor coordinates."
+  ]
+}
