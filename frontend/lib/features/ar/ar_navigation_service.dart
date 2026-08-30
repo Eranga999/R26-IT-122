@@ -55,12 +55,17 @@ enum RoutePointType { segment, returnPoint }
 class RouteSegment {
   final int number; // 1-based, matches the survey numbering
   final double distanceMeters;
-  final TurnDirection turnAtEnd; // instruction issued once this segment completes
+  final TurnDirection
+      turnAtEnd; // instruction issued once this segment completes
   final RoutePointType type;
-  final String? landmarkLabel; // informational note shown on arrival (e.g. 'Sinhapadaya')
-  final String? contextDetectionLabel; // opportunistic YOLO class relevant while walking this segment
-  final String? contextAmbientNote; // shown throughout the segment, before the class is spotted
-  final String? contextSpottedNote; // shown once the class is confidently spotted
+  final String?
+      landmarkLabel; // informational note shown on arrival (e.g. 'Sinhapadaya')
+  final String?
+      contextDetectionLabel; // opportunistic YOLO class relevant while walking this segment
+  final String?
+      contextAmbientNote; // shown throughout the segment, before the class is spotted
+  final String?
+      contextSpottedNote; // shown once the class is confidently spotted
 
   const RouteSegment({
     required this.number,
@@ -86,7 +91,8 @@ class RouteSegment {
 class ArFootstep {
   final double distanceMeters;
   final double relativeAngleDeg;
-  const ArFootstep({required this.distanceMeters, required this.relativeAngleDeg});
+  const ArFootstep(
+      {required this.distanceMeters, required this.relativeAngleDeg});
 }
 
 // ── Navigation phase ──────────────────────────────────────────────────────────
@@ -97,28 +103,45 @@ enum ArNavPhase { seekingTicketCounter, routing, endOfKnownRoute }
 
 enum ArGpsStatus { live, stale, degraded, unavailable }
 
+// ── Heritage-site presence ───────────────────────────────────────────────────
+//
+// Whether the visitor is confirmed to be standing inside the Sigiriya site.
+// Deliberately THREE states, not a bool: "no trustworthy fix yet" is NOT the
+// same as "outside" — the UI must offer a "Verify again" retry for `locating`
+// rather than wrongly telling a visitor at the entrance they are outside.
+
+enum ArSitePresence { locating, inside, outside }
+
 // ── Navigation snapshot (emitted per update) ────────────────────────────────────
 
 class ArNavigationSnapshot {
-  final int waypointIndex; // 0-based current segment index (-1 before the route starts)
+  final int
+      waypointIndex; // 0-based current segment index (-1 before the route starts)
   final int totalWaypoints;
   final String waypointTitle;
   final String instruction;
-  final double distanceMeters; // remaining meters in the current segment (or to the Ticket Counter anchor)
-  final double relativeAngleDeg; // smoothed screen-relative arrow angle, driven by [turnDirection]
+  final double
+      distanceMeters; // remaining meters in the current segment (or to the Ticket Counter anchor)
+  final double
+      relativeAngleDeg; // smoothed screen-relative arrow angle, driven by [turnDirection]
   final TurnDirection turnDirection;
-  final double compassHeadingDeg; // smoothed 0..360, phone orientation only — never gates the route
+  final double
+      compassHeadingDeg; // smoothed 0..360, phone orientation only — never gates the route
   final bool hasGpsFix;
   final bool hasCompassFix;
   final bool hasArrived;
   final bool routeComplete; // true once the currently known measured data ends
-  final String? detectionGuidance; // shown while waiting for a route-gating YOLO detection
+  final String?
+      detectionGuidance; // shown while waiting for a route-gating YOLO detection
   final bool detectionConfirmed;
   final bool justArrivedFlash;
   final ArGpsStatus gpsStatus;
   final List<ArFootstep> footsteps;
-  final String? contextNote; // opportunistic landmark note — never advances the route
+  final String?
+      contextNote; // opportunistic landmark note — never advances the route
   final ArNavPhase phase;
+  final ArSitePresence
+      sitePresence; // meaningful only while seeking the Ticket Counter
 
   const ArNavigationSnapshot({
     required this.waypointIndex,
@@ -140,6 +163,7 @@ class ArNavigationSnapshot {
     this.footsteps = const [],
     this.contextNote,
     this.phase = ArNavPhase.seekingTicketCounter,
+    this.sitePresence = ArSitePresence.locating,
   });
 
   ArNavigationSnapshot copyWith({
@@ -162,6 +186,7 @@ class ArNavigationSnapshot {
     List<ArFootstep>? footsteps,
     String? contextNote,
     ArNavPhase? phase,
+    ArSitePresence? sitePresence,
   }) {
     return ArNavigationSnapshot(
       waypointIndex: waypointIndex ?? this.waypointIndex,
@@ -183,6 +208,7 @@ class ArNavigationSnapshot {
       footsteps: footsteps ?? this.footsteps,
       contextNote: contextNote ?? this.contextNote,
       phase: phase ?? this.phase,
+      sitePresence: sitePresence ?? this.sitePresence,
     );
   }
 }
@@ -196,7 +222,10 @@ class ArNavigationSnapshot {
 // [sustainMs] before flipping active, which is what rejects a single bump/tap
 // as motion; it flips back inactive the instant variance drops again.
 class _VarianceGate {
-  _VarianceGate({required this.windowSize, required this.threshold, required this.sustainMs});
+  _VarianceGate(
+      {required this.windowSize,
+      required this.threshold,
+      required this.sustainMs});
 
   final int windowSize;
   final double threshold;
@@ -222,12 +251,14 @@ class _VarianceGate {
 
     final mean = _window.reduce((a, b) => a + b) / _window.length;
     final variance =
-        _window.map((v) => (v - mean) * (v - mean)).reduce((a, b) => a + b) / _window.length;
+        _window.map((v) => (v - mean) * (v - mean)).reduce((a, b) => a + b) /
+            _window.length;
 
     final now = DateTime.now();
     if (variance > threshold) {
       _aboveSince ??= now;
-      if (!_active && now.difference(_aboveSince!).inMilliseconds >= sustainMs) {
+      if (!_active &&
+          now.difference(_aboveSince!).inMilliseconds >= sustainMs) {
         _active = true;
       }
     } else {
@@ -267,6 +298,65 @@ class ArNavigationService {
   static const double ticketCounterAnchorLon = 80.7535045;
   static const String ticketCounterLabel = 'sigiriya_ticket_counter';
 
+  // ── GPS route-start trigger ─────────────────────────────────────────────
+  // Physically surveyed spot where Segment 1 begins. Standing here with a
+  // trustworthy fix for [_gpsArrivalConfirmFixes] consecutive updates starts
+  // the measured route WITHOUT a YOLO camera confirmation — the two triggers
+  // are co-equal (whichever fires first wins). Distinct from the seek anchor
+  // above (~10 m away): the anchor is the "aim here from far off" beacon,
+  // this is the "you're standing at the counter, start measuring" fix.
+  static const double routeStartLat = 7.957651;
+  static const double routeStartLon = 80.753466;
+  // Reported position must sit within this radius of the route-start point,
+  // with a fix at least this accurate, for [_gpsArrivalConfirmFixes]
+  // consecutive updates. The streak — not a tight radius — is what rejects a
+  // single wild fix; keep the radius forgiving since the plaza fix near the
+  // entrance still drifts ~15-25 m. YOLO + the manual button remain fallbacks.
+  static const double _gpsArrivalRadiusM = 15.0;
+  static const double _gpsArrivalMaxAccuracyM = 25.0;
+  static const int _gpsArrivalConfirmFixes = 4;
+
+  // ── Range band for the camera-search prompt (from the seek anchor) ──────
+  // Inside this radius the visitor is close enough that pointing the camera
+  // at the Ticket Counter is the useful next step.
+  static const double cameraSearchRadiusMeters = 120.0;
+
+  // ── Heritage-site geofence ("are you at Sigiriya?") ────────────────────
+  // Defaults mirror assets/config/landmark_sites.json's Sigiriya entry;
+  // ArCameraView overrides them from that file at startup (one source of
+  // truth). A fix coarser than [_siteFixTrustAccuracyM] is never used to
+  // assert `outside` — it downgrades to `locating` so the UI shows "Verify
+  // again" instead of wrongly declaring the visitor outside the site.
+  double _siteCenterLat = 7.9573;
+  double _siteCenterLon = 80.7566;
+  double _siteRadiusM = 1000.0;
+  static const double _siteFixTrustAccuracyM = 60.0;
+
+  /// One-time (or on-change) override of the site geofence from
+  /// landmark_sites.json. See [_computeSitePresence].
+  void configureSiteGeofence({
+    required double lat,
+    required double lon,
+    required double radiusMeters,
+  }) {
+    _siteCenterLat = lat;
+    _siteCenterLon = lon;
+    _siteRadiusM = radiusMeters;
+  }
+
+  // ── Long-segment GPS drift correction ─────────────────────────────────
+  // The one deliberate exception to "GPS never writes `_walkedInSegment`"
+  // (see the GPS doc below): on segments long enough for step drift to
+  // accumulate (Segments 11 & 12 — 376 m / 214 m on today's route), when the
+  // fix is genuinely good and a trend is established, bleed the step-based
+  // estimate a small fraction of the way toward the GPS-walked estimate.
+  // Steps stay the source of truth; this only trims accumulated error.
+  static const double _gpsCorrectionMinSegmentM = 100.0;
+  static const double _gpsCorrectionMaxAccuracyM = 10.0;
+  static const double _gpsCorrectionDeadbandM = 8.0;
+  static const double _gpsCorrectionGain = 0.06;
+  static const int _gpsCorrectionMinFixes = 5;
+
   /// Every class the on-device YOLO model actually knows. Used to scan
   /// opportunistically for ANY landmark (bounding box + info popup) once the
   /// measured route is underway, independent of which one (if any) the
@@ -285,16 +375,23 @@ class ArNavigationService {
   // spec notes. The route intentionally stops after segment 36; there is no
   // further measured data yet.
   static const List<RouteSegment> _segments = [
-    RouteSegment(number: 1, distanceMeters: 8.32, turnAtEnd: TurnDirection.right),
-    RouteSegment(number: 2, distanceMeters: 7.70, turnAtEnd: TurnDirection.left),
-    RouteSegment(number: 3, distanceMeters: 15.68, turnAtEnd: TurnDirection.left),
-    RouteSegment(number: 4, distanceMeters: 1.94, turnAtEnd: TurnDirection.right),
-    RouteSegment(number: 5, distanceMeters: 1.05, turnAtEnd: TurnDirection.left),
-    RouteSegment(number: 6, distanceMeters: 8.86, turnAtEnd: TurnDirection.right),
-    RouteSegment(number: 7, distanceMeters: 9.46, turnAtEnd: TurnDirection.right),
-    RouteSegment(number: 8, distanceMeters: 4.91, turnAtEnd: TurnDirection.left),
-    RouteSegment(number: 9, distanceMeters: 4.73, turnAtEnd: TurnDirection.right),
-    RouteSegment(number: 10, distanceMeters: 9.48, turnAtEnd: TurnDirection.straight),
+    RouteSegment(number: 1, distanceMeters: 6, turnAtEnd: TurnDirection.right),
+    RouteSegment(number: 2, distanceMeters: 3, turnAtEnd: TurnDirection.left),
+    RouteSegment(number: 3, distanceMeters: 8, turnAtEnd: TurnDirection.left),
+    RouteSegment(
+        number: 4, distanceMeters: 1.94, turnAtEnd: TurnDirection.right),
+    RouteSegment(
+        number: 5, distanceMeters: 1.05, turnAtEnd: TurnDirection.left),
+    RouteSegment(
+        number: 6, distanceMeters: 8.86, turnAtEnd: TurnDirection.right),
+    RouteSegment(
+        number: 7, distanceMeters: 9.46, turnAtEnd: TurnDirection.right),
+    RouteSegment(
+        number: 8, distanceMeters: 4.91, turnAtEnd: TurnDirection.left),
+    RouteSegment(
+        number: 9, distanceMeters: 4.73, turnAtEnd: TurnDirection.right),
+    RouteSegment(
+        number: 10, distanceMeters: 9.48, turnAtEnd: TurnDirection.straight),
     RouteSegment(
       number: 11,
       distanceMeters: 376.07,
@@ -303,23 +400,40 @@ class ArNavigationService {
       contextAmbientNote: 'Lion Rock viewpoint nearby',
       contextSpottedNote: 'Sigiriya Lion Rock spotted',
     ),
-    RouteSegment(number: 12, distanceMeters: 214.26, turnAtEnd: TurnDirection.left),
-    RouteSegment(number: 13, distanceMeters: 3.63, turnAtEnd: TurnDirection.right),
-    RouteSegment(number: 14, distanceMeters: 2.34, turnAtEnd: TurnDirection.right),
-    RouteSegment(number: 15, distanceMeters: 14.71, turnAtEnd: TurnDirection.left),
-    RouteSegment(number: 16, distanceMeters: 17.81, turnAtEnd: TurnDirection.left),
-    RouteSegment(number: 17, distanceMeters: 12.81, turnAtEnd: TurnDirection.left),
-    RouteSegment(number: 18, distanceMeters: 11.37, turnAtEnd: TurnDirection.right),
-    RouteSegment(number: 19, distanceMeters: 75.75, turnAtEnd: TurnDirection.right),
-    RouteSegment(number: 20, distanceMeters: 26.70, turnAtEnd: TurnDirection.left),
-    RouteSegment(number: 21, distanceMeters: 27.67, turnAtEnd: TurnDirection.right),
-    RouteSegment(number: 22, distanceMeters: 3.65, turnAtEnd: TurnDirection.left),
-    RouteSegment(number: 23, distanceMeters: 3.93, turnAtEnd: TurnDirection.right),
-    RouteSegment(number: 24, distanceMeters: 13.19, turnAtEnd: TurnDirection.left),
-    RouteSegment(number: 25, distanceMeters: 4.95, turnAtEnd: TurnDirection.right),
-    RouteSegment(number: 26, distanceMeters: 7.44, turnAtEnd: TurnDirection.right),
-    RouteSegment(number: 27, distanceMeters: 5.92, turnAtEnd: TurnDirection.left),
-    RouteSegment(number: 28, distanceMeters: 43.49, turnAtEnd: TurnDirection.left),
+    RouteSegment(
+        number: 12, distanceMeters: 214.26, turnAtEnd: TurnDirection.left),
+    RouteSegment(
+        number: 13, distanceMeters: 3.63, turnAtEnd: TurnDirection.right),
+    RouteSegment(
+        number: 14, distanceMeters: 2.34, turnAtEnd: TurnDirection.right),
+    RouteSegment(
+        number: 15, distanceMeters: 14.71, turnAtEnd: TurnDirection.left),
+    RouteSegment(
+        number: 16, distanceMeters: 17.81, turnAtEnd: TurnDirection.left),
+    RouteSegment(
+        number: 17, distanceMeters: 12.81, turnAtEnd: TurnDirection.left),
+    RouteSegment(
+        number: 18, distanceMeters: 11.37, turnAtEnd: TurnDirection.right),
+    RouteSegment(
+        number: 19, distanceMeters: 75.75, turnAtEnd: TurnDirection.right),
+    RouteSegment(
+        number: 20, distanceMeters: 26.70, turnAtEnd: TurnDirection.left),
+    RouteSegment(
+        number: 21, distanceMeters: 27.67, turnAtEnd: TurnDirection.right),
+    RouteSegment(
+        number: 22, distanceMeters: 3.65, turnAtEnd: TurnDirection.left),
+    RouteSegment(
+        number: 23, distanceMeters: 3.93, turnAtEnd: TurnDirection.right),
+    RouteSegment(
+        number: 24, distanceMeters: 13.19, turnAtEnd: TurnDirection.left),
+    RouteSegment(
+        number: 25, distanceMeters: 4.95, turnAtEnd: TurnDirection.right),
+    RouteSegment(
+        number: 26, distanceMeters: 7.44, turnAtEnd: TurnDirection.right),
+    RouteSegment(
+        number: 27, distanceMeters: 5.92, turnAtEnd: TurnDirection.left),
+    RouteSegment(
+        number: 28, distanceMeters: 43.49, turnAtEnd: TurnDirection.left),
     RouteSegment(
       number: 29,
       distanceMeters: 19.25,
@@ -328,18 +442,24 @@ class ArNavigationService {
       contextDetectionLabel: 'sigiriya_lion_paws',
       contextSpottedNote: 'Sigiriya Lion Paws spotted',
     ),
-    RouteSegment(number: 30, distanceMeters: 20.47, turnAtEnd: TurnDirection.right),
+    RouteSegment(
+        number: 30, distanceMeters: 20.47, turnAtEnd: TurnDirection.right),
     RouteSegment(
       number: 31,
       distanceMeters: 8.27,
       turnAtEnd: TurnDirection.straight,
       type: RoutePointType.returnPoint,
     ),
-    RouteSegment(number: 32, distanceMeters: 13.02, turnAtEnd: TurnDirection.left),
-    RouteSegment(number: 33, distanceMeters: 6.15, turnAtEnd: TurnDirection.right),
-    RouteSegment(number: 34, distanceMeters: 1.29, turnAtEnd: TurnDirection.left),
-    RouteSegment(number: 35, distanceMeters: 10.23, turnAtEnd: TurnDirection.left),
-    RouteSegment(number: 36, distanceMeters: 10.01, turnAtEnd: TurnDirection.straight),
+    RouteSegment(
+        number: 32, distanceMeters: 13.02, turnAtEnd: TurnDirection.left),
+    RouteSegment(
+        number: 33, distanceMeters: 6.15, turnAtEnd: TurnDirection.right),
+    RouteSegment(
+        number: 34, distanceMeters: 1.29, turnAtEnd: TurnDirection.left),
+    RouteSegment(
+        number: 35, distanceMeters: 10.23, turnAtEnd: TurnDirection.left),
+    RouteSegment(
+        number: 36, distanceMeters: 10.01, turnAtEnd: TurnDirection.straight),
   ];
 
   List<RouteSegment> get segments => _segments;
@@ -383,10 +503,13 @@ class ArNavigationService {
   // the gyroscope's rotation — that a genuine walking gait does (arm/torso
   // sway alongside the vertical bounce). Both must agree before a
   // software-detected step is credited.
-  static const int _motionWindowSize = 40; // ~800ms at SensorInterval.gameInterval (50Hz)
-  static const double _motionVarianceThreshold = 0.20; // (m/s²)² — empirical; retune on-device
+  static const int _motionWindowSize =
+      40; // ~800ms at SensorInterval.gameInterval (50Hz)
+  static const double _motionVarianceThreshold =
+      0.20; // (m/s²)² — empirical; retune on-device
   static const int _gyroWindowSize = 40;
-  static const double _gyroVarianceThreshold = 0.02; // (rad/s)² — empirical; retune on-device
+  static const double _gyroVarianceThreshold =
+      0.02; // (rad/s)² — empirical; retune on-device
   static const int _gateSustainMs = 400; // debounce: ignore single spikes/taps
 
   // The pedometer's own peak detector: a rising-edge (Schmitt-trigger style)
@@ -394,9 +517,11 @@ class ArNavigationService {
   // step once it's re-armed by dipping back below the fall threshold —
   // standard shape for a software pedometer, same idea as the OS's own
   // TYPE_STEP_DETECTOR, just implemented here as the always-warm fallback.
-  static const double _pedometerRiseThreshold = 1.6; // m/s² — empirical; retune on-device
+  static const double _pedometerRiseThreshold =
+      1.6; // m/s² — empirical; retune on-device
   static const double _pedometerFallThreshold = 0.9; // hysteresis re-arm floor
-  static const int _accelSmoothingWindowSize = 3; // light denoise, short enough not to smear real peaks
+  static const int _accelSmoothingWindowSize =
+      3; // light denoise, short enough not to smear real peaks
 
   // Same "optional sensor, graceful fallback" shape as step mode: if a
   // device's accelerometer/gyroscope never produce a single full window of
@@ -450,6 +575,8 @@ class ArNavigationService {
 
   double? _deviceLat;
   double? _deviceLon;
+  double?
+      _lastGpsAccuracyM; // most recent reported horizontal accuracy, for the site-presence check
   double? _headingDeg;
   bool _compassReady = false;
   double? _smoothedHeadingDeg;
@@ -463,10 +590,14 @@ class ArNavigationService {
   // sustained motion/rotation) rather than active, since a false-positive
   // default would reopen the exact "stationary phone advances anyway" bug
   // this whole architecture exists to close.
-  final _VarianceGate _motionGate =
-      _VarianceGate(windowSize: _motionWindowSize, threshold: _motionVarianceThreshold, sustainMs: _gateSustainMs);
-  final _VarianceGate _rotationGate =
-      _VarianceGate(windowSize: _gyroWindowSize, threshold: _gyroVarianceThreshold, sustainMs: _gateSustainMs);
+  final _VarianceGate _motionGate = _VarianceGate(
+      windowSize: _motionWindowSize,
+      threshold: _motionVarianceThreshold,
+      sustainMs: _gateSustainMs);
+  final _VarianceGate _rotationGate = _VarianceGate(
+      windowSize: _gyroWindowSize,
+      threshold: _gyroVarianceThreshold,
+      sustainMs: _gateSustainMs);
   DateTime? _pedometerGateGraceDeadline; // see `_pedometerGateGraceMs`
 
   // Software pedometer's own peak-detector state (see `_pedometerRiseThreshold`).
@@ -480,7 +611,8 @@ class ArNavigationService {
   double? _lastAcceptedLat;
   double? _lastAcceptedLon;
   DateTime? _lastAcceptedTime;
-  double _walkedInSegment = 0.0; // authoritative — fed ONLY by steps (native or software), never GPS
+  double _walkedInSegment =
+      0.0; // authoritative — fed ONLY by steps (native or software), never GPS
 
   // Step-based progress (see constants above for tuning).
   bool _nativeStepSensorActive = false;
@@ -493,12 +625,19 @@ class ArNavigationService {
   // Debug-only shadow tracking, purely for comparison against the
   // sensor-driven `_walkedInSegment` — see the GPS section above.
   double _gpsWalkedInSegment = 0.0;
+  int _gpsFixesThisSegment =
+      0; // accepted routing fixes this segment (drift-correction trend gate)
+  double?
+      _segmentStartLat; // first accepted fix of the current segment — anchor for
+  double?
+      _segmentStartLon; // straight-line displacement in the drift correction
   int? _cumulativeStepBaseline;
   int _lastLoggedCumulativeDelta = 0;
 
   double? _smoothedArrowAngle;
 
   int _ticketCounterHitStreak = 0;
+  int _gpsArrivalStreak = 0; // consecutive close fixes to the route-start point
   int _contextHitStreak = 0;
   bool _contextSpotted = false;
 
@@ -508,7 +647,8 @@ class ArNavigationService {
 
   ArNavPhase get phase => _phase;
   bool get routeComplete => _phase == ArNavPhase.endOfKnownRoute;
-  double? get headingDeg => _headingDeg; // raw phone orientation, for diagnostics only
+  double? get headingDeg =>
+      _headingDeg; // raw phone orientation, for diagnostics only
   bool get usingNativeStepSensor => _nativeStepSensorActive;
   double get calibratedStepLength => _calibratedStepLength;
 
@@ -532,7 +672,8 @@ class ArNavigationService {
   }
 
   ArGpsStatus get _currentGpsStatus {
-    if (_deviceLat == null || _deviceLon == null) return ArGpsStatus.unavailable;
+    if (_deviceLat == null || _deviceLon == null)
+      return ArGpsStatus.unavailable;
     if (_gpsLive) return ArGpsStatus.live;
     if (_lastGpsUpdateMs == 0) return ArGpsStatus.unavailable;
 
@@ -543,13 +684,18 @@ class ArNavigationService {
   }
 
   // ── GPS update ────────────────────────────────────────────────────────────
-  ArNavigationSnapshot onGpsUpdate(double lat, double lon, {double? accuracyMeters}) {
+  ArNavigationSnapshot onGpsUpdate(double lat, double lon,
+      {double? accuracyMeters}) {
     _deviceLat = lat;
     _deviceLon = lon;
+    _lastGpsAccuracyM = accuracyMeters;
     _gpsLive = true;
     _lastGpsUpdateMs = DateTime.now().millisecondsSinceEpoch;
 
-    if (_phase == ArNavPhase.routing) {
+    if (_phase == ArNavPhase.seekingTicketCounter) {
+      final started = _maybeStartRouteFromGps(lat, lon, accuracyMeters);
+      if (started != null) return started;
+    } else if (_phase == ArNavPhase.routing) {
       _ingestRoutingGps(lat, lon, accuracyMeters);
     }
     return _compute();
@@ -557,6 +703,30 @@ class ArNavigationService {
 
   void onGpsLost() {
     _gpsLive = false;
+  }
+
+  /// Co-equal with the YOLO camera trigger: if the visitor is standing on the
+  /// surveyed Segment-1 start point ([routeStartLat]/[routeStartLon]) with a
+  /// trustworthy fix for [_gpsArrivalConfirmFixes] consecutive updates, begin
+  /// the measured route without needing a camera lock. Returns the
+  /// confirmation-banner snapshot when it fires, else null.
+  ArNavigationSnapshot? _maybeStartRouteFromGps(
+      double lat, double lon, double? accuracyMeters) {
+    if (accuracyMeters == null || accuracyMeters > _gpsArrivalMaxAccuracyM) {
+      _gpsArrivalStreak = 0;
+      return null;
+    }
+    final d = _haversineMeters(lat, lon, routeStartLat, routeStartLon);
+    _gpsArrivalStreak = d <= _gpsArrivalRadiusM ? _gpsArrivalStreak + 1 : 0;
+    if (_gpsArrivalStreak >= _gpsArrivalConfirmFixes) {
+      _gpsArrivalStreak = 0;
+      _log('Route start confirmed by GPS arrival '
+          '(${d.toStringAsFixed(1)}m from Segment 1 start, '
+          'accuracy=${accuracyMeters.toStringAsFixed(1)}m)');
+      _beginRoute();
+      return _buildTicketCounterConfirmedBanner();
+    }
+    return null;
   }
 
   void _ingestRoutingGps(double lat, double lon, double? accuracyMeters) {
@@ -569,15 +739,21 @@ class ArNavigationService {
       _lastAcceptedLat = lat;
       _lastAcceptedLon = lon;
       _lastAcceptedTime = DateTime.now();
+      _segmentStartLat ??= lat;
+      _segmentStartLon ??= lon;
       _log('GPS accepted (baseline) movement=0.00m');
       return;
     }
+    _segmentStartLat ??= _lastAcceptedLat;
+    _segmentStartLon ??= _lastAcceptedLon;
 
-    final rawMovement = _haversineMeters(_lastAcceptedLat!, _lastAcceptedLon!, lat, lon);
+    final rawMovement =
+        _haversineMeters(_lastAcceptedLat!, _lastAcceptedLon!, lat, lon);
     final now = DateTime.now();
     final dtSeconds = _lastAcceptedTime == null
         ? 1.0
-        : math.max(0.2, now.difference(_lastAcceptedTime!).inMilliseconds / 1000.0);
+        : math.max(
+            0.2, now.difference(_lastAcceptedTime!).inMilliseconds / 1000.0);
     final impliedSpeed = rawMovement / dtSeconds;
 
     if (impliedSpeed > _maxPlausibleWalkSpeedMps) {
@@ -591,20 +767,73 @@ class ArNavigationService {
     _lastAcceptedLon = lon;
     _lastAcceptedTime = now;
 
-    // Only ever accumulate against the CURRENT segment. This number is pure
-    // diagnostics from here on — it is architecturally incapable of reaching
-    // `_walkedInSegment` (see the class-level doc above); it exists purely
-    // so the debug log can show "sensor distance vs GPS distance" side by
-    // side for on-device sanity checking.
+    // Only ever accumulate against the CURRENT segment. For short segments
+    // this stays pure diagnostics — the debug log shows "sensor distance vs
+    // GPS distance" side by side for on-device sanity checking. The ONLY
+    // place it is allowed to influence `_walkedInSegment` is the tightly
+    // gated long-segment drift correction below (see the class-level GPS doc
+    // and `_gpsCorrectionGain`).
     _gpsWalkedInSegment += acceptedMovement;
-    _log('GPS (validation only, never credited) movement=${acceptedMovement.toStringAsFixed(2)}m '
+    _gpsFixesThisSegment++;
+    _log('GPS movement=${acceptedMovement.toStringAsFixed(2)}m '
         'gpsWalked=${_gpsWalkedInSegment.toStringAsFixed(2)}m vs '
         'sensorWalked=${_walkedInSegment.toStringAsFixed(2)}m '
         '(steps=$_stepsInSegment × ${_calibratedStepLength.toStringAsFixed(3)}m, '
         'source=$_stepSourceLabel)');
+
+    _maybeCorrectDriftFromGps(accuracyMeters);
   }
 
-  String get _stepSourceLabel => _nativeStepSensorActive ? 'native-step-sensor' : 'software-pedometer';
+  /// The single sanctioned path for GPS to write `_walkedInSegment` (see the
+  /// GPS doc above). Only on long segments (≥ [_gpsCorrectionMinSegmentM] —
+  /// Segments 11 & 12 on today's route), only with a genuinely good fix, and
+  /// only once enough fixes have established a trend: nudge the step-based
+  /// estimate a small fraction of the way toward the GPS estimate whenever
+  /// the two have drifted past [_gpsCorrectionDeadbandM]. The gentle gain
+  /// plus the segment-length clamp keep the countdown from jumping.
+  ///
+  /// The GPS estimate here is the straight-line displacement from the
+  /// segment's first fix — NOT `_gpsWalkedInSegment` (summed inter-fix path
+  /// length), which random GPS jitter inflates without bound and would bias
+  /// the countdown forward. Displacement is a sound proxy because Segments 11
+  /// & 12 run essentially straight.
+  void _maybeCorrectDriftFromGps(double? accuracyMeters) {
+    final seg = currentSegment;
+    if (seg == null) return;
+    if (seg.distanceMeters < _gpsCorrectionMinSegmentM) return;
+    if (accuracyMeters == null || accuracyMeters > _gpsCorrectionMaxAccuracyM)
+      return;
+    if (_gpsFixesThisSegment < _gpsCorrectionMinFixes) return;
+    if (_segmentStartLat == null ||
+        _segmentStartLon == null ||
+        _lastAcceptedLat == null ||
+        _lastAcceptedLon == null) {
+      return;
+    }
+
+    final gpsDisplacement = _haversineMeters(_segmentStartLat!,
+        _segmentStartLon!, _lastAcceptedLat!, _lastAcceptedLon!);
+    final discrepancy = gpsDisplacement - _walkedInSegment;
+    if (discrepancy.abs() <= _gpsCorrectionDeadbandM) return;
+
+    final before = _walkedInSegment;
+    _walkedInSegment = _clampD(
+        _walkedInSegment + discrepancy * _gpsCorrectionGain,
+        0,
+        seg.distanceMeters);
+    // Keep the step counter consistent with the corrected distance so the
+    // next `_creditStep` recompute (steps × stepLength) doesn't undo this.
+    if (_calibratedStepLength > 0) {
+      _stepsInSegment = (_walkedInSegment / _calibratedStepLength).round();
+    }
+    _log('GPS drift correction on Segment ${seg.number}: '
+        'walked ${before.toStringAsFixed(2)}m → ${_walkedInSegment.toStringAsFixed(2)}m '
+        '(gpsDisplacement=${gpsDisplacement.toStringAsFixed(2)}m, '
+        'discrepancy=${discrepancy.toStringAsFixed(2)}m, gain=$_gpsCorrectionGain)');
+  }
+
+  String get _stepSourceLabel =>
+      _nativeStepSensorActive ? 'native-step-sensor' : 'software-pedometer';
 
   // ── Step-based progress: the ONLY distance source ─────────────────────────
   // The caller (ar_camera_view.dart) calls enableStepMode() once it has
@@ -616,7 +845,8 @@ class ArNavigationService {
   void enableStepMode() {
     if (_nativeStepSensorActive) return;
     _nativeStepSensorActive = true;
-    _log('Native step sensor CONFIRMED — takes over from the software pedometer '
+    _log(
+        'Native step sensor CONFIRMED — takes over from the software pedometer '
         '(steps × ${_calibratedStepLength.toStringAsFixed(2)}m keeps driving the countdown either way)');
   }
 
@@ -627,7 +857,8 @@ class ArNavigationService {
 
     final now = DateTime.now();
     if (_lastStepEventTime != null &&
-        now.difference(_lastStepEventTime!).inMilliseconds < _minStepIntervalMs) {
+        now.difference(_lastStepEventTime!).inMilliseconds <
+            _minStepIntervalMs) {
       return _compute(); // debounce: not a plausible new step
     }
     _lastStepEventTime = now;
@@ -644,7 +875,8 @@ class ArNavigationService {
     final delta = cumulativeSteps - _cumulativeStepBaseline!;
     if (delta != _lastLoggedCumulativeDelta) {
       _lastLoggedCumulativeDelta = delta;
-      _log('cumulative step-counter delta=$delta (detector-stream count=$_stepsInSegment)');
+      _log(
+          'cumulative step-counter delta=$delta (detector-stream count=$_stepsInSegment)');
     }
     return _compute();
   }
@@ -653,7 +885,9 @@ class ArNavigationService {
   /// the same way — see the class-level "Distance estimation" doc above.
   ArNavigationSnapshot _creditStep(String source) {
     _stepsInSegment++;
-    final seg = _currentSegmentIndex < _segments.length ? _segments[_currentSegmentIndex] : null;
+    final seg = _currentSegmentIndex < _segments.length
+        ? _segments[_currentSegmentIndex]
+        : null;
     if (!_calibrationComplete && seg?.number == 1) {
       _calibrationStepCount++;
     }
@@ -703,14 +937,17 @@ class ArNavigationService {
     if (_accelSmoothingBuffer.length > _accelSmoothingWindowSize) {
       _accelSmoothingBuffer.removeAt(0);
     }
-    final smoothed =
-        _accelSmoothingBuffer.reduce((a, b) => a + b) / _accelSmoothingBuffer.length;
+    final smoothed = _accelSmoothingBuffer.reduce((a, b) => a + b) /
+        _accelSmoothingBuffer.length;
 
     final now = DateTime.now();
     if (_pedometerArmed && smoothed > _pedometerRiseThreshold) {
       final tooSoon = _lastSoftwareStepTime != null &&
-          now.difference(_lastSoftwareStepTime!).inMilliseconds < _minStepIntervalMs;
-      if (!tooSoon && _gateSatisfied(_motionGate) && _gateSatisfied(_rotationGate)) {
+          now.difference(_lastSoftwareStepTime!).inMilliseconds <
+              _minStepIntervalMs;
+      if (!tooSoon &&
+          _gateSatisfied(_motionGate) &&
+          _gateSatisfied(_rotationGate)) {
         _pedometerArmed = false;
         _lastSoftwareStepTime = now;
         return _creditStep('software-pedometer');
@@ -741,10 +978,12 @@ class ArNavigationService {
     if (_calibrationStepCount >= _minCalibrationSteps) {
       final raw = completed.distanceMeters / _calibrationStepCount;
       _calibratedStepLength = _clampD(raw, _minStepLengthM, _maxStepLengthM);
-      _log('Step length CALIBRATED: ${completed.distanceMeters}m / $_calibrationStepCount steps '
+      _log(
+          'Step length CALIBRATED: ${completed.distanceMeters}m / $_calibrationStepCount steps '
           '= ${raw.toStringAsFixed(3)}m → clamped to ${_calibratedStepLength.toStringAsFixed(3)}m');
     } else {
-      _log('Calibration skipped (only $_calibrationStepCount steps observed on Segment 1, '
+      _log(
+          'Calibration skipped (only $_calibrationStepCount steps observed on Segment 1, '
           'need ≥$_minCalibrationSteps) — keeping default ${_calibratedStepLength.toStringAsFixed(2)}m');
     }
   }
@@ -757,7 +996,8 @@ class ArNavigationService {
       final target = _normalizeTo360(headingDeg);
       _smoothedHeadingDeg = _smoothedHeadingDeg == null
           ? target
-          : _smoothCircular(_smoothedHeadingDeg!, target, _headingSmoothingAlpha);
+          : _smoothCircular(
+              _smoothedHeadingDeg!, target, _headingSmoothingAlpha);
 
       if (_phase == ArNavPhase.routing &&
           _segmentReferenceBearing == null &&
@@ -772,7 +1012,8 @@ class ArNavigationService {
       final nowMs = DateTime.now().millisecondsSinceEpoch;
       if (nowMs - _lastCompassLogMs > 1000) {
         _lastCompassLogMs = nowMs;
-        _log('compass=${headingDeg.toStringAsFixed(0)}° smoothed=${_smoothedHeadingDeg!.toStringAsFixed(0)}°');
+        _log(
+            'compass=${headingDeg.toStringAsFixed(0)}° smoothed=${_smoothedHeadingDeg!.toStringAsFixed(0)}°');
       }
     }
     return _compute();
@@ -802,7 +1043,8 @@ class ArNavigationService {
 
       if (_ticketCounterHitStreak >= _ticketCounterConfirmFrames) {
         _ticketCounterHitStreak = 0;
-        _log('Ticket Counter confirmed after $_ticketCounterConfirmFrames stable frames');
+        _log(
+            'Ticket Counter confirmed after $_ticketCounterConfirmFrames stable frames');
         _beginRoute();
         return _buildTicketCounterConfirmedBanner();
       }
@@ -830,6 +1072,7 @@ class ArNavigationService {
     _phase = ArNavPhase.routing;
     _currentSegmentIndex = 0;
     _walkedInSegment = 0;
+    _gpsArrivalStreak = 0;
     _contextHitStreak = 0;
     _contextSpotted = false;
     _lastLoggedSegmentIndex = null;
@@ -874,6 +1117,9 @@ class ArNavigationService {
   void _resetStepSegmentState() {
     _stepsInSegment = 0;
     _gpsWalkedInSegment = 0;
+    _gpsFixesThisSegment = 0;
+    _segmentStartLat = null;
+    _segmentStartLon = null;
     _cumulativeStepBaseline = null;
     _lastLoggedCumulativeDelta = 0;
   }
@@ -939,25 +1185,47 @@ class ArNavigationService {
     // like the compass-relative arrow once routing starts (see `_liveAngle`).
     double rawAngle = 0;
     if (_deviceLat != null && _deviceLon != null) {
-      dist = _haversineMeters(
-          _deviceLat!, _deviceLon!, ticketCounterAnchorLat, ticketCounterAnchorLon);
+      dist = _haversineMeters(_deviceLat!, _deviceLon!, ticketCounterAnchorLat,
+          ticketCounterAnchorLon);
       if (_smoothedHeadingDeg != null) {
-        final bearing = _bearingDegrees(
-            _deviceLat!, _deviceLon!, ticketCounterAnchorLat, ticketCounterAnchorLon);
+        final bearing = _bearingDegrees(_deviceLat!, _deviceLon!,
+            ticketCounterAnchorLat, ticketCounterAnchorLon);
         rawAngle = _normalizeAngle(bearing - _smoothedHeadingDeg!);
       }
     }
     final angle = _smoothArrow(rawAngle);
 
+    // Heritage-site presence drives what the visitor is told. `locating` (no
+    // trustworthy fix yet) is NEVER reported as `outside` — the UI shows a
+    // "Verify again" retry instead.
+    final ArSitePresence presence = _computeSitePresence();
+    String title = 'Ticket Counter';
     String instruction;
-    if (gpsStatus == ArGpsStatus.unavailable && dist == null) {
-      instruction = 'Waiting for GPS signal…';
-    } else if (dist != null) {
-      instruction = dist > 50
-          ? 'Follow the arrow toward the Ticket Counter.'
-          : 'Point your camera at the Ticket Counter.';
-    } else {
-      instruction = 'Walk toward the entrance to find the Ticket Counter.';
+    switch (presence) {
+      case ArSitePresence.locating:
+        title = 'Confirming location';
+        instruction = _deviceLat == null
+            ? 'Getting your GPS location — move to open sky if this takes a while.'
+            : 'Confirming you are at Sigiriya…';
+        break;
+      case ArSitePresence.outside:
+        title = 'Head to Sigiriya';
+        instruction = dist == null
+            ? 'You appear to be outside Sigiriya. Travel to the site entrance, then Verify again.'
+            : 'You appear to be outside Sigiriya — about ${(dist / 1000).toStringAsFixed(1)} km to the entrance.';
+        break;
+      case ArSitePresence.inside:
+        if (dist != null && dist <= cameraSearchRadiusMeters) {
+          instruction =
+              'Almost there — point your camera at the Ticket Counter.';
+        } else if (dist != null) {
+          instruction =
+              'You are at Sigiriya — Ticket Counter ${dist.toStringAsFixed(0)} m ahead. Follow the arrow.';
+        } else {
+          instruction =
+              'You are at Sigiriya — follow the arrow to the Ticket Counter.';
+        }
+        break;
     }
 
     final detGuidance = _ticketCounterHitStreak > 0
@@ -967,7 +1235,7 @@ class ArNavigationService {
     return ArNavigationSnapshot(
       waypointIndex: -1,
       totalWaypoints: _segments.length,
-      waypointTitle: 'Ticket Counter',
+      waypointTitle: title,
       instruction: instruction,
       distanceMeters: dist ?? 0,
       relativeAngleDeg: angle,
@@ -984,7 +1252,28 @@ class ArNavigationService {
       footsteps: const [],
       contextNote: null,
       phase: ArNavPhase.seekingTicketCounter,
+      sitePresence: presence,
     );
+  }
+
+  /// Is the visitor confirmed to be standing inside the Sigiriya site?
+  ///
+  ///  * No device fix at all               → `locating`
+  ///  * Fix coarser than the trust ceiling → `locating` (never "outside" on a
+  ///    bad fix — the entrance sits under tree/rock cover where accuracy is
+  ///    routinely poor; the UI offers "Verify again")
+  ///  * Within the geofence (radius padded by the fix's own accuracy) → `inside`
+  ///  * Otherwise                          → `outside`
+  ArSitePresence _computeSitePresence() {
+    if (_deviceLat == null || _deviceLon == null)
+      return ArSitePresence.locating;
+    final acc = _lastGpsAccuracyM ?? 0;
+    if (acc > _siteFixTrustAccuracyM) return ArSitePresence.locating;
+    final toCenter = _haversineMeters(
+        _deviceLat!, _deviceLon!, _siteCenterLat, _siteCenterLon);
+    return toCenter <= _siteRadiusM + acc
+        ? ArSitePresence.inside
+        : ArSitePresence.outside;
   }
 
   ArNavigationSnapshot _buildTicketCounterConfirmedBanner() {
@@ -1014,13 +1303,15 @@ class ArNavigationService {
 
   ArNavigationSnapshot _computeRouting(ArGpsStatus gpsStatus) {
     final seg = _segments[_currentSegmentIndex];
-    final remaining = _clampD(seg.distanceMeters - _walkedInSegment, 0, seg.distanceMeters);
+    final remaining =
+        _clampD(seg.distanceMeters - _walkedInSegment, 0, seg.distanceMeters);
     final arrivalTol = _arrivalTolerance(seg.distanceMeters);
     final prepTol = _prepThreshold(seg.distanceMeters);
 
     if (remaining <= arrivalTol) {
       final completed = seg;
-      _log('waypoint=${completed.number} SEGMENT COMPLETE remaining=${remaining.toStringAsFixed(2)}m '
+      _log(
+          'waypoint=${completed.number} SEGMENT COMPLETE remaining=${remaining.toStringAsFixed(2)}m '
           'tolerance=${arrivalTol.toStringAsFixed(2)}m '
           'source=$_stepSourceLabel');
       _maybeCalibrateStepLength(completed);
@@ -1031,7 +1322,8 @@ class ArNavigationService {
     String? contextNote;
     if (seg.contextDetectionLabel != null) {
       contextNote = _contextSpotted
-          ? (seg.contextSpottedNote ?? '${_labelDisplay(seg.contextDetectionLabel!)} spotted')
+          ? (seg.contextSpottedNote ??
+              '${_labelDisplay(seg.contextDetectionLabel!)} spotted')
           : seg.contextAmbientNote;
     }
 
@@ -1040,13 +1332,18 @@ class ArNavigationService {
             seg.turnAtEnd == TurnDirection.right ||
             seg.turnAtEnd == TurnDirection.reverse);
 
+    // Friendly, distance-aware phrasing: always name the direction, and lead
+    // with the remaining metres so "In 4 m, turn left" counts the visitor in.
+    final int remainingWhole = remaining.round();
     String instruction;
     if (seg.isReturn) {
-      instruction = 'Go back';
+      instruction = 'Go back — retrace your steps for $remainingWhole m';
     } else if (preparing) {
-      instruction = 'Prepare to turn ${turnDirectionLabel(seg.turnAtEnd)}';
+      instruction = seg.turnAtEnd == TurnDirection.reverse
+          ? 'In $remainingWhole m, turn around'
+          : 'In $remainingWhole m, turn ${turnDirectionLabel(seg.turnAtEnd).toLowerCase()}';
     } else {
-      instruction = 'Walk straight';
+      instruction = 'Continue straight for $remainingWhole m';
     }
 
     if (gpsStatus == ArGpsStatus.stale) {
@@ -1055,12 +1352,21 @@ class ArNavigationService {
       instruction = 'GPS accuracy reduced. Waiting for GPS signal.';
     }
 
-    final targetDir = seg.walkingDirection;
-    final targetAngle = _liveAngle(_angleForDirection(targetDir), targetDir);
+    // The arrow + turn icon follow the segment's walking direction (straight,
+    // or retrace on a return leg) for most of the segment, then swing to the
+    // upcoming turn the moment the "In X m, turn left/right" instruction
+    // appears — so the arrow always matches the words on screen instead of
+    // only flashing the turn for ~2 s after the segment ends. It settles back
+    // to straight on its own once the next segment starts (not preparing).
+    final walkDir = seg.walkingDirection;
+    final showTurnArrow = preparing && !seg.isReturn;
+    final targetDir = showTurnArrow ? seg.turnAtEnd : walkDir;
+    final targetAngle = _liveAngle(_angleForDirection(targetDir), walkDir);
     final smoothedAngle = _smoothArrow(targetAngle);
-    final footsteps = _buildFootsteps(remaining, seg.walkingDirection, seg.turnAtEnd);
+    final footsteps = _buildFootsteps(remaining, walkDir, seg.turnAtEnd);
 
-    _maybeLogRouteState(seg, remaining, instruction, targetDir, smoothedAngle, arrivalTol);
+    _maybeLogRouteState(
+        seg, remaining, instruction, targetDir, smoothedAngle, arrivalTol);
 
     return ArNavigationSnapshot(
       waypointIndex: _currentSegmentIndex,
@@ -1085,7 +1391,8 @@ class ArNavigationService {
     );
   }
 
-  ArNavigationSnapshot _buildSegmentArrival(RouteSegment completed, ArGpsStatus gpsStatus) {
+  ArNavigationSnapshot _buildSegmentArrival(
+      RouteSegment completed, ArGpsStatus gpsStatus) {
     if (_phase == ArNavPhase.endOfKnownRoute) {
       return _buildEndOfRoute(gpsStatus);
     }
@@ -1116,14 +1423,19 @@ class ArNavigationService {
     }
 
     final turn = completed.turnAtEnd;
-    if (turn == TurnDirection.left || turn == TurnDirection.right || turn == TurnDirection.reverse) {
+    if (turn == TurnDirection.left ||
+        turn == TurnDirection.right ||
+        turn == TurnDirection.reverse) {
       final angle = _angleForDirection(turn);
       _smoothedArrowAngle = angle; // snap decisively at the turn instant
-      _log('waypoint=${completed.number} instruction=Turn direction=${turn.name} arrowAngle=${angle.toStringAsFixed(0)}°');
+      _log(
+          'waypoint=${completed.number} instruction=Turn direction=${turn.name} arrowAngle=${angle.toStringAsFixed(0)}°');
       return ArNavigationSnapshot(
         waypointIndex: _currentSegmentIndex,
         totalWaypoints: _segments.length,
-        waypointTitle: turn == TurnDirection.reverse ? 'Go Back' : 'Turn ${turnDirectionLabel(turn)}',
+        waypointTitle: turn == TurnDirection.reverse
+            ? 'Go Back'
+            : 'Turn ${turnDirectionLabel(turn)}',
         instruction: turn == TurnDirection.reverse
             ? 'Retrace your steps.'
             : 'Turn ${turnDirectionLabel(turn).toLowerCase()} and continue.',
@@ -1199,7 +1511,8 @@ class ArNavigationService {
       _smoothedArrowAngle = targetAngle;
     } else {
       final diff = _normalizeAngle(targetAngle - _smoothedArrowAngle!);
-      _smoothedArrowAngle = _normalizeAngle(_smoothedArrowAngle! + diff * _arrowSmoothingAlpha);
+      _smoothedArrowAngle =
+          _normalizeAngle(_smoothedArrowAngle! + diff * _arrowSmoothingAlpha);
     }
     return _smoothedArrowAngle!;
   }
@@ -1208,7 +1521,8 @@ class ArNavigationService {
   // Footsteps are a purely visual aid: they curve gradually toward the
   // upcoming turn as the visitor gets closer to it, and never affect GPS
   // distance accumulation.
-  List<ArFootstep> _buildFootsteps(double remaining, TurnDirection walkingDir, TurnDirection turnAtEnd) {
+  List<ArFootstep> _buildFootsteps(
+      double remaining, TurnDirection walkingDir, TurnDirection turnAtEnd) {
     if (remaining <= 5.0) return const [];
     final preview = math.min(remaining, 40.0);
     // Compass-fused, matching the arrow (see `_liveAngle`) — so the whole
@@ -1245,14 +1559,21 @@ class ArNavigationService {
   }
 
   // ── Debug logging ─────────────────────────────────────────────────────────
-  void _maybeLogRouteState(RouteSegment seg, double remaining, String instruction,
-      TurnDirection dir, double arrowAngle, double tolerance) {
-    if (_lastLoggedSegmentIndex == _currentSegmentIndex && _lastLoggedInstruction == instruction) {
+  void _maybeLogRouteState(
+      RouteSegment seg,
+      double remaining,
+      String instruction,
+      TurnDirection dir,
+      double arrowAngle,
+      double tolerance) {
+    if (_lastLoggedSegmentIndex == _currentSegmentIndex &&
+        _lastLoggedInstruction == instruction) {
       return;
     }
     _lastLoggedSegmentIndex = _currentSegmentIndex;
     _lastLoggedInstruction = instruction;
-    _log('waypoint=${seg.number} instruction=$instruction segment=${seg.distanceMeters.toStringAsFixed(2)}m '
+    _log(
+        'waypoint=${seg.number} instruction=$instruction segment=${seg.distanceMeters.toStringAsFixed(2)}m '
         'walked=${_walkedInSegment.toStringAsFixed(2)}m remaining=${remaining.toStringAsFixed(2)}m '
         'direction=${dir.name} arrowAngle=${arrowAngle.toStringAsFixed(0)}° '
         'tolerance=${tolerance.toStringAsFixed(2)}m '
@@ -1266,26 +1587,33 @@ class ArNavigationService {
 
   // ── Math helpers ───────────────────────────────────────────────────────────
 
-  static double _clampD(double v, double lo, double hi) => v < lo ? lo : (v > hi ? hi : v);
+  static double _clampD(double v, double lo, double hi) =>
+      v < lo ? lo : (v > hi ? hi : v);
 
-  static double _haversineMeters(double lat1, double lon1, double lat2, double lon2) {
+  static double _haversineMeters(
+      double lat1, double lon1, double lat2, double lon2) {
     const r = 6371000.0;
     final dLat = _rad(lat2 - lat1);
     final dLon = _rad(lon2 - lon1);
     final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
-        math.cos(_rad(lat1)) * math.cos(_rad(lat2)) * math.sin(dLon / 2) * math.sin(dLon / 2);
+        math.cos(_rad(lat1)) *
+            math.cos(_rad(lat2)) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
     return r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
   }
 
   /// Initial great-circle bearing from point 1 to point 2, 0..360° (0 = due
   /// north). Only ever used for the Ticket Counter anchor above, which is a
   /// real fixed coordinate — never for the measured route itself.
-  static double _bearingDegrees(double lat1, double lon1, double lat2, double lon2) {
+  static double _bearingDegrees(
+      double lat1, double lon1, double lat2, double lon2) {
     final phi1 = _rad(lat1);
     final phi2 = _rad(lat2);
     final dLon = _rad(lon2 - lon1);
     final y = math.sin(dLon) * math.cos(phi2);
-    final x = math.cos(phi1) * math.sin(phi2) - math.sin(phi1) * math.cos(phi2) * math.cos(dLon);
+    final x = math.cos(phi1) * math.sin(phi2) -
+        math.sin(phi1) * math.cos(phi2) * math.cos(dLon);
     return _normalizeTo360(math.atan2(y, x) * 180.0 / math.pi);
   }
 
@@ -1332,6 +1660,7 @@ class ArNavigationService {
     _gpsLive = true;
     _deviceLat = null;
     _deviceLon = null;
+    _lastGpsAccuracyM = null;
     _headingDeg = null;
     _smoothedArrowAngle = null;
     _lastAcceptedLat = null;
@@ -1339,6 +1668,7 @@ class ArNavigationService {
     _lastAcceptedTime = null;
     _walkedInSegment = 0;
     _ticketCounterHitStreak = 0;
+    _gpsArrivalStreak = 0;
     _contextHitStreak = 0;
     _contextSpotted = false;
     _lastLoggedSegmentIndex = null;
