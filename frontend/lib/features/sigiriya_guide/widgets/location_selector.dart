@@ -1,5 +1,6 @@
 // lib/widgets/location_selector.dart
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_theme.dart';
 import '../data/sigiriya_knowledge_base.dart';
 
 class LocationSelector extends StatefulWidget {
@@ -61,7 +62,10 @@ class _LocationSelectorState extends State<LocationSelector> {
 
   @override
   Widget build(BuildContext context) {
-    final gold = Theme.of(context).colorScheme.primary;
+    // Match the Explore-flow colour rule: heritage-gold accent, terracotta
+    // for selected/emphasis, espresso text on the light parchment surface.
+    const gold = AppTheme.secondary;
+    const accentText = AppTheme.primary;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -72,17 +76,19 @@ class _LocationSelectorState extends State<LocationSelector> {
             Expanded(
               child: TextField(
                 controller: widget.controller,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
+                style: const TextStyle(
+                    color: AppTheme.textBase, fontSize: 14),
                 decoration: InputDecoration(
                   hintText: 'Type or pick a location…',
-                  prefixIcon: Icon(Icons.location_on_outlined, color: gold),
+                  prefixIcon:
+                      const Icon(Icons.location_on_outlined, color: gold),
                   suffixIcon: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (widget.controller.text.isNotEmpty)
                         IconButton(
                           icon: const Icon(Icons.clear, size: 16),
-                          color: Colors.white38,
+                          color: Colors.black38,
                           onPressed: () {
                             widget.controller.clear();
                             widget.onSelected(null);
@@ -120,12 +126,12 @@ class _LocationSelectorState extends State<LocationSelector> {
             margin: const EdgeInsets.only(top: 4),
             constraints: const BoxConstraints(maxHeight: 220),
             decoration: BoxDecoration(
-              color: const Color(0xFF2C1A0E),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: gold.withOpacity(0.4)),
+              border: Border.all(color: accentText.withOpacity(0.25)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.4),
+                  color: Colors.black.withOpacity(0.12),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -136,7 +142,7 @@ class _LocationSelectorState extends State<LocationSelector> {
               shrinkWrap: true,
               itemCount: _suggestions.length,
               separatorBuilder: (_, __) =>
-                  Divider(color: gold.withOpacity(0.1), height: 1),
+                  Divider(color: accentText.withOpacity(0.10), height: 1),
               itemBuilder: (context, index) {
                 final name = _suggestions[index];
                 final loc = kSigiriyaLocations.firstWhere(
@@ -159,7 +165,9 @@ class _LocationSelectorState extends State<LocationSelector> {
                           child: Text(
                             name,
                             style: TextStyle(
-                              color: isSelected ? gold : Colors.white,
+                              color: isSelected
+                                  ? accentText
+                                  : AppTheme.textBase,
                               fontWeight: isSelected
                                   ? FontWeight.bold
                                   : FontWeight.normal,
@@ -168,7 +176,7 @@ class _LocationSelectorState extends State<LocationSelector> {
                           ),
                         ),
                         if (isSelected)
-                          Icon(Icons.check, color: gold, size: 16),
+                          const Icon(Icons.check, color: accentText, size: 16),
                       ],
                     ),
                   ),
