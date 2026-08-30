@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../data/quest_state.dart';
+import '../data/quiz_translations.dart';
 
 class GamifiedExploreScreen extends StatefulWidget {
   const GamifiedExploreScreen({super.key});
@@ -8,136 +10,15 @@ class GamifiedExploreScreen extends StatefulWidget {
 }
 
 class _GamifiedExploreScreenState extends State<GamifiedExploreScreen> {
-  final List<_QuizQuestion> _questions = const [
-    _QuizQuestion(
-      question: 'Which site is a UNESCO World Heritage Site in Sri Lanka?',
-      options: [
-        'Sigiriya Rock Fortress',
-        'Bentota Beach',
-        'Nuwara Eliya Town',
-        'Kandy Railway Station',
-      ],
-      correctIndex: 0,
-      explanation:
-          'Sigiriya Rock Fortress was inscribed as a UNESCO World Heritage Site in 1982.',
-    ),
-    _QuizQuestion(
-      question: 'What animal is symbolically linked to the Lion Gate?',
-      options: [
-        'Elephant',
-        'Lion',
-        'Peacock',
-        'Dragon',
-      ],
-      correctIndex: 1,
-      explanation:
-          'The entrance is known as Lion Gate because it once featured a colossal lion form.',
-    ),
-    _QuizQuestion(
-      question: 'What is the Mirror Wall famous for?',
-      options: [
-        'Ancient poetic graffiti',
-        'Hidden treasure maps',
-        'Modern murals',
-        'Water storage',
-      ],
-      correctIndex: 0,
-      explanation:
-          'Visitors wrote poems and inscriptions on the wall from the 6th century onward.',
-    ),
-    _QuizQuestion(
-      question: 'Which part of Sigiriya shows advanced hydraulic engineering?',
-      options: [
-        'Water Gardens',
-        'Summit Palace',
-        'Gallery entrance',
-        'Lion paws',
-      ],
-      correctIndex: 0,
-      explanation:
-          'The Water Gardens contain ponds, channels, and fountain systems powered by ancient hydraulics.',
-    ),
-    _QuizQuestion(
-      question: 'Who built Sigiriya Rock Fortress as a royal capital?',
-      options: [
-        'King Dutugemunu',
-        'King Kashyapa I',
-        'King Parakramabahu',
-        'King Valagamba',
-      ],
-      correctIndex: 1,
-      explanation:
-          'King Kashyapa I built the site during his reign between 477 and 495 AD.',
-    ),
-    _QuizQuestion(
-      question: 'What do the Sigiriya frescoes mainly depict?',
-      options: [
-        'Warriors on horseback',
-        'Celestial maidens',
-        'Market scenes',
-        'Royal elephants only',
-      ],
-      correctIndex: 1,
-      explanation:
-          'The frescoes depict Sigiriya Maidens, often described as celestial female figures.',
-    ),
-    _QuizQuestion(
-      question:
-          'Approximately how high does the Sigiriya rock rise above the plains?',
-      options: [
-        '50 metres',
-        '100 metres',
-        '200 metres',
-        '500 metres',
-      ],
-      correctIndex: 2,
-      explanation:
-          'The rock rises about 200 metres above the surrounding plains.',
-    ),
-    _QuizQuestion(
-      question:
-          'What was the original purpose of the site before it became a royal citadel?',
-      options: [
-        'Fishing port',
-        'Buddhist monastery',
-        'Tea estate',
-        'Military airport',
-      ],
-      correctIndex: 1,
-      explanation:
-          'The site had earlier served as a Buddhist monastery before being transformed by King Kashyapa.',
-    ),
-    _QuizQuestion(
-      question: 'What is the best description of the treasure hunt mechanic?',
-      options: [
-        'One fixed route with no progress',
-        'Clue-based discovery with rewards',
-        'Only reading long paragraphs',
-        'Random guessing game',
-      ],
-      correctIndex: 1,
-      explanation:
-          'The gamified layer is designed around clue trails, discovery, and achievements.',
-    ),
-    _QuizQuestion(
-      question: 'How many questions are included in this quiz set?',
-      options: [
-        '5',
-        '7',
-        '10',
-        '12',
-      ],
-      correctIndex: 2,
-      explanation: 'This quiz set contains 10 multiple-choice questions.',
-    ),
-  ];
+  QuizLanguage _language = QuizLanguage.english;
+  List<QuizQuestionData> get _questions => getQuizQuestions(_language);
 
   int _currentIndex = 0;
   int _score = 0;
   int? _selectedIndex;
   bool _answered = false;
 
-  _QuizQuestion get _currentQuestion => _questions[_currentIndex];
+  QuizQuestionData get _currentQuestion => _questions[_currentIndex];
 
   bool get _isFinished => _currentIndex >= _questions.length;
 
@@ -163,6 +44,8 @@ class _GamifiedExploreScreenState extends State<GamifiedExploreScreen> {
         _selectedIndex = null;
         _answered = false;
       } else {
+        // Quiz finished — persist best score to quest tracker
+        QuestProgress.instance.updateQuizScore(_score, _questions.length);
         _currentIndex = _questions.length;
       }
     });
@@ -170,6 +53,18 @@ class _GamifiedExploreScreenState extends State<GamifiedExploreScreen> {
 
   void _restartQuiz() {
     setState(() {
+      _currentIndex = 0;
+      _score = 0;
+      _selectedIndex = null;
+      _answered = false;
+    });
+  }
+
+  void _changeLanguage(QuizLanguage lang) {
+    if (lang == _language) return;
+    QuestProgress.instance.markLanguageTried(lang);
+    setState(() {
+      _language = lang;
       _currentIndex = 0;
       _score = 0;
       _selectedIndex = null;
@@ -216,86 +111,11 @@ class _GamifiedExploreScreenState extends State<GamifiedExploreScreen> {
               onNext: _nextQuestion,
               onRestart: _restartQuiz,
               isFinished: _isFinished,
+              selectedLanguage: _language,
+              onLanguageChange: _changeLanguage,
             ),
             const SizedBox(height: 16),
-            _FeatureCard(
-              icon: Icons.explore_rounded,
-              title: 'AR Treasure Hunts',
-              subtitle:
-                  'Guide the visitor from clue to clue and turn the site into a discovery game.',
-              accent: const Color(0xFF7BD389),
-              bullets: const [
-                'Clue cards for landmarks',
-                'GPS-based progress',
-                'Reward moments at each stop',
-              ],
-            ),
-            const SizedBox(height: 14),
-            _FeatureCard(
-              icon: Icons.emoji_events_rounded,
-              title: 'Achievement Badges',
-              subtitle:
-                  'Unlock badges for exploration streaks, quiz scores, and completed routes.',
-              accent: gold,
-              bullets: const [
-                'Heritage Explorer badge',
-                'Location mastery badges',
-                'Progress milestones',
-              ],
-            ),
-            const SizedBox(height: 18),
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: gold.withOpacity(0.22)),
-                color: gold.withOpacity(0.08),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Example quest',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: gold,
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Find 5 landmarks.',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Unlock: 🏆 Heritage Explorer',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.white70,
-                        ),
-                  ),
-                  const SizedBox(height: 14),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(999),
-                    child: LinearProgressIndicator(
-                      value: 0.6,
-                      minHeight: 10,
-                      backgroundColor: Colors.white.withOpacity(0.08),
-                      valueColor: AlwaysStoppedAnimation<Color>(gold),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '3 of 5 landmarks found',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.white54,
-                        ),
-                  ),
-                ],
-              ),
-            ),
+            _QuestBoard(),
           ],
         ),
       ),
@@ -308,13 +128,15 @@ class _QuizCard extends StatelessWidget {
   final int score;
   final int currentIndex;
   final int questionCount;
-  final _QuizQuestion? question;
+  final QuizQuestionData? question;
   final int? selectedIndex;
   final bool answered;
   final bool isFinished;
   final ValueChanged<int> onSelect;
   final VoidCallback onNext;
   final VoidCallback onRestart;
+  final QuizLanguage selectedLanguage;
+  final ValueChanged<QuizLanguage> onLanguageChange;
 
   const _QuizCard({
     required this.gold,
@@ -328,6 +150,8 @@ class _QuizCard extends StatelessWidget {
     required this.onSelect,
     required this.onNext,
     required this.onRestart,
+    required this.selectedLanguage,
+    required this.onLanguageChange,
   });
 
   @override
@@ -396,17 +220,76 @@ class _QuizCard extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          // ── Language selector ──────────────────────────────────
+          SizedBox(
+            height: 38,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: QuizLanguage.values.map((lang) {
+                final isActive = lang == selectedLanguage;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: GestureDetector(
+                    onTap: () => onLanguageChange(lang),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(999),
+                        color: isActive
+                            ? const Color(0xFF87B5FF).withOpacity(0.18)
+                            : Colors.white.withOpacity(0.05),
+                        border: Border.all(
+                          color: isActive
+                              ? const Color(0xFF87B5FF)
+                              : Colors.white.withOpacity(0.14),
+                          width: isActive ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(lang.flag,
+                              style: const TextStyle(fontSize: 15)),
+                          const SizedBox(width: 6),
+                          Text(
+                            lang.displayName,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: isActive
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: isActive
+                                  ? const Color(0xFF87B5FF)
+                                  : Colors.white60,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
           const SizedBox(height: 16),
           if (isFinished)
             _QuizResultSummary(score: score, total: questionCount, gold: gold)
           else ...[
-            Text(
-              question!.question,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    height: 1.35,
-                  ),
+            Directionality(
+              textDirection: selectedLanguage.isRtl
+                  ? TextDirection.rtl
+                  : TextDirection.ltr,
+              child: Text(
+                question!.question,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      height: 1.35,
+                    ),
+              ),
             ),
             const SizedBox(height: 14),
             ...List.generate(question!.options.length, (index) {
@@ -728,101 +611,260 @@ class _QuestCard extends StatelessWidget {
   }
 }
 
-class _FeatureCard extends StatelessWidget {
-  final IconData icon;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Quest Board  –  shows all 4 quests with live progress
+// ─────────────────────────────────────────────────────────────────────────────
+class _QuestBoard extends StatelessWidget {
+  const _QuestBoard();
+
+  @override
+  Widget build(BuildContext context) {
+    final gold = Theme.of(context).colorScheme.primary;
+
+    return AnimatedBuilder(
+      animation: QuestProgress.instance,
+      builder: (context, _) {
+        final q = QuestProgress.instance;
+        return Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: gold.withOpacity(0.22)),
+            color: gold.withOpacity(0.06),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  Text(
+                    'Quest Board',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: gold,
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(999),
+                      color: gold.withOpacity(0.12),
+                      border: Border.all(color: gold.withOpacity(0.25)),
+                    ),
+                    child: Text(
+                      '${q.totalBadges} / 4 badges',
+                      style: TextStyle(
+                        color: gold,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Quest 1 – Explorer
+              _QuestTile(
+                icon: '🗺️',
+                title: 'Explorer',
+                subtitle:
+                    'Open ${QuestProgress.explorerTarget} heritage location pages',
+                progress: q.explorerProgress,
+                progressLabel:
+                    '${q.explorerCount} / ${QuestProgress.explorerTarget} visited',
+                badge: '🥾 Heritage Explorer',
+                accent: const Color(0xFF7BD389),
+                complete: q.explorerComplete,
+              ),
+              const SizedBox(height: 12),
+
+              // Quest 2 – Scholar
+              _QuestTile(
+                icon: '🧠',
+                title: 'Scholar',
+                subtitle:
+                    'Score ${QuestProgress.scholarTarget} / ${q.scholarTotal} or higher on the quiz',
+                progress: q.scholarProgress,
+                progressLabel:
+                    'Best score: ${q.scholarBest} / ${q.scholarTotal}',
+                badge: '📜 Heritage Scholar',
+                accent: const Color(0xFF87B5FF),
+                complete: q.scholarComplete,
+              ),
+              const SizedBox(height: 12),
+
+              // Quest 3 – Polyglot
+              _QuestTile(
+                icon: '🌍',
+                title: 'Polyglot',
+                subtitle:
+                    'Try the quiz in ${QuestProgress.polyglotTarget} different languages',
+                progress: q.polyglotProgress,
+                progressLabel:
+                    '${q.polyglotCount} / ${QuestProgress.polyglotTarget} languages tried',
+                badge: '🌐 Polyglot Explorer',
+                accent: const Color(0xFFE8A838),
+                complete: q.polyglotComplete,
+              ),
+              const SizedBox(height: 12),
+
+              // Quest 4 – Master (locked until the 3 above are done)
+              _QuestTile(
+                icon: '🏆',
+                title: 'Heritage Master',
+                subtitle: 'Complete all three quests above',
+                progress: q.masterProgress,
+                progressLabel:
+                    '${q.masterDone} / 3 quests complete',
+                badge: '👑 Heritage Master',
+                accent: gold,
+                complete: q.masterComplete,
+                locked: !q.masterComplete && q.masterDone == 0,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _QuestTile extends StatelessWidget {
+  final String icon;
   final String title;
   final String subtitle;
+  final double progress;
+  final String progressLabel;
+  final String badge;
   final Color accent;
-  final List<String> bullets;
+  final bool complete;
+  final bool locked;
 
-  const _FeatureCard({
+  const _QuestTile({
     required this.icon,
     required this.title,
     required this.subtitle,
+    required this.progress,
+    required this.progressLabel,
+    required this.badge,
     required this.accent,
-    required this.bullets,
+    required this.complete,
+    this.locked = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
+    final effectiveAccent = locked ? Colors.white24 : accent;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        color: Theme.of(context).colorScheme.surface,
-        border: Border.all(color: accent.withOpacity(0.22)),
+        borderRadius: BorderRadius.circular(16),
+        color: complete
+            ? effectiveAccent.withOpacity(0.12)
+            : Colors.white.withOpacity(0.03),
+        border: Border.all(
+          color: complete
+              ? effectiveAccent.withOpacity(0.5)
+              : effectiveAccent.withOpacity(0.2),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Title row
           Row(
             children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: accent.withOpacity(0.12),
-                ),
-                child: Icon(icon, color: accent),
-              ),
-              const SizedBox(width: 12),
+              Text(icon, style: const TextStyle(fontSize: 20)),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: locked ? Colors.white38 : Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ),
+              if (complete)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(999),
+                    color: effectiveAccent.withOpacity(0.18),
+                  ),
+                  child: Text(
+                    '✓ Done',
+                    style: TextStyle(
+                      color: effectiveAccent,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                )
+              else if (locked)
+                const Icon(Icons.lock_outline,
+                    color: Colors.white24, size: 18),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: locked ? Colors.white24 : Colors.white60,
+                  height: 1.4,
+                ),
+          ),
+          const SizedBox(height: 10),
+          // Progress bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: locked ? 0 : progress,
+              minHeight: 7,
+              backgroundColor: Colors.white.withOpacity(0.07),
+              valueColor: AlwaysStoppedAnimation<Color>(effectiveAccent),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  locked ? 'Complete other quests first' : progressLabel,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: locked ? Colors.white24 : Colors.white54,
+                        fontSize: 11,
+                      ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  'Unlock: $badge',
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: locked
+                            ? Colors.white24
+                            : effectiveAccent.withOpacity(0.8),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                       ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            subtitle,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.white70,
-                  height: 1.45,
-                ),
-          ),
-          const SizedBox(height: 12),
-          ...bullets.map(
-            (bullet) => Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.check_circle_rounded, color: accent, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      bullet,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.white70,
-                          ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
     );
   }
-}
-
-class _QuizQuestion {
-  final String question;
-  final List<String> options;
-  final int correctIndex;
-  final String explanation;
-
-  const _QuizQuestion({
-    required this.question,
-    required this.options,
-    required this.correctIndex,
-    required this.explanation,
-  });
 }

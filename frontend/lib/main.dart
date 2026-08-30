@@ -1,12 +1,29 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'core/theme/app_theme.dart';
 import 'features/splash/splash_screen.dart';
 import 'features/sigiriya_guide/screens/splash_screen.dart' as sigiriya_guide;
+import 'features/translation/engine/offline_translation_engine.dart';
+
+// ML Kit's on-device translation models only support these — Sinhala isn't
+// among them and always falls back to the offline heritage dictionary.
+const _mlKitTargetLanguages = ['hi', 'ta', 'zh', 'es', 'fr', 'de'];
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const HeritageArApp());
+
+  // Fire-and-forget: warm up every ML Kit offline language pack right when
+  // the app launches, instead of waiting for the AR translator screen to
+  // trigger a ~25-30MB download on first use of each language. Runs after
+  // runApp so it never blocks the first frame; MlKitTranslationService.
+  // statusStream lets any screen show live, per-language download progress.
+  unawaited(
+    OfflineTranslationEngine.instance
+        .preloadAllOfflineModels(_mlKitTargetLanguages),
+  );
 }
 
 /// Optional bootstrap for the imported Sigiriya guide app.

@@ -526,13 +526,14 @@ Rising **nearly 200 metres**, with ascent limited to a few constructed stairways
 The imposing height, complex pathways, and grandeur of the Lion Gate intimidate and disorient attackers before they reach any critical defense point. The demanding climb weakens enemy forces physically and psychologically.''',
   ),
 
-    // ─────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────
   SigiriyaLocation(
     id: 'ticket_counter',
     name: 'Ticket Counter',
     emoji: '🎟️',
     tags: ['ticket', 'entrance', 'information', 'visitor', 'entry', 'counter'],
-    imageAssets: ['assets/images/Ticket01.jpeg',
+    imageAssets: [
+      'assets/images/Ticket01.jpeg',
       'assets/images/Ticket02.jpeg',
       'assets/images/Ticket03.jpeg',
       'assets/images/Ticket04.jpeg',
@@ -540,34 +541,33 @@ The imposing height, complex pathways, and grandeur of the Lion Gate intimidate 
       'assets/images/Ticket06.jpeg',
     ],
     briefSummary:
-        'The Ticket Counter is the official entry point for visitors to Sigiriya, '
-        'where entrance tickets are purchased before accessing the site. It marks '
-        'the beginning of the visitor journey toward the ancient fortress complex.',
-    detailedInfo: '''## Ticket Counter — Detailed Explanation
+        'The Ticket Counter at Sigiriya provides entry tickets for visitors to access the Sigiriya Rock Fortress, including separate ticket categories for local and foreign tourists.',
+    detailedInfo: '''## Ticket Counter (Sigiriya Rock Fortress)
 
-The Ticket Counter serves as the primary entry point for all visitors to Sigiriya Rock Fortress. Before entering the archaeological site, visitors must obtain their official tickets here.
+**Long Description:**
+The Sigiriya Ticket Counter is the official entrance point where visitors purchase tickets before entering the Sigiriya Archaeological Site. The counter manages ticket issuing for both local and foreign visitors and provides access to the Water Gardens, Boulder Gardens, Frescoes, Mirror Wall, Lion Gate, Summit Palace, and other historical attractions within the fortress complex.
 
-### Location & Role
-Positioned near the main entrance area, the counter acts as the **gateway to the entire Sigiriya complex**. All visitors—local and international—are required to pass through this point.
+**Ticket Prices:**
 
-### Functions
-- Issuing entrance tickets
-- Providing basic visitor information
-- Acting as a checkpoint for site access
-- Sometimes offering brochures or guidance
+**Foreign Visitors:**
 
-### Visitor Experience
-The Ticket Counter is typically the **first interaction point** with the site. During peak tourist seasons, queues may form, so early arrival is recommended.
+* Adults: Approximately **USD 30** (around Rs. 9,000–10,000 depending on exchange rates)
+* Children: Approximately **USD 15**
 
-### Practical Tips
-- Keep your ticket safe, as it may be checked at multiple points
-- Prices may vary for local and foreign visitors
-- It’s advisable to carry cash or check available payment methods in advance
+**Local Visitors (Sri Lankan Citizens):**
 
-### Importance in Site Flow
-Although not part of the ancient structure, the Ticket Counter plays a crucial role in **modern site management**, helping regulate visitor flow and preserve the heritage site.''',
+* Adults: Approximately **Rs. 120**
+* Children: Approximately **Rs. 60**
+
+**Opening Hours:**
+
+* **Ticket Counter Opens:** 6:30 AM
+* **Ticket Counter Closes:** 5:00 PM
+* **Sigiriya Site Visiting Hours:** 6:30 AM – 6:00 PM
+
+**Additional Information:**
+Visitors are advised to purchase tickets early, especially during weekends and holidays, as climbing Sigiriya Rock can take several hours. The ticket includes access to the entire archaeological site and its major attractions. The counter is operated under the management of the **Department of Archaeology, Sri Lanka**, ensuring proper visitor management and preservation of this UNESCO World Heritage Site.''',
   ),
-
 ];
 
 /// All location names for the dropdown/search
@@ -600,8 +600,8 @@ List<SearchResult> searchLocations(String query, {int topK = 3}) {
 
   for (final loc in kSigiriyaLocations) {
     double score = 0;
-    final searchText = '${loc.name} ${loc.tags.join(' ')} ${loc.briefSummary}'
-        .toLowerCase();
+    final searchText =
+        '${loc.name} ${loc.tags.join(' ')} ${loc.briefSummary}'.toLowerCase();
 
     for (final word in words) {
       if (word.length < 3) continue;

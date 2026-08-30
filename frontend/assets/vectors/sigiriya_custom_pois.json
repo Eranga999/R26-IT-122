@@ -1,0 +1,112 @@
+{
+  "_meta": {
+    "layer": "sigiriya_custom_pois",
+    "description": "Curated Sigiriya visitor-trail landmarks not tagged under their popular names in the base OpenStreetMap GeoPackage (assets/vectors/sigiriya_map.gpkg). This layer is additive only — the base map is never modified. Coordinates are anchored to the nearest real surveyed OSM feature, not invented; see 'anchor_source' on each entry. Mirrored in code at frontend/lib/features/map/heritage_map_screen.dart (_curatedTrailStops) — keep both in sync if edited.",
+    "generated": "2026-08-25"
+  },
+  "pois": [
+    {
+      "id": "sigiriya_poi_001",
+      "name": "Ticket Counter",
+      "type": "ticket",
+      "subtype": "entrance",
+      "latitude": 7.9577245,
+      "longitude": 80.75212635,
+      "description": "The official Sigiriya site entrance ticket office. Open 7:00am-5:00pm daily; foreign-visitor ticket price and hours per Central Cultural Fund (CCF).",
+      "source": "OpenStreetMap (bundled GeoPackage) — real surveyed point 'Sigiriya site ticket office'; hours/price cross-checked against CCF eTicketing (eservices.ccf.gov.lk)",
+      "verification_status": "verified",
+      "priority": "critical",
+      "icon": "ticket_icon",
+      "anchor_source": "OSM point, exact coordinate"
+    },
+    {
+      "id": "sigiriya_poi_002",
+      "name": "Water Gardens",
+      "type": "heritage",
+      "subtype": "garden",
+      "latitude": 7.9572137,
+      "longitude": 80.7561035,
+      "description": "Symmetrical water-garden complex on the western approach: an island pavilion reached by four causeways, twin pools with limestone fountains still functional in the rainy season, and an octagonal pool. First zone on the visitor trail after the entrance.",
+      "source": "Wikipedia (Sigiriya article, summarizing published archaeological surveys/UNESCO documentation) for the description; coordinate anchored to a real unnamed leisure=park polygon on the entrance approach in the base GeoPackage (OSM has no feature literally named 'Water Gardens')",
+      "verification_status": "needs_verification",
+      "priority": "high",
+      "icon": "water_icon",
+      "anchor_source": "OSM polygon (unnamed), no OSM name to reuse — position approximate to the garden zone"
+    },
+    {
+      "id": "sigiriya_poi_003",
+      "name": "Boulder Gardens & Cobra Hood Cave",
+      "type": "heritage",
+      "subtype": "garden",
+      "latitude": 7.9562783,
+      "longitude": 80.7582684,
+      "description": "Boulders linked by winding paths across the rock's northern/southern slopes, once topped by pavilions (cuttings for brick walls/beams are still visible) and doubling as a defensive line. Cobra Hood Cave, in this stretch, preserves a fragment of the original ceiling fresco.",
+      "source": "Wikipedia (Sigiriya article) for the description; coordinate is the real OSM point 'Cobra Hood Cave'",
+      "verification_status": "verified",
+      "priority": "high",
+      "icon": "landscape_icon",
+      "anchor_source": "OSM point, exact coordinate"
+    },
+    {
+      "id": "sigiriya_poi_004",
+      "name": "Terraced Gardens",
+      "type": "heritage",
+      "subtype": "garden",
+      "latitude": 7.9568577,
+      "longitude": 80.7590067,
+      "description": "Concentric, brick-walled terraces rising from the boulder gardens, reached by limestone staircases, leading up to the rock's base and the lion staircase entrance.",
+      "source": "Wikipedia (Sigiriya article) for the description; no OSM feature is tagged with this name",
+      "verification_status": "field_verification_required",
+      "priority": "medium",
+      "icon": "terrace_icon",
+      "anchor_source": "Interpolated 40% between Cobra Hood Cave and Lion's Paw Terrace (both real OSM points) — approximates the described position, not a surveyed coordinate"
+    },
+    {
+      "id": "sigiriya_poi_005",
+      "name": "Mirror Wall & Fresco Gallery",
+      "type": "heritage",
+      "subtype": "wall_art",
+      "latitude": 7.9572197,
+      "longitude": 80.7594681,
+      "description": "Polished brick-and-plaster wall (once mirror-bright) beside the spiral staircase, inscribed with visitor poetry from the 8th-10th centuries. The nearby rock face carried a 140m x 40m gallery of apsara (celestial nymph) frescoes, of which a handful survive.",
+      "source": "Wikipedia (Sigiriya article) for the description; no OSM feature is tagged with either name",
+      "verification_status": "field_verification_required",
+      "priority": "high",
+      "icon": "fresco_icon",
+      "anchor_source": "Interpolated 65% between Cobra Hood Cave and Lion's Paw Terrace (both real OSM points), matching the described location on the ascent — not a surveyed coordinate"
+    },
+    {
+      "id": "sigiriya_poi_006",
+      "name": "Audience Hall & Throne",
+      "type": "heritage",
+      "subtype": "ruins",
+      "latitude": 7.9560209,
+      "longitude": 80.7585222,
+      "description": "A large boulder carved into an audience chamber with a rock-cut throne, at the rock's base within the boulder-garden zone — distinct from (and lower than) the summit palace ruins.",
+      "source": "OpenStreetMap (bundled GeoPackage) — real surveyed point 'Audience Hall' tagged tourism=attraction; description cross-checked against general published Sigiriya site literature",
+      "verification_status": "verified",
+      "priority": "high",
+      "icon": "throne_icon",
+      "anchor_source": "OSM point, exact coordinate"
+    },
+    {
+      "id": "sigiriya_poi_007",
+      "name": "Summit Palace",
+      "type": "heritage",
+      "subtype": "palace_ruins",
+      "latitude": 7.9570616,
+      "longitude": 80.75979575,
+      "description": "Royal residence ruins on the rock's flat summit (built for King Kashyapa I, 477-495 CE), including rock-cut cisterns for water storage. Reached past Lion's Paws at the top of the final ascent.",
+      "source": "Wikipedia (Sigiriya article) for the description; coordinate anchored to the real OSM point/polygon 'Upper Terrace' (summit level, tagged tourism=viewpoint)",
+      "verification_status": "needs_verification",
+      "priority": "high",
+      "icon": "palace_icon",
+      "anchor_source": "OSM point 'Upper Terrace', exact coordinate — used as the summit-ruins anchor since no feature is literally named 'Summit Palace'"
+    }
+  ],
+  "not_duplicated_from_base_map": [
+    "Lion's Paws / Lion Platform — already an accurately-placed named OSM point in the base GeoPackage; only its display priority was elevated, not duplicated here.",
+    "Sigiriya (Lion Rock / archaeological site), Sigiriya Museum, Sigiriya Tank, Pidurangala Rock, Pidurangala Vihara, Mapagala Rock, Mapagala Archaeological Site, Ramakale Stupa, Sigiriya Entrance Bus Station — all already present and named in the base GeoPackage; elevated to always-shown priority in the renderer rather than duplicated as custom POIs.",
+    "Toilets, drinking water, parking, restaurants, cafes, hotels, guest houses, police, first aid/doctors, ATMs, bicycle rental, souvenir/convenience shops, tourist information, bus stops — all already tagged in the base GeoPackage (amenity/shop/tourism columns) and rendered directly from it with dedicated icons; see frontend/lib/features/map/heritage_map_screen.dart _pointMarkerStyle / _polygonMarkerStyle."
+  ]
+}

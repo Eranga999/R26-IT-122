@@ -1,0 +1,113 @@
+{
+  "version": "1.0.0",
+  "name": "HeritageAR Offline Sinhala OCR Glyph Classifier",
+  "script": "sinhala",
+  "unicode_range": "0D80-0DFF",
+  "glyph_templates": [
+    {
+      "text": "ප්‍රධාන දොරටුව",
+      "label": "Main Entrance",
+      "aspect_ratio": 4.2,
+      "character_count": 13,
+      "density": 0.42
+    },
+    {
+      "text": "ප්‍රවේශ පත් කවුන්ටරය",
+      "label": "Ticket Counter",
+      "aspect_ratio": 5.1,
+      "character_count": 20,
+      "density": 0.39
+    },
+    {
+      "text": "සීගිරිය සංස්කෘතික කෞතුකාගාරය",
+      "label": "Sigiriya Museum",
+      "aspect_ratio": 7.5,
+      "character_count": 28,
+      "density": 0.45
+    },
+    {
+      "text": "දිය උද්‍යානය",
+      "label": "Water Gardens",
+      "aspect_ratio": 3.8,
+      "character_count": 11,
+      "density": 0.41
+    },
+    {
+      "text": "ගල් උද්‍යානය",
+      "label": "Boulder Gardens",
+      "aspect_ratio": 3.9,
+      "character_count": 11,
+      "density": 0.40
+    },
+    {
+      "text": "සිංහ පාද මළුව",
+      "label": "Lion's Paw Terrace",
+      "aspect_ratio": 4.5,
+      "character_count": 13,
+      "density": 0.43
+    },
+    {
+      "text": "කැඩපත් පවුර",
+      "label": "Mirror Wall",
+      "aspect_ratio": 3.6,
+      "character_count": 11,
+      "density": 0.44
+    },
+    {
+      "text": "සීගිරි බිතුසිතුවම්",
+      "label": "Sigiriya Frescoes",
+      "aspect_ratio": 5.0,
+      "character_count": 17,
+      "density": 0.46
+    },
+    {
+      "text": "සීගිරිය පර්වතය",
+      "label": "Lion Rock",
+      "aspect_ratio": 4.2,
+      "character_count": 13,
+      "density": 0.43
+    },
+    {
+      "text": "ස්පර්ශ නොකරන්න",
+      "label": "Do Not Touch",
+      "aspect_ratio": 4.6,
+      "character_count": 14,
+      "density": 0.38
+    },
+    {
+      "text": "බඹරුන්ගෙන් ප්‍රවේසම් වන්න",
+      "label": "Beware Of Wasps",
+      "aspect_ratio": 6.8,
+      "character_count": 24,
+      "density": 0.42
+    },
+    {
+      "text": "ඡායාරූප ගැනීම තහනම්",
+      "label": "Photography Prohibited",
+      "aspect_ratio": 5.8,
+      "character_count": 19,
+      "density": 0.41
+    },
+    {
+      "text": "ඇතුල්වීම තහනම්",
+      "label": "Do Not Enter",
+      "aspect_ratio": 4.4,
+      "character_count": 14,
+      "density": 0.39
+    },
+    {
+      "text": "කුණු රොඩු දැමීම තහනම්",
+      "label": "No Littering",
+      "aspect_ratio": 6.0,
+      "character_count": 20,
+      "density": 0.40
+    },
+    {
+      "text": "නිශ්ශබ්දතාව සුරකින්න",
+      "label": "Keep Silence",
+      "aspect_ratio": 5.4,
+      "character_count": 18,
+      "density": 0.42
+    }
+  ]
+}

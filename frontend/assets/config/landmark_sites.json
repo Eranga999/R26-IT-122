@@ -3,9 +3,9 @@
     "landmark_id": "LM_SIGIRIYA",
     "landmark_name": "Sigiriya",
     "landmark_db_id": 1,
-    "center_lat": 7.957,
-    "center_lng": 80.7603,
-    "radius_m": 700,
+    "center_lat": 7.9573,
+    "center_lng": 80.7566,
+    "radius_m": 1000,
     "priority": 1
   },
   {

@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../constants/app_constants.dart';
@@ -31,26 +30,44 @@ class SiteLockService {
     return _cachedSites!;
   }
 
-  Future<SiteLockResult> lockSiteByGps() async {
+  /// [requestPermission] — when false, skips the system permission dialog (used on
+  /// app startup). Set true when the user explicitly taps "Verify Location".
+  Future<SiteLockResult> lockSiteByGps({bool requestPermission = true}) async {
     try {
-      // 1. Check if location services are enabled and permissions are granted.
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         return const SiteLockResult(
           status: SiteLockStatus.serviceDisabled,
           message: 'Location services are turned off.',
+          openSettings: true,
         );
       }
 
-      var permission = await Permission.location.status;
-      if (permission.isDenied) {
-        permission = await Permission.location.request();
+      var permission = await Geolocator.checkPermission();
+
+      if (permission == LocationPermission.denied) {
+        if (!requestPermission) {
+          return const SiteLockResult(
+            status: SiteLockStatus.permissionDenied,
+            message: 'Tap Verify Location to allow GPS access.',
+          );
+        }
+        permission = await Geolocator.requestPermission();
       }
 
-      if (permission.isDenied || permission.isPermanentlyDenied) {
+      if (permission == LocationPermission.denied) {
         return const SiteLockResult(
           status: SiteLockStatus.permissionDenied,
-          message: 'Location permission denied.',
+          message: 'Location permission denied. Tap Verify Location again or allow access in Settings.',
+        );
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        return const SiteLockResult(
+          status: SiteLockStatus.permissionDenied,
+          message:
+              'Location permission blocked. Open Settings → HeritageAR → Permissions → Location → Allow.',
+          openSettings: true,
         );
       }
 
