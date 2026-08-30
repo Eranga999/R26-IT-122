@@ -16,6 +16,7 @@ import '../chat/rag_chat_screen.dart';
 import '../map/heritage_map_screen.dart';
 import '../navigation/nav_screen.dart';
 import '../sigiriya_guide/screens/home_screen.dart' as sigiriya_home;
+import 'site_under_development_screen.dart';
 
 /// The main landing screen of HeritageAR.
 class HomeScreen extends StatefulWidget {
@@ -811,10 +812,16 @@ class _FeaturedCard extends StatelessWidget {
   }
 
   void _openDetail(BuildContext context) {
+    // Sigiriya (id 1) is the only fully-developed site — the others open a
+    // clear "under development" screen instead of half-populated content.
+    final bool developed = (landmark.id ?? 1) == 1;
     Navigator.push(
       context,
       MaterialPageRoute(
-          builder: (_) => LandmarkDetailScreen(landmark: landmark)),
+        builder: (_) => developed
+            ? LandmarkDetailScreen(landmark: landmark)
+            : SiteUnderDevelopmentScreen(landmark: landmark),
+      ),
     );
   }
 }
