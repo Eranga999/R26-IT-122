@@ -595,14 +595,29 @@ class _VectorMapState extends State<_VectorMap> {
   bool _initialViewSet = false;
   MapCategory _selectedCategory = MapCategory.landmark;
 
-  /// Only markers in the selected category are drawn/tappable — this is
-  /// the filter the chip row controls. [MapCategory.all] bypasses the
-  /// filter entirely; [MapCategory.elephant] intentionally has no matching
-  /// markers (elephant zones are a separate always-on layer), so selecting
-  /// it empties this list and the map shows "that only", as requested.
-  List<_MapMarker> get _visibleMarkers => _selectedCategory == MapCategory.all
-      ? _markers
-      : _markers.where((m) => m.category == _selectedCategory).toList();
+  /// Markers in the selected category (drawn + tappable) — the filter the
+  /// chip row controls. Cached with a stable list identity, recomputed only
+  /// on [_selectCategory], so the painter's `shouldRepaint` stays false while
+  /// the map is merely panned (the label layer otherwise rebuilds on every
+  /// transform tick now that it re-runs on zoom). [MapCategory.all] bypasses
+  /// the filter; [MapCategory.elephant] matches nothing (elephant zones are a
+  /// separate always-on layer), so it empties the list and the map shows
+  /// "that only", as requested.
+  late List<_MapMarker> _visibleMarkers;
+
+  void _recomputeVisibleMarkers() {
+    _visibleMarkers = _selectedCategory == MapCategory.all
+        ? _markers
+        : _markers.where((m) => m.category == _selectedCategory).toList();
+  }
+
+  void _selectCategory(MapCategory c) {
+    if (c == _selectedCategory) return;
+    setState(() {
+      _selectedCategory = c;
+      _recomputeVisibleMarkers();
+    });
+  }
 
   @override
   void initState() {
@@ -615,6 +630,7 @@ class _VectorMapState extends State<_VectorMap> {
     _canvasSize = Size(_canvasWidth, _canvasWidth / aspect);
 
     _markers = _buildMarkers(widget.data, _canvasSize);
+    _recomputeVisibleMarkers();
     _importantBounds = _boundsOf(
       _markers.where((m) => m.priority >= kAlwaysShowPriority).map((m) => m.screen),
       _canvasSize,
@@ -735,7 +751,10 @@ class _VectorMapState extends State<_VectorMap> {
       }
     }
 
-    const hitRadius = 18.0;
+    // Tap target is a constant ~20 screen px: divide by the live zoom so a
+    // zoomed-out map (tiny pins) is still comfortably tappable.
+    final scale = _transformController.value.getMaxScaleOnAxis();
+    final hitRadius = (20.0 / (scale <= 0 ? 1.0 : scale)).clamp(6.0, 60.0);
     _MapMarker? nearest;
     double nearestDist = double.infinity;
     for (final m in _visibleMarkers) {
@@ -911,7 +930,7 @@ class _VectorMapState extends State<_VectorMap> {
       children: [
         _CategoryChipBar(
           selected: _selectedCategory,
-          onSelect: (c) => setState(() => _selectedCategory = c),
+          onSelect: _selectCategory,
         ),
         Expanded(
           child: LayoutBuilder(
@@ -950,14 +969,29 @@ class _VectorMapState extends State<_VectorMap> {
                       child: GestureDetector(
                         onTapUp: _onTapUp,
                         child: ClipRect(
-                          child: CustomPaint(
-                            size: _canvasSize,
-                            painter: _VectorMapPainter(
-                              data: widget.data,
-                              canvasSize: _canvasSize,
-                              markers: _visibleMarkers,
-                              elephantZones: _elephantZones,
-                            ),
+                          // Rebuilds as the map is zoomed (not panned — the
+                          // scale is quantised so a pan, which leaves it
+                          // unchanged, repaints nothing) so the label pass can
+                          // size itself in screen pixels and reveal more names
+                          // as you zoom into a cluster.
+                          child: AnimatedBuilder(
+                            animation: _transformController,
+                            builder: (context, _) {
+                              final rawScale = _transformController.value
+                                  .getMaxScaleOnAxis();
+                              final scale =
+                                  (rawScale * 100).roundToDouble() / 100;
+                              return CustomPaint(
+                                size: _canvasSize,
+                                painter: _VectorMapPainter(
+                                  data: widget.data,
+                                  canvasSize: _canvasSize,
+                                  markers: _visibleMarkers,
+                                  elephantZones: _elephantZones,
+                                  viewScale: scale <= 0 ? 1.0 : scale,
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ),
@@ -1127,11 +1161,19 @@ class _VectorMapPainter extends CustomPainter {
   final Size canvasSize;
   final List<_MapMarker> markers;
   final List<_ProjectedElephantZone> elephantZones;
+
+  /// Current pinch-zoom scale of the enclosing [InteractiveViewer]. The label
+  /// pass divides its screen-pixel measurements by this so text and chips
+  /// stay a constant on-screen size, and so the "another label is too close"
+  /// test tightens as you zoom in — revealing more names in a dense cluster.
+  final double viewScale;
+
   const _VectorMapPainter({
     required this.data,
     required this.canvasSize,
     required this.markers,
     required this.elephantZones,
+    this.viewScale = 1.0,
   });
 
   Offset _project(GeoPoint p) {
@@ -1324,20 +1366,56 @@ class _VectorMapPainter extends CustomPainter {
     );
   }
 
-  /// Draws every named place as a pin (always visible), then makes a second,
-  /// priority-ordered pass to lay text labels next to them — skipping any
-  /// label that would overlap a pin or a label already placed. This keeps
-  /// the busiest clusters legible (Google Maps-style declutter) while still
-  /// showing a name for every place that has room.
+  /// Draws every named place as a pin (always visible + tappable), then makes
+  /// a second, priority-ordered pass that labels as many as read cleanly:
+  ///
+  ///  * All label sizes are screen-pixel values divided by [viewScale], so
+  ///    text stays a constant on-screen size at any zoom instead of
+  ///    ballooning, and the whole pass re-runs (via the painter's
+  ///    `shouldRepaint`) each time the zoom changes.
+  ///  * A name is skipped when another already-labelled pin sits within a
+  ///    minimum screen-pixel gap of it. Because that gap is in *screen*
+  ///    pixels, zooming into a cluster spreads its pins apart on screen and
+  ///    the suppressed names appear one by one — real-map behaviour, and what
+  ///    stops the ~8 trail stops (all within ~150 m) stacking their names.
+  ///  * Ordinary (non must-see) names also share a budget that grows with
+  ///    zoom, so Food / All don't try to print forty labels at once.
+  ///
+  /// Anything that doesn't get a label is still a pin you can tap. No leader
+  /// lines — every drawn label sits directly against its own pin.
   void _paintMarkersWithLabels(Canvas canvas) {
-    final placedRects = <Rect>[];
+    final s = viewScale <= 0 ? 1.0 : viewScale;
+    final invS = 1.0 / s;
 
+    final pinRects = <Rect>[];
     for (final m in markers) {
       _drawPin(canvas, m);
-      placedRects.add(Rect.fromCircle(center: m.screen, radius: m.pinRadius + 2));
+      pinRects.add(Rect.fromCircle(center: m.screen, radius: m.pinRadius + 2));
     }
+
+    // Minimum clear space between two *labelled* pins, in screen px → canvas
+    // units. Must-see landmarks get a tighter rule so more of them survive a
+    // dense cluster before the rest wait for a zoom-in.
+    final minGap = 52.0 * invS;
+    final minGapFeatured = 30.0 * invS;
+
+    final placedLabelRects = <Rect>[];
+    final labelledPoints = <Offset>[];
+    var budget = (16 * s).round();
+    if (budget < 16) budget = 16;
+    if (budget > 70) budget = 70;
+
     for (final m in markers) {
-      _tryDrawLabel(canvas, m, placedRects);
+      final featured = m.priority >= kAlwaysShowPriority;
+      final gate = featured ? minGapFeatured : minGap;
+
+      if (labelledPoints.any((p) => (p - m.screen).distance < gate)) continue;
+      if (!featured && budget <= 0) continue;
+
+      if (_tryDrawLabel(canvas, m, pinRects, placedLabelRects, invS)) {
+        labelledPoints.add(m.screen);
+        if (!featured) budget--;
+      }
     }
   }
 
@@ -1379,63 +1457,95 @@ class _VectorMapPainter extends CustomPainter {
     tp.paint(canvas, center - Offset(tp.width / 2, tp.height / 2));
   }
 
-  void _tryDrawLabel(Canvas canvas, _MapMarker m, List<Rect> placedRects) {
-    // The must-see Sigiriya trail landmarks always get their name shown —
-    // they never lose out to a lower-priority label wanting the same space.
+  /// Tries to place [m]'s name in one of a few slots hugging its own pin,
+  /// each sized in screen pixels (`* invS` → canvas units). Paints and
+  /// returns true on the first slot clear of every pin and every label
+  /// already placed; returns false (caller leaves it pin-only) if none fits.
+  bool _tryDrawLabel(
+    Canvas canvas,
+    _MapMarker m,
+    List<Rect> pinRects,
+    List<Rect> placedLabelRects,
+    double invS,
+  ) {
     final featured = m.priority >= kAlwaysShowPriority;
     final bold = m.priority >= 4;
     final tp = TextPainter(
       text: TextSpan(
         text: m.name,
         style: TextStyle(
-          fontSize: featured ? 13.5 : (bold ? 12.5 : 10.5),
-          fontWeight: featured ? FontWeight.w900 : (bold ? FontWeight.w800 : FontWeight.w600),
+          fontSize: (featured ? 12.5 : (bold ? 12.0 : 10.5)) * invS,
+          fontWeight: featured
+              ? FontWeight.w800
+              : (bold ? FontWeight.w700 : FontWeight.w600),
           color: AppTheme.textBase,
+          height: 1.15,
         ),
       ),
       textDirection: TextDirection.ltr,
-    )..layout();
+      maxLines: 2,
+      ellipsis: '…',
+    )..layout(maxWidth: (featured ? 168.0 : 128.0) * invS);
 
-    const hPad = 6.0, vPad = 3.0;
+    final hPad = 6.0 * invS, vPad = 3.0 * invS, gap = 6.0 * invS;
     final labelW = tp.width + hPad * 2;
     final labelH = tp.height + vPad * 2;
+    final cx = m.screen.dx, cy = m.screen.dy, r = m.pinRadius;
+    final maxRight = canvasSize.width - 2;
+    final maxBottom = canvasSize.height - 2;
 
-    // Anchor to the right of the pin by default, but flip to the left when
-    // there isn't room before the canvas edge — otherwise labels near the
-    // right/bottom of the map get silently clipped by the surrounding
-    // ClipRect instead of just... not being placed on the wrong side.
-    final fitsRight = m.screen.dx + m.pinRadius + 6 + labelW <= canvasSize.width - 4;
-    final left = fitsRight
-        ? m.screen.dx + m.pinRadius + 6
-        : m.screen.dx - m.pinRadius - 6 - labelW;
-    var top = m.screen.dy - labelH / 2;
-    top = top.clamp(4.0, canvasSize.height - labelH - 4);
+    // Slots that touch the pin, best first: right, left, above, below — plus
+    // the four diagonals for must-see landmarks so they try harder before
+    // giving up. Never far enough to need a leader line.
+    final candidates = <Offset>[
+      Offset(cx + r + gap, cy - labelH / 2),
+      Offset(cx - r - gap - labelW, cy - labelH / 2),
+      Offset(cx - labelW / 2, cy - r - gap - labelH),
+      Offset(cx - labelW / 2, cy + r + gap),
+      if (featured) ...[
+        Offset(cx + r + gap, cy - r - gap - labelH),
+        Offset(cx + r + gap, cy + r + gap),
+        Offset(cx - r - gap - labelW, cy - r - gap - labelH),
+        Offset(cx - r - gap - labelW, cy + r + gap),
+      ],
+    ];
 
-    final rect = Rect.fromLTWH(left, top, labelW, labelH);
+    for (final o in candidates) {
+      final rect = Rect.fromLTWH(o.dx, o.dy, labelW, labelH);
+      if (rect.left < 2 ||
+          rect.top < 2 ||
+          rect.right > maxRight ||
+          rect.bottom > maxBottom) {
+        continue;
+      }
+      if (pinRects.any((p) => p.overlaps(rect))) continue;
+      if (placedLabelRects.any((p) => p.overlaps(rect))) continue;
 
-    if (!featured && placedRects.any((r) => r.overlaps(rect))) return;
-    placedRects.add(rect);
-
-    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(5));
-    canvas.drawRRect(
-      rrect,
-      Paint()..color = Colors.white.withOpacity(featured ? 0.96 : 0.88),
-    );
-    if (featured) {
+      placedLabelRects.add(rect);
+      final rrect = RRect.fromRectAndRadius(rect, Radius.circular(5 * invS));
       canvas.drawRRect(
         rrect,
-        Paint()
-          ..color = m.color
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.2,
+        Paint()..color = Colors.white.withOpacity(featured ? 0.94 : 0.82),
       );
+      if (featured) {
+        canvas.drawRRect(
+          rrect,
+          Paint()
+            ..color = m.color
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.1 * invS,
+        );
+      }
+      tp.paint(canvas, Offset(rect.left + hPad, rect.top + vPad));
+      return true;
     }
-    tp.paint(canvas, Offset(left + hPad, top + vPad));
+    return false;
   }
 
   @override
   bool shouldRepaint(covariant _VectorMapPainter oldDelegate) =>
-      !identical(oldDelegate.markers, markers);
+      !identical(oldDelegate.markers, markers) ||
+      oldDelegate.viewScale != viewScale;
 }
 
 class _PolyFillStyle {
@@ -1449,3 +1559,4 @@ class _LineStyle {
   final double width;
   const _LineStyle(this.color, this.width);
 }
+
