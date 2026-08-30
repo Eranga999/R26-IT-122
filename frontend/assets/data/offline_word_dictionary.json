@@ -305,6 +305,15 @@
     "fr": "à",
     "de": "bei"
   },
+  "attack": {
+    "si": "ප්‍රහාරය",
+    "ta": "தாக்குதல்",
+    "hi": "हमला",
+    "zh": "攻击",
+    "es": "ataque",
+    "fr": "attaque",
+    "de": "Angriff"
+  },
   "attention": {
     "si": "අවධානය",
     "ta": "கவனம்",
@@ -484,6 +493,24 @@
     "es": "bicicleta",
     "fr": "vélo",
     "de": "Fahrrad"
+  },
+  "bin": {
+    "si": "බඳුන",
+    "ta": "குப்பைத் தொட்டி",
+    "hi": "कूड़ेदान",
+    "zh": "垃圾桶",
+    "es": "cubo de basura",
+    "fr": "poubelle",
+    "de": "Mülleimer"
+  },
+  "bins": {
+    "si": "බඳුන්",
+    "ta": "குப்பைத் தொட்டிகள்",
+    "hi": "कूड़ेदान",
+    "zh": "垃圾桶",
+    "es": "cubos de basura",
+    "fr": "poubelles",
+    "de": "Mülleimer"
   },
   "bird": {
     "si": "කුරුල්ලා",
@@ -845,6 +872,15 @@
     "fr": "crocodiles",
     "de": "Krokodile"
   },
+  "crossing": {
+    "si": "තරණය",
+    "ta": "கடத்தல்",
+    "hi": "पार करना",
+    "zh": "穿越",
+    "es": "cruce",
+    "fr": "traversée",
+    "de": "Überquerung"
+  },
   "currency": {
     "si": "මුදල් ගව්ව",
     "ta": "நாணயம்",
@@ -1097,6 +1133,15 @@
     "fr": "sec",
     "de": "trocken"
   },
+  "dusk": {
+    "si": "සන්ධ්‍යාව",
+    "ta": "மாலை நேரம்",
+    "hi": "शाम",
+    "zh": "黄昏",
+    "es": "anochecer",
+    "fr": "crépuscule",
+    "de": "Dämmerung"
+  },
   "each": {
     "si": "එක් එක්",
     "ta": "ஒவ்வொரு",
@@ -1132,6 +1177,24 @@
     "es": "electricidad",
     "fr": "électricité",
     "de": "Elektrizität"
+  },
+  "elephant": {
+    "si": "අලියා",
+    "ta": "யானை",
+    "hi": "हाथी",
+    "zh": "大象",
+    "es": "elefante",
+    "fr": "éléphant",
+    "de": "Elefant"
+  },
+  "elephants": {
+    "si": "අලින්",
+    "ta": "யானைகள்",
+    "hi": "हाथी",
+    "zh": "大象",
+    "es": "elefantes",
+    "fr": "éléphants",
+    "de": "Elefanten"
   },
   "emergency": {
     "si": "හදිසි",
@@ -1610,6 +1673,24 @@
     "fr": "capuchon",
     "de": "Haube"
   },
+  "hornet": {
+    "si": "බඹරා",
+    "ta": "குளவி",
+    "hi": "बर्रैया",
+    "zh": "大黄蜂",
+    "es": "avispón",
+    "fr": "frelon",
+    "de": "Hornisse"
+  },
+  "hornets": {
+    "si": "බඹරුන්",
+    "ta": "குளவிகள்",
+    "hi": "बर्रैया",
+    "zh": "大黄蜂",
+    "es": "avispones",
+    "fr": "frelons",
+    "de": "Hornissen"
+  },
   "hospital": {
     "si": "රෝහල",
     "ta": "மருத்துவமனை",
@@ -1925,6 +2006,24 @@
     "fr": "argent",
     "de": "Geld"
   },
+  "monkey": {
+    "si": "වඳුරා",
+    "ta": "குரங்கு",
+    "hi": "बंदर",
+    "zh": "猴子",
+    "es": "mono",
+    "fr": "singe",
+    "de": "Affe"
+  },
+  "monkeys": {
+    "si": "වඳුරන්",
+    "ta": "குரங்குகள்",
+    "hi": "बंदर",
+    "zh": "猴子",
+    "es": "monos",
+    "fr": "singes",
+    "de": "Affen"
+  },
   "monument": {
     "si": "ස්මාරකය",
     "ta": "நினைவுச்சின்னம்",
@@ -2032,6 +2131,15 @@
     "es": "no",
     "fr": "non",
     "de": "nein"
+  },
+  "noise": {
+    "si": "ශබ්දය",
+    "ta": "சத்தம்",
+    "hi": "शोर",
+    "zh": "噪音",
+    "es": "ruido",
+    "fr": "bruit",
+    "de": "Lärm"
   },
   "north": {
     "si": "උතුර",
@@ -2375,6 +2483,15 @@
     "fr": "protégé",
     "de": "geschützt"
   },
+  "provoke": {
+    "si": "අවුස්සීම",
+    "ta": "தூண்டுதல்",
+    "hi": "उकसाना",
+    "zh": "激怒",
+    "es": "provocar",
+    "fr": "provoquer",
+    "de": "provozieren"
+  },
   "public": {
     "si": "පොදු",
     "ta": "பொது",
@@ -2528,6 +2645,24 @@
     "fr": "route",
     "de": "Straße"
   },
+  "roam": {
+    "si": "සැරිසැරීම",
+    "ta": "சுற்றித் திரிதல்",
+    "hi": "घूमना",
+    "zh": "游荡",
+    "es": "vagar",
+    "fr": "errer",
+    "de": "umherstreifen"
+  },
+  "roaming": {
+    "si": "සැරිසැරීම",
+    "ta": "நடமாடும்",
+    "hi": "विचरण",
+    "zh": "游荡",
+    "es": "vagando",
+    "fr": "errance",
+    "de": "Umherstreifen"
+  },
   "rock": {
     "si": "ගල / පර්වතය",
     "ta": "பாறை",
@@ -2644,6 +2779,15 @@
     "es": "silencio",
     "fr": "silence",
     "de": "Stille"
+  },
+  "silent": {
+    "si": "නිශ්ශබ්ද",
+    "ta": "அமைதியான",
+    "hi": "मौन",
+    "zh": "安静",
+    "es": "silencioso",
+    "fr": "silencieux",
+    "de": "still"
   },
   "site": {
     "si": "ස්ථානය",
@@ -3364,6 +3508,15 @@
     "es": "wifi",
     "fr": "wifi",
     "de": "WLAN"
+  },
+  "wild": {
+    "si": "වන",
+    "ta": "காட்டு",
+    "hi": "जंगली",
+    "zh": "野生",
+    "es": "salvaje",
+    "fr": "sauvage",
+    "de": "wild"
   },
   "wildlife": {
     "si": "වන සතුන්",
