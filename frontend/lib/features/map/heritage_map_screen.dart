@@ -6,6 +6,12 @@ import '../../core/theme/app_theme.dart';
 import 'geopackage/gpkg_geometry.dart';
 import 'geopackage/sigiriya_map_loader.dart';
 
+/// The map's own parchment background fill (also painted by
+/// [_VectorMapPainter]). Reused for the [Scaffold] and the ground behind the
+/// canvas so the letterbox bands around this wide-aspect map — a phone screen
+/// is far taller and narrower than the bbox — read as blank map, not a gap.
+const Color _kMapParchment = Color(0xFFEFE6D8);
+
 // ── Heritage Map — separate full-screen route ───────────────────────────────
 // Opened via Navigator.push from Home's Map nav button. Deliberately has no
 // bottomNavigationBar / Camera-Explore-Map nav — just an AppBar with a back
@@ -46,7 +52,7 @@ class _HeritageMapScreenState extends State<HeritageMapScreen> {
         ),
         title: const Text('Sigiriya Map'),
       ),
-      backgroundColor: AppTheme.surface,
+      backgroundColor: _kMapParchment,
       // No banner pushing the map down — it fills the whole body, edge to
       // edge, with a small floating chip (inside _VectorMap's Stack) for
       // the offline note instead. Maximizes actual map real estate.
@@ -856,30 +862,42 @@ class _VectorMapState extends State<_VectorMap> {
     );
   }
 
-  /// Fits the view to [_importantBounds] — the curated trail stops plus
-  /// every always-shown base-map landmark (Sigiriya, Pidurangala, the
-  /// Museum, Tank, bus station, ...) — rather than either a hand-picked
-  /// focus point (previously cut off Pidurangala entirely) or the whole
-  /// bundled extent (zoomed out so far the pins/text become unreadable).
+  /// Frames [_importantBounds] — the curated trail stops plus every
+  /// always-shown base-map landmark (Sigiriya, Pidurangala, the Museum,
+  /// Tank, bus station, ...) — so the whole site is on screen the moment
+  /// the map opens, rather than a hand-picked focus point (previously cut
+  /// off Pidurangala) or the whole bundled extent (pins/text too small).
   ///
-  /// `coverScale` is a hard floor: the scale that makes the *whole canvas*
-  /// (not just the important-bounds rect) at least fill the viewport in
-  /// both dimensions. Without it, a viewport with a very different aspect
-  /// ratio than the canvas (e.g. a tall phone vs. this map's wide-short
-  /// bbox) could end up under-filled — the canvas would only reach partway
-  /// down the screen, leaving blank space above/below instead of the map.
-  /// `fitScale` (capped at 4x zoom-in) is layered on top when it's higher,
-  /// so the important landmarks are framed closely when there's room to.
+  /// This *contains* the important-bounds rect: `fitScale` is the largest
+  /// zoom at which the rect still fits the viewport on both axes. On a
+  /// phone the width is the limiting axis, so the full east–west spread of
+  /// the site — ticket counter through the summit, plus Pidurangala — is
+  /// visible at once instead of the east side being pushed off the right
+  /// edge. Leftover vertical space becomes a parchment band top/bottom
+  /// (same colour as the map, see [_kMapParchment]), which reads as blank
+  /// map. `wholeCanvasScale` is a floor so opening the map never shows
+  /// dead space *beyond* the canvas on the limiting axis; 4x is the ceiling.
+  ///
+  /// A `coverScale` floor (scale needed for the whole canvas to fill the
+  /// viewport on both axes) was tried here and removed: this map's bbox is
+  /// wide-and-short and a phone is tall-and-narrow, so "cover" forces the
+  /// canvas to overflow sideways and there is no opening zoom at which the
+  /// east–west span all fits — exactly the bug this replaces.
   void _setInitialView(Size viewportSize) {
     if (_initialViewSet || viewportSize.shortestSide == 0) return;
     _initialViewSet = true;
     final rect = _importantBounds;
-    final coverScale = max(
+    final fitScale = min(
+      viewportSize.width / rect.width,
+      viewportSize.height / rect.height,
+    );
+    final wholeCanvasScale = min(
       viewportSize.width / _canvasSize.width,
       viewportSize.height / _canvasSize.height,
     );
-    final fitScale = min(viewportSize.width / rect.width, viewportSize.height / rect.height);
-    final scale = max(fitScale.clamp(0.0, 4.0), coverScale);
+    var scale = fitScale;
+    if (scale > 4.0) scale = 4.0;
+    if (scale < wholeCanvasScale) scale = wholeCanvasScale;
     final dx = viewportSize.width / 2 - rect.center.dx * scale;
     final dy = viewportSize.height / 2 - rect.center.dy * scale;
     _transformController.value = Matrix4.identity()
@@ -902,13 +920,30 @@ class _VectorMapState extends State<_VectorMap> {
                   .addPostFrameCallback((_) => _setInitialView(constraints.biggest));
               return Stack(
                 children: [
+                  // Parchment ground so the letterbox bands around the
+                  // wide-aspect canvas read as blank map, not a gap.
+                  const Positioned.fill(
+                    child: ColoredBox(color: _kMapParchment),
+                  ),
                   InteractiveViewer(
                     transformationController: _transformController,
-                    // Comfortably below any realistic cover-scale so the
-                    // user can always zoom back out to see the whole map.
-                    minScale: 0.3,
+                    // The child is the full logical map canvas — far wider
+                    // than a phone screen and a different aspect ratio — so
+                    // it must NOT be squeezed to the viewport. Left at its
+                    // `true` default the canvas collapsed to the viewport
+                    // box: the eastern half of the site (the rock itself,
+                    // Pidurangala) was clipped away before pan/zoom, and a
+                    // dead parchment band was left below the map.
+                    constrained: false,
+                    // Low enough to pinch right out to the whole canvas
+                    // (~0.4 is "whole canvas" on a phone) with room to spare.
+                    minScale: 0.25,
                     maxScale: 8.0,
-                    boundaryMargin: const EdgeInsets.all(120),
+                    // Generous, so the contained opening view (which
+                    // letterboxes on the short axis) isn't fought by the
+                    // boundary, but finite so the map can't be flung away
+                    // and lost.
+                    boundaryMargin: const EdgeInsets.all(400),
                     child: SizedBox(
                       width: _canvasSize.width,
                       height: _canvasSize.height,
@@ -1107,7 +1142,7 @@ class _VectorMapPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xFFEFE6D8));
+    canvas.drawRect(Offset.zero & size, Paint()..color = _kMapParchment);
 
     for (final poly in data.polygons) {
       _paintPolygon(canvas, poly);
