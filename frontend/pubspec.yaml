@@ -81,6 +81,7 @@ flutter:
     - assets/embeddings/
     - assets/config/
     - assets/data/
+    - assets/vectors/
   #         style: italic
   #   - family: Trajan Pro
   #     fonts:
