@@ -20,6 +20,7 @@ import '../recognition/recognition_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../rag/rag_screen.dart';
 import '../home/home_screen.dart' show LandmarkDetailScreen;
+import '../../core/location/site_lock_service.dart';
 import 'ar_navigation_service.dart';
 
 enum ArGpsFailure { none, serviceDisabled, permissionDenied, permissionDeniedForever }
@@ -102,6 +103,7 @@ class _ArCameraViewState extends State<ArCameraView>
   // GPS accuracy warning
   double? _gpsAccuracyM;
   ArGpsFailure _gpsFailure = ArGpsFailure.none;
+  bool _reverifying = false; // a "Verify again" location re-check is in flight
 
   // ── Arrival/turn banner hold ────────────────────────────────────────────
   // The nav snapshot stream can tick many times per second (compass events
@@ -153,6 +155,7 @@ class _ArCameraViewState extends State<ArCameraView>
 
     _initCamera();
     if (_isSigiriya) {
+      _configureSiteGeofence();
       _startNavigation();
       _arrowModelTimeoutTimer = Timer(const Duration(seconds: 5), () {
         if (mounted && !_arrowModelReady) {
@@ -200,6 +203,53 @@ class _ArCameraViewState extends State<ArCameraView>
     if (mounted) {
       setState(() => _gpsFailure = ArGpsFailure.none);
       _startNavigation();
+    }
+  }
+
+  /// Pull the Sigiriya geofence (centre + radius) from the same
+  /// assets/config/landmark_sites.json every other screen uses, so the
+  /// "are you at Sigiriya?" check has one source of truth.
+  Future<void> _configureSiteGeofence() async {
+    try {
+      final sites = await SiteLockService.instance.loadSites();
+      final match = sites.where(
+          (s) => s.landmarkName.toLowerCase().contains('sigiriya'));
+      if (match.isNotEmpty) {
+        final s = match.first;
+        _navService.configureSiteGeofence(
+          lat: s.centerLat,
+          lon: s.centerLng,
+          radiusMeters: s.radiusMeters,
+        );
+      }
+    } catch (_) {
+      // Keep the service's built-in defaults.
+    }
+  }
+
+  /// "Verify again" — force one fresh high-accuracy fix and feed it straight
+  /// into the nav service so the site-presence state re-evaluates now instead
+  /// of waiting for the next stream tick.
+  Future<void> _reverify() async {
+    if (_reverifying) return;
+    setState(() => _reverifying = true);
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.bestForNavigation,
+          timeLimit: Duration(seconds: 20),
+        ),
+      );
+      _gpsAccuracyM = pos.accuracy;
+      _applySnapshot(_navService.onGpsUpdate(
+        pos.latitude,
+        pos.longitude,
+        accuracyMeters: pos.accuracy,
+      ));
+    } catch (_) {
+      // The live position stream keeps running; leave it to recover.
+    } finally {
+      if (mounted) setState(() => _reverifying = false);
     }
   }
 
@@ -669,8 +719,10 @@ class _ArCameraViewState extends State<ArCameraView>
         else if (snap.gpsStatus == ArGpsStatus.degraded)
           _buildGpsWarningBanner('GPS accuracy reduced. Waiting for GPS signal.', Colors.deepOrange),
           
-        // Manual Selection (Simulation) if user is far away
-        if (snap.distanceMeters > 500 && snap.gpsStatus != ArGpsStatus.unavailable)
+        // Manual Selection (Simulation) — only once a fix confirms the
+        // visitor really is outside Sigiriya (never on a not-yet-acquired fix).
+        if (snap.phase == ArNavPhase.seekingTicketCounter &&
+            snap.sitePresence == ArSitePresence.outside)
           _buildManualSelectionBanner(),
       ],
     );
@@ -697,7 +749,7 @@ class _ArCameraViewState extends State<ArCameraView>
               SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Outside heritage site? Tap here to manually simulate navigating the route.',
+                  'Far from the site? Tap to simulate the walking route.',
                   style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
                 ),
               ),
@@ -1068,7 +1120,7 @@ class _ArCameraViewState extends State<ArCameraView>
               _buildDirectionArrow(snap),
               const SizedBox(height: 24),
               if (isSeekingTicketCounter)
-                _buildTicketCounterSearchHint()
+                _buildSeekHint(snap)
               else if (!snap.hasCompassFix)
                 _buildCalibrationHint(),
             ],
@@ -1083,6 +1135,94 @@ class _ArCameraViewState extends State<ArCameraView>
           child: _buildBottomHudPanel(snap),
         ),
       ],
+    );
+  }
+
+  /// Seek-phase hint above the arrow. Keyed off `snap.sitePresence`:
+  ///  * inside  → green "You're at Sigiriya" confirmation (or the pulsing
+  ///    camera-search prompt once within `cameraSearchRadiusMeters`)
+  ///  * locating→ neutral "Confirming you're at Sigiriya…" + Verify again
+  ///  * outside → amber "You appear to be outside Sigiriya" + Verify again
+  Widget _buildSeekHint(ArNavigationSnapshot snap) {
+    if (snap.sitePresence == ArSitePresence.inside) {
+      final bool cameraTier = snap.distanceMeters > 0 &&
+          snap.distanceMeters <= ArNavigationService.cameraSearchRadiusMeters;
+      if (cameraTier) return _buildTicketCounterSearchHint();
+      return _seekChip(
+        tint: Colors.greenAccent,
+        icon: Icons.verified_rounded,
+        text: "You're in the Sigiriya heritage site",
+      );
+    }
+
+    final bool outside = snap.sitePresence == ArSitePresence.outside;
+    return _seekChip(
+      tint: outside ? Colors.orangeAccent : Colors.lightBlueAccent,
+      icon: outside ? Icons.wrong_location_rounded : Icons.my_location_rounded,
+      text: outside
+          ? 'You appear to be outside Sigiriya'
+          : 'Confirming you’re at Sigiriya…',
+      showVerify: true,
+    );
+  }
+
+  Widget _seekChip({
+    required Color tint,
+    required IconData icon,
+    required String text,
+    bool showVerify = false,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 32),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: tint.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: tint.withOpacity(0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: tint, size: 14),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              text,
+              style: const TextStyle(color: Colors.white, fontSize: 11),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          if (showVerify) ...[
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: _reverifying ? null : _reverify,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: tint.withOpacity(0.22),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: tint.withOpacity(0.6)),
+                ),
+                child: _reverifying
+                    ? const SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text(
+                        'Verify again',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700),
+                      ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -1791,6 +1931,24 @@ class _ArCameraViewState extends State<ArCameraView>
                     ),
                   ),
                 ]),
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Manual route-segment picker — icon only, no visible label.
+            // Always available so the measured route can be jumped into at
+            // any point (testing turns, or resuming mid-walk) without waiting
+            // on the GPS/YOLO Ticket Counter trigger.
+            GestureDetector(
+              onTap: _showManualWaypointSelector,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: const Icon(Icons.alt_route_rounded,
+                    color: Colors.white, size: 18),
               ),
             ),
           ],
