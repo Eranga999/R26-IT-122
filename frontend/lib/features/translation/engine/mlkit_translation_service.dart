@@ -37,6 +37,11 @@ class MlKitTranslationService {
   final Map<String, OnDeviceTranslator> _translators = {};
   final Set<String> _downloadedModels = {};
 
+  // Dedupes concurrent ensureModels() calls for the same language pair —
+  // without this, every translate() call for a language that's still
+  // downloading would kick off its own separate downloadModel() request.
+  final Map<String, Future<void>> _inFlightEnsure = {};
+
   // ── Download status, broadcast so any screen can show a live, honest
   // "downloading / ready / not needed" indicator instead of guessing. ──────
   final Map<String, ModelDownloadState> _status = {};
@@ -142,6 +147,22 @@ class MlKitTranslationService {
     }
   }
 
+  /// Starts (or reuses, if one is already running) a background download
+  /// for [sourceCode]→[targetCode] without making the caller wait for it.
+  /// A 25-30MB language pack can never finish inside an interactive
+  /// translate call, so [translate] uses this to keep the pack progressing
+  /// for next time while falling through to the dictionary layer now.
+  Future<void> _ensureModelsInBackground(
+      String sourceCode, String targetCode) {
+    final key = '$sourceCode>$targetCode';
+    final existing = _inFlightEnsure[key];
+    if (existing != null) return existing;
+    final future = ensureModels(sourceCode, targetCode);
+    _inFlightEnsure[key] = future;
+    future.whenComplete(() => _inFlightEnsure.remove(key));
+    return future;
+  }
+
   /// Downloads every language in [targetCodes] against [pivot], one at a
   /// time (sequential on purpose — parallel downloads would fight each
   /// other for bandwidth/CPU on first launch). Meant to be called once,
@@ -176,12 +197,24 @@ class MlKitTranslationService {
     final target = _toTranslateLanguage(targetLanguage);
     if (source == null || target == null) return null;
 
-    try {
-      await ensureModels(sourceLanguage, targetLanguage).timeout(
-        const Duration(seconds: 5),
-        onTimeout: () {},
-      );
+    // Fast readiness check only — never attempt a real download here. A
+    // 5s timeout used to wrap ensureModels() (whose own download step
+    // allows 60s), so on a cold/failed model this call would eat almost
+    // its entire budget, and the caller's outer timeout (4s in the AR
+    // capture flow) would abandon the whole translation before the
+    // word-dictionary fallback ever got a turn — showing "not available"
+    // even when a partial translation existed. If the pack isn't ready,
+    // bail out immediately and let it keep downloading in the background.
+    final ready = await Future.wait([
+      isModelReady(sourceLanguage),
+      isModelReady(targetLanguage),
+    ]).then((r) => r[0] && r[1]);
+    if (!ready) {
+      unawaited(_ensureModelsInBackground(sourceLanguage, targetLanguage));
+      return null;
+    }
 
+    try {
       final pairKey = '${source.bcpCode}_${target.bcpCode}';
       final translator = _translators.putIfAbsent(
         pairKey,
