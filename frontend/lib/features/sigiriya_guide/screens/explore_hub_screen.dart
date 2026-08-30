@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../services/rag_service.dart';
 import 'explore_screen.dart';
 import 'gamified_explore_screen.dart';
@@ -11,11 +12,15 @@ class ExploreHubScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gold = Theme.of(context).colorScheme.primary;
+    // Same Explore-flow colour rule as the selection screen: heritage-gold
+    // accent on the app-wide light parchment/terracotta theme.
+    const gold = AppTheme.secondary;
     final onSurface = Theme.of(context).colorScheme.onSurface;
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: AppTheme.primary,
+        foregroundColor: Colors.white,
         title: const Text('Explore Experiences'),
       ),
       body: Container(
@@ -91,7 +96,7 @@ class ExploreHubScreen extends StatelessWidget {
               Text(
                 'Pick the path you want to take. The first option keeps the current Sigiriya browsing flow, while the second adds the learning game layer.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white70,
+                      color: AppTheme.textBase.withOpacity(0.65),
                       height: 1.6,
                     ),
               ),
@@ -202,7 +207,7 @@ class _HubCard extends StatelessWidget {
               Text(
                 title,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Colors.white,
+                      color: AppTheme.textBase,
                       fontWeight: FontWeight.w800,
                     ),
               ),
@@ -210,7 +215,7 @@ class _HubCard extends StatelessWidget {
               Text(
                 description,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white70,
+                      color: AppTheme.textBase.withOpacity(0.7),
                       height: 1.45,
                     ),
               ),
