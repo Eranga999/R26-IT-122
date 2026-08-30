@@ -2,17 +2,42 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_theme.dart';
 import '../services/rag_service.dart';
 import '../data/sigiriya_knowledge_base.dart';
 import '../widgets/location_selector.dart';
 import 'explore_hub_screen.dart';
 
 // ═══════════════════════════════════════════════════════
+//  COLOUR RULE — Explore flow
+//  Every screen reachable from the "Explore" button is mapped onto the
+//  same heritage palette (AppTheme) the rest of the app uses, so tapping
+//  Explore no longer drops the user into a dark-themed island:
+//    • warm parchment surface        • deep-espresso text
+//    • terracotta app bars (white fg)• heritage-gold accent
+// ═══════════════════════════════════════════════════════
+const Color _kAccent = AppTheme.secondary; // heritage gold — fills, pills, active state
+const Color _kAccentText = AppTheme.primary; // terracotta — accent text/links on light
+const Color _kBg = AppTheme.surface; // warm parchment — page background
+const Color _kCard = Colors.white; // cards, inputs, sheets
+const Color _kBorder = Color(0xFFEADFCE); // soft parchment hairline border
+const Color _kText = AppTheme.textBase; // deep espresso — headings / primary text
+const Color _kTextSoft = Color(0xFF6D4C41); // muted brown — secondary text
+const Color _kBody = Color(0xFF4E342E); // body copy (matches AppTheme bodyMedium)
+const Color _kBar = AppTheme.primary; // terracotta — app bars (white foreground)
+
+// ═══════════════════════════════════════════════════════
 //  ENTRY POINT
 // ═══════════════════════════════════════════════════════
 class ChatScreen extends StatefulWidget {
   final RagService rag;
-  const ChatScreen({super.key, required this.rag});
+
+  /// Optional location to pre-select on the selection page — e.g. when the
+  /// camera landmark scanner opens this screen for a detected feature. The
+  /// name must match an entry in [kSigiriyaLocations].
+  final String? initialLocation;
+
+  const ChatScreen({super.key, required this.rag, this.initialLocation});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -20,7 +45,8 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   @override
-  Widget build(BuildContext context) => _SelectionPage(rag: widget.rag);
+  Widget build(BuildContext context) =>
+      _SelectionPage(rag: widget.rag, initialLocation: widget.initialLocation);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -28,7 +54,8 @@ class _ChatScreenState extends State<ChatScreen> {
 // ═══════════════════════════════════════════════════════
 class _SelectionPage extends StatefulWidget {
   final RagService rag;
-  const _SelectionPage({required this.rag});
+  final String? initialLocation;
+  const _SelectionPage({required this.rag, this.initialLocation});
 
   @override
   State<_SelectionPage> createState() => _SelectionPageState();
@@ -36,10 +63,10 @@ class _SelectionPage extends StatefulWidget {
 
 class _SelectionPageState extends State<_SelectionPage>
     with SingleTickerProviderStateMixin {
-  static const _gold = Color(0xFFE8B84B);
-  static const _bg = Color(0xFF0D0800);
-  static const _surface = Color(0xFF160D00);
-  static const _border = Color(0xFF2C1A00);
+  static const _gold = _kAccent;
+  static const _bg = _kBg;
+  static const _surface = _kCard;
+  static const _border = _kBorder;
 
   final _textController = TextEditingController();
   String? _selectedLocation;
@@ -52,6 +79,16 @@ class _SelectionPageState extends State<_SelectionPage>
   @override
   void initState() {
     super.initState();
+
+    // Pre-select a location when one was passed in (e.g. from the camera
+    // landmark scanner). LocationSelector renders from this same controller
+    // and selected value, and _goExplore() reads them too.
+    final initial = widget.initialLocation?.trim() ?? '';
+    if (initial.isNotEmpty) {
+      _selectedLocation = initial;
+      _textController.text = initial;
+    }
+
     _enterCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 650),
@@ -85,7 +122,7 @@ class _SelectionPageState extends State<_SelectionPage>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
-        backgroundColor: _surface,
+        backgroundColor: _kBar,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -98,7 +135,7 @@ class _SelectionPageState extends State<_SelectionPage>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Please select a location first.'),
-          backgroundColor: _surface,
+          backgroundColor: _kBar,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -176,13 +213,14 @@ class _SelectionPageState extends State<_SelectionPage>
   }
 
   PreferredSizeWidget _appBar() => AppBar(
-        backgroundColor: const Color(0xFF100900),
+        backgroundColor: _kBar,
+        foregroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         titleSpacing: 16,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded, size: 20),
-          color: _gold,
+          color: Colors.white,
           splashRadius: 20,
           onPressed: () => Navigator.of(context).pop(),
         ),
@@ -196,7 +234,7 @@ class _SelectionPageState extends State<_SelectionPage>
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
                 style: TextStyle(
-                  color: _gold,
+                  color: Colors.white,
                   fontWeight: FontWeight.w700,
                   fontSize: 15,
                   letterSpacing: 0.4,
@@ -211,10 +249,10 @@ class _SelectionPageState extends State<_SelectionPage>
           PopupMenuButton<String>(
             icon: Icon(
               Icons.more_vert_rounded,
-              color: _gold.withOpacity(0.75),
+              color: Colors.white.withOpacity(0.85),
               size: 20,
             ),
-            color: const Color(0xFF1E1200),
+            color: _kCard,
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             onSelected: (val) {
@@ -240,11 +278,11 @@ class _SelectionPageState extends State<_SelectionPage>
         value: value,
         child: Row(
           children: [
-            Icon(icon, color: _gold, size: 17),
+            Icon(icon, color: _kAccentText, size: 17),
             const SizedBox(width: 10),
             Text(
               label,
-              style: const TextStyle(color: Colors.white70, fontSize: 13),
+              style: const TextStyle(color: _kText, fontSize: 13),
             ),
           ],
         ),
@@ -278,7 +316,7 @@ class _SelectionPageState extends State<_SelectionPage>
           const Text(
             'Explore\nSigiriya',
             style: TextStyle(
-              color: Colors.white,
+              color: _kText,
               fontSize: 40,
               fontWeight: FontWeight.w800,
               height: 1.1,
@@ -286,10 +324,10 @@ class _SelectionPageState extends State<_SelectionPage>
             ),
           ),
           const SizedBox(height: 12),
-          Text(
+          const Text(
             'Choose a heritage site and discover its story — from a quick overview to an in-depth historical account.',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.42),
+              color: _kTextSoft,
               fontSize: 13.5,
               height: 1.55,
             ),
@@ -300,7 +338,7 @@ class _SelectionPageState extends State<_SelectionPage>
   Widget _label(String text) => Text(
         text,
         style: TextStyle(
-          color: _gold.withOpacity(0.55),
+          color: _kAccentText.withOpacity(0.75),
           fontSize: 10.5,
           fontWeight: FontWeight.w700,
           letterSpacing: 1.9,
@@ -351,7 +389,7 @@ class _SelectionPageState extends State<_SelectionPage>
           onPressed: _goExplore,
           style: ElevatedButton.styleFrom(
             backgroundColor: _gold,
-            foregroundColor: const Color(0xFF1A0E00),
+            foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 18),
             elevation: 0,
             shape:
@@ -380,8 +418,8 @@ class _SelectionPageState extends State<_SelectionPage>
         child: OutlinedButton(
           onPressed: _goToExploreScreen,
           style: OutlinedButton.styleFrom(
-            foregroundColor: _gold,
-            side: BorderSide(color: _gold.withOpacity(0.3)),
+            foregroundColor: _kAccentText,
+            side: BorderSide(color: _kAccentText.withOpacity(0.4)),
             padding: const EdgeInsets.symmetric(vertical: 16),
             elevation: 0,
             shape:
@@ -415,9 +453,9 @@ class _ModeCard extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  static const _gold = Color(0xFFE8B84B);
-  static const _surface = Color(0xFF160D00);
-  static const _border = Color(0xFF2C1A00);
+  static const _gold = _kAccent;
+  static const _surface = _kCard;
+  static const _border = _kBorder;
 
   const _ModeCard({
     required this.label,
@@ -435,7 +473,7 @@ class _ModeCard extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: selected ? _gold.withOpacity(0.08) : _surface,
+          color: selected ? _gold.withOpacity(0.10) : _surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected ? _gold.withOpacity(0.55) : _border,
@@ -450,13 +488,13 @@ class _ModeCard extends StatelessWidget {
                 Icon(
                   icon,
                   size: 17,
-                  color: selected ? _gold : Colors.white.withOpacity(0.32),
+                  color: selected ? _gold : _kTextSoft.withOpacity(0.55),
                 ),
                 const SizedBox(width: 7),
                 Text(
                   label,
                   style: TextStyle(
-                    color: selected ? _gold : Colors.white.withOpacity(0.50),
+                    color: selected ? _kAccentText : _kTextSoft,
                     fontWeight: FontWeight.w700,
                     fontSize: 14,
                   ),
@@ -478,7 +516,7 @@ class _ModeCard extends StatelessWidget {
             Text(
               description,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.32),
+                color: _kTextSoft.withOpacity(0.8),
                 fontSize: 11.5,
                 height: 1.45,
               ),
@@ -510,8 +548,8 @@ class _ResultsPage extends StatefulWidget {
 
 class _ResultsPageState extends State<_ResultsPage>
     with SingleTickerProviderStateMixin {
-  static const _gold = Color(0xFFE8B84B);
-  static const _bg = Color(0xFF0D0800);
+  static const _gold = _kAccent;
+  static const _bg = _kBg;
   static const _minLoadDuration = Duration(seconds: 8);
   static const _phraseRotateDuration = Duration(seconds: 3);
   static const _loadingPhrases = [
@@ -636,7 +674,8 @@ class _ResultsPageState extends State<_ResultsPage>
 
       // ── App bar: back + title + status ─────────────────
       appBar: AppBar(
-        backgroundColor: const Color(0xFF100900),
+        backgroundColor: _kBar,
+        foregroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         // Back button — only way to leave this page
@@ -645,13 +684,13 @@ class _ResultsPageState extends State<_ResultsPage>
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.06),
+              color: Colors.white.withOpacity(0.14),
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withOpacity(0.10)),
+              border: Border.all(color: Colors.white.withOpacity(0.22)),
             ),
             child: const Icon(
               Icons.arrow_back_ios_new_rounded,
-              color: Colors.white70,
+              color: Colors.white,
               size: 15,
             ),
           ),
@@ -672,7 +711,7 @@ class _ResultsPageState extends State<_ResultsPage>
             Text(
               widget.mode == 'brief' ? 'Brief overview' : 'Detailed account',
               style: TextStyle(
-                color: _gold.withOpacity(0.60),
+                color: Colors.white.withOpacity(0.75),
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
               ),
@@ -689,7 +728,7 @@ class _ResultsPageState extends State<_ResultsPage>
                   height: 15,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: _gold,
+                    color: Colors.white,
                   ),
                 ),
               ),
@@ -698,7 +737,7 @@ class _ResultsPageState extends State<_ResultsPage>
             IconButton(
               icon: Icon(
                 Icons.refresh_rounded,
-                color: _gold.withOpacity(0.65),
+                color: Colors.white.withOpacity(0.9),
                 size: 19,
               ),
               onPressed: _fetch,
@@ -769,9 +808,9 @@ class _ResultsPageState extends State<_ResultsPage>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: _gold.withOpacity(0.10),
+              color: _gold.withOpacity(0.14),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: _gold.withOpacity(0.28)),
+              border: Border.all(color: _gold.withOpacity(0.45)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -781,13 +820,13 @@ class _ResultsPageState extends State<_ResultsPage>
                       ? Icons.bolt_rounded
                       : Icons.menu_book_rounded,
                   size: 12,
-                  color: _gold,
+                  color: _kAccentText,
                 ),
                 const SizedBox(width: 5),
                 Text(
                   widget.mode == 'brief' ? 'Brief' : 'Detailed',
                   style: const TextStyle(
-                    color: _gold,
+                    color: _kAccentText,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.3,
@@ -802,7 +841,7 @@ class _ResultsPageState extends State<_ResultsPage>
             Text(
               'Preparing…',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.30),
+                color: _kTextSoft.withOpacity(0.7),
                 fontSize: 12,
               ),
             )
@@ -814,13 +853,13 @@ class _ResultsPageState extends State<_ResultsPage>
                 Icon(
                   Icons.check_circle_outline_rounded,
                   size: 13,
-                  color: Colors.greenAccent.withOpacity(0.60),
+                  color: const Color(0xFF2E7D32).withOpacity(0.7),
                 ),
                 const SizedBox(width: 5),
                 Text(
                   'Complete',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.30),
+                    color: _kTextSoft.withOpacity(0.7),
                     fontSize: 12,
                   ),
                 ),
@@ -892,12 +931,12 @@ class _ResultsPageState extends State<_ResultsPage>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 26),
               decoration: BoxDecoration(
-                color: _gold.withOpacity(0.06),
+                color: _kCard,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: _gold.withOpacity(0.18)),
+                border: Border.all(color: _kBorder),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.28),
+                    color: Colors.black.withOpacity(0.06),
                     blurRadius: 24,
                     offset: const Offset(0, 12),
                   ),
@@ -916,7 +955,7 @@ class _ResultsPageState extends State<_ResultsPage>
                           strokeWidth: 3.2,
                           valueColor: AlwaysStoppedAnimation<Color>(
                               _gold.withOpacity(0.85)),
-                          backgroundColor: Colors.white.withOpacity(0.08),
+                          backgroundColor: _kAccentText.withOpacity(0.10),
                         ),
                       ),
                       Container(
@@ -937,18 +976,18 @@ class _ResultsPageState extends State<_ResultsPage>
                   const SizedBox(height: 18),
                   Text(
                     phrase,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.92),
+                    style: const TextStyle(
+                      color: _kText,
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
+                  const Text(
                     'Processing local knowledge and ranking the most relevant details.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.55),
+                      color: _kTextSoft,
                       fontSize: 13,
                       height: 1.45,
                     ),
@@ -962,7 +1001,7 @@ class _ResultsPageState extends State<_ResultsPage>
                   Text(
                     'This is fast, but it still looks like heavy work.',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.32),
+                      color: _kTextSoft.withOpacity(0.65),
                       fontSize: 11,
                     ),
                   ),
@@ -1007,7 +1046,7 @@ class _ResultsPageState extends State<_ResultsPage>
             Text(
               _error!,
               style: TextStyle(
-                  color: Colors.white.withOpacity(0.38), fontSize: 12),
+                  color: _kTextSoft.withOpacity(0.8), fontSize: 12),
             ),
             const SizedBox(height: 16),
             GestureDetector(
@@ -1015,7 +1054,7 @@ class _ResultsPageState extends State<_ResultsPage>
               child: const Text(
                 'Tap to retry',
                 style: TextStyle(
-                  color: _gold,
+                  color: _kAccentText,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1044,7 +1083,7 @@ class _ResultsPageState extends State<_ResultsPage>
           Text(
             'PHOTOS',
             style: TextStyle(
-              color: _gold.withOpacity(0.60),
+              color: _kAccentText.withOpacity(0.85),
               fontSize: 10.5,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.9,
@@ -1054,7 +1093,7 @@ class _ResultsPageState extends State<_ResultsPage>
           Text(
             '· ${widget.location}',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.26),
+              color: _kTextSoft.withOpacity(0.7),
               fontSize: 10.5,
               letterSpacing: 0.2,
             ),
@@ -1063,7 +1102,7 @@ class _ResultsPageState extends State<_ResultsPage>
           Text(
             '${imgs.length} photo${imgs.length == 1 ? '' : 's'}',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.22),
+              color: _kTextSoft.withOpacity(0.55),
               fontSize: 10.5,
             ),
           ),
@@ -1080,7 +1119,7 @@ class _ResultText extends StatelessWidget {
   final String text;
   const _ResultText({required this.text});
 
-  static const _gold = Color(0xFFE8B84B);
+  static const _gold = _kAccentText;
 
   @override
   Widget build(BuildContext context) {
@@ -1093,7 +1132,7 @@ class _ResultText extends StatelessWidget {
             child: Text(
               line.replaceFirst('# ', ''),
               style: const TextStyle(
-                color: Colors.white,
+                color: _kText,
                 fontSize: 28,
                 fontWeight: FontWeight.w800,
                 height: 1.15,
@@ -1121,8 +1160,8 @@ class _ResultText extends StatelessWidget {
             padding: const EdgeInsets.only(top: 16, bottom: 5),
             child: Text(
               line.replaceFirst('### ', ''),
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.85),
+              style: const TextStyle(
+                color: _kText,
                 fontSize: 14.5,
                 fontWeight: FontWeight.w700,
               ),
@@ -1178,8 +1217,8 @@ class _InlineBold extends StatelessWidget {
         spans.add(
           TextSpan(
             text: text.substring(last, m.start),
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.68),
+            style: const TextStyle(
+              color: _kBody,
               fontSize: 15.5,
               height: 1.72,
             ),
@@ -1190,7 +1229,7 @@ class _InlineBold extends StatelessWidget {
         TextSpan(
           text: m.group(1),
           style: const TextStyle(
-            color: Colors.white,
+            color: _kText,
             fontWeight: FontWeight.w700,
             fontSize: 15.5,
             height: 1.72,
@@ -1203,8 +1242,8 @@ class _InlineBold extends StatelessWidget {
       spans.add(
         TextSpan(
           text: text.substring(last),
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.68),
+          style: const TextStyle(
+            color: _kBody,
             fontSize: 15.5,
             height: 1.72,
           ),
@@ -1269,7 +1308,7 @@ class _GridThumbState extends State<_GridThumb>
   late final AnimationController _press;
   late final Animation<double> _scale;
 
-  static const _gold = Color(0xFFE8B84B);
+  static const _gold = _kAccent;
 
   @override
   void initState() {
@@ -1323,10 +1362,10 @@ class _GridThumbState extends State<_GridThumb>
                 widget.assetPath,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Container(
-                  color: const Color(0xFF1A1000),
+                  color: const Color(0xFFEDE4D6),
                   child: Icon(
                     Icons.landscape_rounded,
-                    color: _gold.withOpacity(0.22),
+                    color: _gold.withOpacity(0.35),
                     size: 32,
                   ),
                 ),
@@ -1389,7 +1428,7 @@ class _GalleryState extends State<_Gallery> {
   late final PageController _ctrl;
   late int _idx;
 
-  static const _gold = Color(0xFFE8B84B);
+  static const _gold = _kAccent;
 
   @override
   void initState() {
@@ -1582,13 +1621,13 @@ class _ShimmerState extends State<_Shimmer>
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
             colors: [
-              const Color(0xFF1E1200),
+              const Color(0xFFEDE3D3),
               Color.lerp(
-                const Color(0xFF1E1200),
-                const Color(0xFF3B2400),
+                const Color(0xFFEDE3D3),
+                const Color(0xFFF8F1E6),
                 _ctrl.value,
               )!,
-              const Color(0xFF1E1200),
+              const Color(0xFFEDE3D3),
             ],
             stops: [0.0, _ctrl.value.clamp(0.01, 0.99), 1.0],
           ),
@@ -1642,8 +1681,8 @@ class _PulsingLabelState extends State<_PulsingLabel>
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Color.lerp(
-                const Color(0xFFE8B84B).withOpacity(0.22),
-                const Color(0xFFE8B84B),
+                _kAccent.withOpacity(0.22),
+                _kAccent,
                 _anim.value,
               ),
             ),
@@ -1652,7 +1691,7 @@ class _PulsingLabelState extends State<_PulsingLabel>
           Text(
             widget.text,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.28),
+              color: _kTextSoft.withOpacity(0.75),
               fontSize: 12,
             ),
           ),
@@ -1688,8 +1727,6 @@ class _D extends StatelessWidget {
   final bool ready;
   const _D(this.label, this.ready);
 
-  static const _gold = Color(0xFFE8B84B);
-
   @override
   Widget build(BuildContext context) => Container(
         width: 18,
@@ -1697,12 +1734,12 @@ class _D extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: ready
-              ? _gold.withOpacity(0.10)
-              : Colors.orangeAccent.withOpacity(0.07),
+              ? Colors.white.withOpacity(0.16)
+              : Colors.orangeAccent.withOpacity(0.16),
           border: Border.all(
             color: ready
-                ? _gold.withOpacity(0.65)
-                : Colors.orangeAccent.withOpacity(0.35),
+                ? Colors.white.withOpacity(0.6)
+                : Colors.orangeAccent.withOpacity(0.5),
           ),
         ),
         child: Center(
@@ -1711,7 +1748,7 @@ class _D extends StatelessWidget {
             style: TextStyle(
               fontSize: 8,
               fontWeight: FontWeight.bold,
-              color: ready ? _gold : Colors.orangeAccent,
+              color: ready ? Colors.white : Colors.orangeAccent,
             ),
           ),
         ),

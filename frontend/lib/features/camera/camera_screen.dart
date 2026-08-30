@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'dart:ui' show ImageFilter;
@@ -14,9 +15,11 @@ import '../../features/database/landmark_model.dart';
 import '../../features/database/sub_landmark_model.dart';
 // recognition service already imported above
 import '../ar/ar_screen.dart';
-import '../rag/rag_screen.dart';
+import '../chat/rag_chat_screen.dart';
 import '../navigation/nav_screen.dart';
 import '../home/home_screen.dart';
+import '../sigiriya_guide/screens/chat_screen.dart' as guide;
+import '../sigiriya_guide/services/rag_service.dart' as guide_rag;
 import '../../widgets/site_selector_sheet.dart';
 
 /// Verification state of the GPS geofence check.
@@ -89,35 +92,43 @@ class _CameraScreenState extends State<CameraScreen>
 
   bool get _isGpsLocked => _verifyStatus == _VerifyStatus.locked;
   // GPS-locked: lower thresholds – the site is confirmed by GPS.
-  // Manual mode: slightly higher to reduce noise, but still detectable.
-  double get _modelThreshold => _isGpsLocked ? 0.60 : 0.72;
-  double get _cardThreshold  => _isGpsLocked ? 0.72 : 0.78;
-  // GPS-locked: 2 consecutive frames; manual: 3 frames for stability.
-  int get _requiredFrames => _isGpsLocked ? 2 : 3;
+  // Manual mode: GPS has NOT confirmed the site, so the model alone carries
+  // the decision. Keep the raw-detection floor at 0.80 so weak guesses never
+  // even reach the stability tracker – this is the main lever against false
+  // positives here.
+  double get _modelThreshold => _isGpsLocked ? 0.60 : 0.80;
+  // The info panel must clear an even higher bar than the live box.
+  double get _cardThreshold  => _isGpsLocked ? 0.72 : 0.85;
+  // GPS-locked: 3 consecutive frames. Even with GPS confirming the visitor
+  // is standing at the heritage site, the model still has to hold the same
+  // class for 3 straight frames before the first popup, so one lucky frame
+  // can't flash a card. Manual: 5 frames, since GPS has confirmed nothing.
+  int get _requiredFrames => _isGpsLocked ? 3 : 5;
 
   // ── Per-class calibration (manual mode only) ─────────────────────────────
   // GPS-locked mode is unaffected — GPS already confirms the site, so the
-  // flat _cardThreshold/_requiredFrames stay as-is there. In manual mode,
-  // classes that are easier to confuse with an unrelated surface at the site
-  // get a modest card-confidence bump plus more required consecutive frames
-  // before the info panel commits. The live bounding box is untouched by
-  // this — it keeps updating every frame regardless of these overrides.
+  // flat _cardThreshold/_requiredFrames stay as-is there. In manual mode the
+  // baseline is already strict (0.80 model / 0.85 card / 5 frames); the two
+  // classes below are the easiest to confuse with an unrelated flat surface
+  // at the site, so they are pushed higher still. The accessors clamp with
+  // max(), so an override can only ever raise the baseline, never lower it.
+  // The live bounding box is untouched — it keeps updating every frame.
   static const Map<String, double> _manualCardThresholdByClass = {
-    'sigiriya_mirror_wall': 0.80,
-    'sigiriya_ticket_counter': 0.88,
+    'sigiriya_mirror_wall': 0.90,
+    'sigiriya_ticket_counter': 0.93,
   };
   static const Map<String, int> _manualRequiredFramesByClass = {
-    'sigiriya_mirror_wall': 5,
-    'sigiriya_ticket_counter': 4,
+    'sigiriya_mirror_wall': 6,
+    'sigiriya_ticket_counter': 6,
   };
 
   double _cardThresholdFor(String label) => _isGpsLocked
       ? _cardThreshold
-      : (_manualCardThresholdByClass[label] ?? _cardThreshold);
+      : math.max(_cardThreshold, _manualCardThresholdByClass[label] ?? 0.0);
 
   int _requiredFramesFor(String label) => _isGpsLocked
       ? _requiredFrames
-      : (_manualRequiredFramesByClass[label] ?? _requiredFrames);
+      : math.max(_requiredFrames, _manualRequiredFramesByClass[label] ?? 0);
 
   bool _isStableDetection(DetectionResult bestDetection) {
     final threshold = _cardThresholdFor(bestDetection.label);
@@ -457,6 +468,44 @@ class _CameraScreenState extends State<CameraScreen>
     if (normalized.contains('polonnaruwa')) return 3;
 
     return null;
+  }
+
+  /// Maps a detected landmark to the offline chatbot's knowledge-base key.
+  /// [OfflineChatbotService] matches its dataset by substring on this key, so a
+  /// stable slug is passed for known sites instead of the (possibly verbose) DB
+  /// name; unknown sites fall back to null and let the chat screen derive one.
+  String? _chatbotLandmarkId(LandmarkModel lm) {
+    switch (lm.id) {
+      case 1:
+        return 'sigiriya';
+      case 2:
+        return 'dambulla';
+      case 3:
+        return 'polonnaruwa';
+      default:
+        return null;
+    }
+  }
+
+  /// Maps a detected model class label to the matching curated location name in
+  /// [kSigiriyaLocations], so the Sigiriya "Explore" selection screen can open
+  /// with that place pre-filled in its "Type or pick a location" field.
+  /// Returns null when there is no sensible match (screen then opens empty).
+  String? _guideLocationForClass(String? classLabel) {
+    switch (classLabel?.trim().toLowerCase()) {
+      case 'sigiriya_lion_rock':
+        return 'Sigiriya Rock Fortress';
+      case 'sigiriya_lion_paws':
+        return 'Lion Gate (Sinhagiri Entrance)';
+      case 'sigiriya_mirror_wall':
+        return 'Mirror Wall';
+      case 'sigiriya_throne':
+        return 'Audience Hall';
+      case 'sigiriya_ticket_counter':
+        return 'Ticket Counter';
+      default:
+        return null;
+    }
   }
 
   /// Converts a raw model class label into a human-readable sub-landmark name.
@@ -917,10 +966,17 @@ class _CameraScreenState extends State<CameraScreen>
                           onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                  builder: (_) => LandmarkDetailScreen(
-                                      landmark: lm,
-                                      highlightSubLandmarkLabel:
-                                          _detectedClassLabel))),
+                                  builder: (_) => lm.id == 1
+                                      ? guide.ChatScreen(
+                                          rag: guide_rag.RagService(),
+                                          initialLocation:
+                                              _guideLocationForClass(
+                                                  _detectedClassLabel),
+                                        )
+                                      : LandmarkDetailScreen(
+                                          landmark: lm,
+                                          highlightSubLandmarkLabel:
+                                              _detectedClassLabel))),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -945,8 +1001,9 @@ class _CameraScreenState extends State<CameraScreen>
                           onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                  builder: (_) =>
-                                      RagScreen(landmarkName: lm.name))),
+                                  builder: (_) => RagChatScreen(
+                                      landmarkName: lm.name,
+                                      landmarkId: _chatbotLandmarkId(lm)))),
                         ),
                       ),
                     ]),

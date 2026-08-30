@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../features/database/landmark_model.dart';
 import '../features/ar/ar_screen.dart';
+import '../features/home/site_under_development_screen.dart';
 
 /// A polished card that displays brief information about a [LandmarkModel].
 class LandmarkInfoCard extends StatelessWidget {
@@ -27,6 +28,9 @@ class LandmarkInfoCard extends StatelessWidget {
     final idx = ((landmark.id ?? 1) - 1) % _colors.length;
     final color = _colors[idx];
     final icon = _icons[idx];
+    // Sigiriya (id 1) is the only fully-developed site; the others link to a
+    // clear "under development" screen instead of the AR experience.
+    final bool developed = (landmark.id ?? 1) == 1;
 
     return Container(
       decoration: BoxDecoration(
@@ -94,23 +98,29 @@ class LandmarkInfoCard extends StatelessWidget {
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => ArScreen(landmark: landmark),
+                            builder: (_) => developed
+                                ? ArScreen(landmark: landmark)
+                                : SiteUnderDevelopmentScreen(landmark: landmark),
                           ),
                         ),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: color,
+                            color: developed ? color : Colors.grey.shade500,
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: const Row(
+                          child: Row(
                             children: [
-                              Icon(Icons.view_in_ar_rounded,
-                                  color: Colors.white, size: 14),
-                              SizedBox(width: 4),
-                              Text('AR View',
-                                  style: TextStyle(
+                              Icon(
+                                  developed
+                                      ? Icons.view_in_ar_rounded
+                                      : Icons.construction_rounded,
+                                  color: Colors.white,
+                                  size: 14),
+                              const SizedBox(width: 4),
+                              Text(developed ? 'AR View' : 'In Development',
+                                  style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600)),

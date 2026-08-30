@@ -718,46 +718,7 @@ class _ArCameraViewState extends State<ArCameraView>
           _buildGpsWarningBanner('GPS signal lost. Using last known location.', Colors.amber.shade800)
         else if (snap.gpsStatus == ArGpsStatus.degraded)
           _buildGpsWarningBanner('GPS accuracy reduced. Waiting for GPS signal.', Colors.deepOrange),
-          
-        // Manual Selection (Simulation) — only once a fix confirms the
-        // visitor really is outside Sigiriya (never on a not-yet-acquired fix).
-        if (snap.phase == ArNavPhase.seekingTicketCounter &&
-            snap.sitePresence == ArSitePresence.outside)
-          _buildManualSelectionBanner(),
       ],
-    );
-  }
-
-  Widget _buildManualSelectionBanner() {
-    return Positioned(
-      top: 150,
-      left: 16,
-      right: 16,
-      child: GestureDetector(
-        onTap: _showManualWaypointSelector,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.teal.shade700.withOpacity(0.9),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.tealAccent.withOpacity(0.5)),
-            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6)],
-          ),
-          child: const Row(
-            children: [
-              Icon(Icons.touch_app_rounded, color: Colors.white, size: 20),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Far from the site? Tap to simulate the walking route.',
-                  style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
-                ),
-              ),
-              Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14)
-            ],
-          ),
-        ),
-      ),
     );
   }
 
