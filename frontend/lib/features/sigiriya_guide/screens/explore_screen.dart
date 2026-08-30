@@ -1,5 +1,6 @@
 // lib/screens/explore_screen.dart
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_theme.dart';
 import '../data/quest_state.dart';
 import '../data/sigiriya_knowledge_base.dart';
 import '../models/location_model.dart';
@@ -29,10 +30,14 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final gold = Theme.of(context).colorScheme.primary;
+    // Explore-flow colour rule — heritage-gold accent on the app-wide
+    // light parchment / terracotta theme.
+    const gold = AppTheme.secondary;
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: AppTheme.primary,
+        foregroundColor: Colors.white,
         title: const Text('Explore Sigiriya'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
@@ -43,10 +48,12 @@ class _ExploreScreenState extends State<ExploreScreen> {
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 hintText: 'Search locations, tags…',
-                prefixIcon: const Icon(Icons.search),
+                hintStyle: const TextStyle(color: Colors.white70),
+                prefixIcon: const Icon(Icons.search, color: Colors.white70),
                 suffixIcon: _search.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.clear, size: 18),
+                        icon: const Icon(Icons.clear,
+                            size: 18, color: Colors.white70),
                         onPressed: () => setState(() => _search = ''),
                       )
                     : null,
@@ -66,7 +73,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   const SizedBox(height: 12),
                   Text(
                     'No locations found for "$_search"',
-                    style: const TextStyle(color: Colors.white54),
+                    style: TextStyle(
+                        color: AppTheme.textBase.withOpacity(0.6)),
                   ),
                 ],
               ),
@@ -105,7 +113,7 @@ class _LocationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gold = Theme.of(context).colorScheme.primary;
+    const gold = AppTheme.secondary;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -125,19 +133,20 @@ class _LocationCard extends StatelessWidget {
                     child: Text(
                       location.name,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: gold,
+                            color: AppTheme.primary,
                             fontWeight: FontWeight.bold,
                           ),
                     ),
                   ),
-                  Icon(Icons.chevron_right, color: gold.withOpacity(0.6)),
+                  Icon(Icons.chevron_right,
+                      color: AppTheme.primary.withOpacity(0.5)),
                 ],
               ),
               const SizedBox(height: 10),
               Text(
                 location.briefSummary,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white70,
+                      color: const Color(0xFF4E342E),
                     ),
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
@@ -151,9 +160,10 @@ class _LocationCard extends StatelessWidget {
                     label: Text(tag),
                     padding: EdgeInsets.zero,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    labelStyle: TextStyle(fontSize: 11, color: gold.withOpacity(0.9)),
-                    backgroundColor: gold.withOpacity(0.1),
-                    side: BorderSide(color: gold.withOpacity(0.3)),
+                    labelStyle: const TextStyle(
+                        fontSize: 11, color: AppTheme.primary),
+                    backgroundColor: gold.withOpacity(0.12),
+                    side: BorderSide(color: gold.withOpacity(0.35)),
                   );
                 }).toList(),
               ),
