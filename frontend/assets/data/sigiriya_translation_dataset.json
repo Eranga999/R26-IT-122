@@ -3648,5 +3648,238 @@
     "confidence": 1.0,
     "source": "On-site safety signage near Sigiriya moat",
     "review_status": "verified"
+  },
+  {
+    "id": "SIG_SAF_010",
+    "category": "safety",
+    "canonical": {
+      "en": "Wild Elephants Roaming Area at Dusk",
+      "si": "සවස් කාලයෙහි වන අලින් සැරිසරයි",
+      "ta": "மாலை வேளைகளில் காட்டு யானைகள் நடமாடும்"
+    },
+    "aliases": [
+      "wild elephants roaming area at dusk",
+      "wild elephants roaming area",
+      "WILD ELEPHANTS ROAMING AREA AT DUSK",
+      "elephant roaming area",
+      "beware wild elephants at dusk",
+      "wild elephants roaming"
+    ],
+    "translations": {
+      "en": "Wild Elephants Roaming Area at Dusk",
+      "si": "සවස් කාලයෙහි වන අලින් සැරිසරයි",
+      "ta": "மாலை வேளைகளில் காட்டு யானைகள் நடமாடும்",
+      "hi": "शाम के समय जंगली हाथियों के विचरण का क्षेत्र",
+      "zh": "黄昏时分野生大象出没区域",
+      "es": "Zona de Paso de Elefantes Salvajes al Anochecer",
+      "fr": "Zone de Passage des Éléphants Sauvages au Crépuscule",
+      "de": "Wildelefanten-Wandergebiet in der Dämmerung"
+    },
+    "confidence": 1.0,
+    "source": "On-site wildlife warning signage, Sigiriya forest trail",
+    "review_status": "verified"
+  },
+  {
+    "id": "SIG_SAF_011",
+    "category": "safety",
+    "canonical": {
+      "en": "Drive Slow. Wildlife Crossing.",
+      "si": "සෙමින් රිය පදවන්න. වනජීවීන් තරණය කරන ප්‍රදේශයකි.",
+      "ta": "மெதுவாக ஓட்டவும். வனவிலங்குகள் கடக்கும் இடம்."
+    },
+    "aliases": [
+      "drive slow wildlife crossing",
+      "DRIVE SLOW WILDLIFE CROSSING",
+      "wildlife crossing",
+      "caution wildlife crossing",
+      "animal crossing ahead",
+      "drive slow"
+    ],
+    "translations": {
+      "en": "Drive Slow. Wildlife Crossing.",
+      "si": "සෙමින් රිය පදවන්න. වනජීවීන් තරණය කරන ප්‍රදේශයකි.",
+      "ta": "மெதுவாக ஓட்டவும். வனவிலங்குகள் கடக்கும் இடம்.",
+      "hi": "धीरे चलाएं। वन्यजीव पार करने का क्षेत्र।",
+      "zh": "缓慢驾驶。野生动物穿越区。",
+      "es": "Conduzca Despacio. Cruce de Vida Silvestre.",
+      "fr": "Roulez Lentement. Traversée d'Animaux Sauvages.",
+      "de": "Langsam Fahren. Wildwechsel."
+    },
+    "confidence": 1.0,
+    "source": "Department of Wildlife Conservation road signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "SIG_SAF_012",
+    "category": "safety",
+    "canonical": {
+      "en": "Beware of Crocodiles",
+      "si": "කිඹුලන්ගෙන් ප්‍රවේශම්වන්න",
+      "ta": "முதலைகளினால் ஆபத்து உண்டு கவனம்"
+    },
+    "aliases": [
+      "beware of crocodiles",
+      "BEWARE OF CROCODILES",
+      "crocodile warning",
+      "caution crocodiles present",
+      "danger crocodiles"
+    ],
+    "translations": {
+      "en": "Beware of Crocodiles",
+      "si": "කිඹුලන්ගෙන් ප්‍රවේශම්වන්න",
+      "ta": "முதலைகளினால் ஆபத்து உண்டு கவனம்",
+      "hi": "मगरमच्छों से सावधान रहें",
+      "zh": "小心鳄鱼",
+      "es": "Cuidado con los Cocodrilos",
+      "fr": "Attention aux Crocodiles",
+      "de": "Vorsicht vor Krokodilen"
+    },
+    "confidence": 1.0,
+    "source": "On-site wildlife warning signage near water bodies",
+    "review_status": "verified"
+  },
+  {
+    "id": "SIG_SAF_013",
+    "category": "safety",
+    "canonical": {
+      "en": "Beware of Monkeys",
+      "si": "වානරයන්ගෙන් ප්‍රවේශම් වන්න",
+      "ta": "குரங்குகள் குறித்து எச்சரிக்கையாக இருங்கள்"
+    },
+    "aliases": [
+      "beware of monkeys",
+      "BEWARE OF MONKEYS",
+      "monkey warning",
+      "caution monkeys"
+    ],
+    "translations": {
+      "en": "Beware of Monkeys",
+      "si": "වානරයන්ගෙන් ප්‍රවේශම් වන්න",
+      "ta": "குரங்குகள் குறித்து எச்சரிக்கையாக இருங்கள்",
+      "hi": "बंदरों से सावधान रहें",
+      "zh": "小心猴子",
+      "es": "Cuidado con los Monos",
+      "fr": "Attention aux Singes",
+      "de": "Vorsicht vor Affen"
+    },
+    "confidence": 1.0,
+    "source": "On-site wildlife warning signage, Sigiriya grounds",
+    "review_status": "verified"
+  },
+  {
+    "id": "SIG_SAF_014",
+    "category": "safety",
+    "canonical": {
+      "en": "Wasps May Be Disturbed. Keep Silent.",
+      "si": "බඹරුන් ඇවිස්සෙන්නට ඉඩ ඇත. නිශ්ශබ්ද වන්න.",
+      "ta": "குளவிகள் கலைவதால் அமைதி காக்கவும்."
+    },
+    "aliases": [
+      "be silence wasps",
+      "BE SILENCE WASPS",
+      "wasps may be disturbed keep silent",
+      "do not disturb the wasps",
+      "keep silent wasps nearby"
+    ],
+    "translations": {
+      "en": "Wasps May Be Disturbed. Keep Silent.",
+      "si": "බඹරුන් ඇවිස්සෙන්නට ඉඩ ඇත. නිශ්ශබ්ද වන්න.",
+      "ta": "குளவிகள் கலைவதால் அமைதி காக்கவும்.",
+      "hi": "ततैया परेशान हो सकते हैं। कृपया मौन रहें।",
+      "zh": "可能会惊扰黄蜂,请保持安静。",
+      "es": "Las Avispas Pueden Alterarse. Guarde Silencio.",
+      "fr": "Les Guêpes Peuvent Être Dérangées. Restez Silencieux.",
+      "de": "Wespen Könnten Gestört Werden. Bitte Ruhe Bewahren."
+    },
+    "confidence": 1.0,
+    "source": "On-site wasp-hazard signage, Sigiriya summit path",
+    "review_status": "verified"
+  },
+  {
+    "id": "SIG_SAF_015",
+    "category": "safety",
+    "canonical": {
+      "en": "Wasp Attack Area. Be Silent.",
+      "si": "මෙම කලාපය තුළ නිහඬවන්න. බඹර ප්‍රහාර සිදුවන කලාපයකි.",
+      "ta": "இந்தப் பிரதேசத்தினுள் அமைதி காக்கவும். குளவி தாக்கும் அபாயம் உண்டு."
+    },
+    "aliases": [
+      "wasp attack area be silent",
+      "WASP ATTACK AREA BE SILENT",
+      "wasp attack area",
+      "be silent wasp attack zone",
+      "caution wasp attacks"
+    ],
+    "translations": {
+      "en": "Wasp Attack Area. Be Silent.",
+      "si": "මෙම කලාපය තුළ නිහඬවන්න. බඹර ප්‍රහාර සිදුවන කලාපයකි.",
+      "ta": "இந்தப் பிரதேசத்தினுள் அமைதி காக்கவும். குளவி தாக்கும் அபாயம் உண்டு.",
+      "hi": "ततैया हमला क्षेत्र। मौन रहें।",
+      "zh": "黄蜂袭击区。请保持安静。",
+      "es": "Zona de Ataque de Avispas. Guarde Silencio.",
+      "fr": "Zone d'Attaque de Guêpes. Silence.",
+      "de": "Wespenangriffsgebiet. Ruhe Bewahren."
+    },
+    "confidence": 1.0,
+    "source": "On-site wasp-hazard signage, Sigiriya summit path",
+    "review_status": "verified"
+  },
+  {
+    "id": "SIG_SAF_016",
+    "category": "safety",
+    "canonical": {
+      "en": "Use Bins for Garbage Disposal",
+      "si": "බදුන් වලට පමණක් කසල දමන්න",
+      "ta": "இப்பூமியை அசுத்தப்படுத்தாதீர்கள்"
+    },
+    "aliases": [
+      "use bins for garbage disposal",
+      "USE BINS FOR GARBAGE DISPOSAL",
+      "dispose garbage in bins",
+      "use dustbin",
+      "garbage disposal bins only"
+    ],
+    "translations": {
+      "en": "Use Bins for Garbage Disposal",
+      "si": "බදුන් වලට පමණක් කසල දමන්න",
+      "ta": "இப்பூமியை அசுத்தப்படுத்தாதீர்கள்",
+      "hi": "कचरा केवल कूड़ेदान में डालें",
+      "zh": "请将垃圾放入垃圾桶",
+      "es": "Use los Contenedores para Desechar la Basura",
+      "fr": "Utilisez les Poubelles pour les Déchets",
+      "de": "Müll Nur in Mülleimer Entsorgen"
+    },
+    "confidence": 1.0,
+    "source": "On-site park signage, Sigiriya grounds",
+    "review_status": "verified"
+  },
+  {
+    "id": "SIG_SAF_017",
+    "category": "safety",
+    "canonical": {
+      "en": "Noise May Provoke Hornet Attacks",
+      "si": "ශබ්ද කිරීම බඹරුන් අවුස්සීමට හේතුවකි",
+      "ta": "ஒலி எழுப்பல் குளவிகளைச் சீண்டி விடும்"
+    },
+    "aliases": [
+      "noise may provoke hornet attacks",
+      "NOISE MAY PROVOKE HORNET ATTACKS",
+      "avoid noise hornets",
+      "loud noise hornet warning",
+      "silence prevents hornet attacks"
+    ],
+    "translations": {
+      "en": "Noise May Provoke Hornet Attacks",
+      "si": "ශබ්ද කිරීම බඹරුන් අවුස්සීමට හේතුවකි",
+      "ta": "ஒலி எழுப்பல் குளவிகளைச் சீண்டி விடும்",
+      "hi": "शोर से बर्रैया के हमले हो सकते हैं",
+      "zh": "噪音可能引发黄蜂攻击",
+      "es": "El Ruido Puede Provocar Ataques de Avispones",
+      "fr": "Le Bruit Peut Provoquer des Attaques de Frelons",
+      "de": "Lärm Kann Hornissenangriffe Auslösen"
+    },
+    "confidence": 1.0,
+    "source": "On-site park signage, Sigiriya grounds",
+    "review_status": "verified"
   }
 ]
