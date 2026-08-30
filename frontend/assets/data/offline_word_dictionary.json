@@ -1,0 +1,3611 @@
+{
+  "a": {
+    "si": "",
+    "ta": "",
+    "hi": "",
+    "zh": "",
+    "es": "un",
+    "fr": "un",
+    "de": "ein"
+  },
+  "able": {
+    "si": "හැකි",
+    "ta": "முடியும்",
+    "hi": "सक्षम",
+    "zh": "能够",
+    "es": "capaz",
+    "fr": "capable",
+    "de": "fähig"
+  },
+  "about": {
+    "si": "ගැන",
+    "ta": "பற்றி",
+    "hi": "के बारे में",
+    "zh": "关于",
+    "es": "sobre",
+    "fr": "à propos",
+    "de": "über"
+  },
+  "above": {
+    "si": "ඉහළ",
+    "ta": "மேலே",
+    "hi": "ऊपर",
+    "zh": "上面",
+    "es": "encima",
+    "fr": "au-dessus",
+    "de": "oben"
+  },
+  "access": {
+    "si": "ප්‍රවේශය",
+    "ta": "அணுகல்",
+    "hi": "पहुंच",
+    "zh": "访问",
+    "es": "acceso",
+    "fr": "accès",
+    "de": "Zugang"
+  },
+  "across": {
+    "si": "හරහා",
+    "ta": "குறுக்கே",
+    "hi": "पार",
+    "zh": "穿过",
+    "es": "a través",
+    "fr": "à travers",
+    "de": "quer durch"
+  },
+  "address": {
+    "si": "ලිපිනය",
+    "ta": "முகவரி",
+    "hi": "पता",
+    "zh": "地址",
+    "es": "dirección",
+    "fr": "adresse",
+    "de": "Adresse"
+  },
+  "adult": {
+    "si": "වැඩිහිටි",
+    "ta": "பெரியவர்",
+    "hi": "वयस्क",
+    "zh": "成人",
+    "es": "adulto",
+    "fr": "adulte",
+    "de": "Erwachsener"
+  },
+  "ahead": {
+    "si": "ඉදිරිපස",
+    "ta": "முன்னේ",
+    "hi": "आगे",
+    "zh": "前方",
+    "es": "adelante",
+    "fr": "en avant",
+    "de": "voraus"
+  },
+  "aid": {
+    "si": "සහාය",
+    "ta": "உதவி",
+    "hi": "सहायता",
+    "zh": "援助",
+    "es": "ayuda",
+    "fr": "aide",
+    "de": "Hilfe"
+  },
+  "airport": {
+    "si": "ගුවන් තොටුපොළ",
+    "ta": "விமான நிலையம்",
+    "hi": "हवाई अड्डा",
+    "zh": "机场",
+    "es": "aeropuerto",
+    "fr": "aéroport",
+    "de": "Flughafen"
+  },
+  "alarm": {
+    "si": "සංඥා",
+    "ta": "எச்சரிக்கை",
+    "hi": "अलार्म",
+    "zh": "警报",
+    "es": "alarma",
+    "fr": "alarme",
+    "de": "Alarm"
+  },
+  "all": {
+    "si": "සියලු",
+    "ta": "அனைத்து",
+    "hi": "सभी",
+    "zh": "所有",
+    "es": "todo",
+    "fr": "tout",
+    "de": "alle"
+  },
+  "allow": {
+    "si": "ඉඩ දෙන්න",
+    "ta": "அனுமதி",
+    "hi": "अनुमति",
+    "zh": "允许",
+    "es": "permitir",
+    "fr": "permettre",
+    "de": "erlauben"
+  },
+  "allowed": {
+    "si": "අවසර ඇත",
+    "ta": "அனுமதிக்கப்பட்டது",
+    "hi": "अनुमति प्राप्त",
+    "zh": "允许",
+    "es": "permitido",
+    "fr": "autorisé",
+    "de": "erlaubt"
+  },
+  "also": {
+    "si": "එසේම",
+    "ta": "மேலும்",
+    "hi": "भी",
+    "zh": "也",
+    "es": "también",
+    "fr": "aussi",
+    "de": "auch"
+  },
+  "ambulance": {
+    "si": "ගිලන් රථය",
+    "ta": "ஆம்புலன்ஸ்",
+    "hi": "एम्बुलेंस",
+    "zh": "救护车",
+    "es": "ambulancia",
+    "fr": "ambulance",
+    "de": "Krankenwagen"
+  },
+  "an": {
+    "si": "",
+    "ta": "",
+    "hi": "",
+    "zh": "",
+    "es": "un",
+    "fr": "un",
+    "de": "ein"
+  },
+  "ancient": {
+    "si": "පුරාණ",
+    "ta": "பண்டைய",
+    "hi": "प्राचीन",
+    "zh": "古代",
+    "es": "antiguo",
+    "fr": "ancien",
+    "de": "antik"
+  },
+  "and": {
+    "si": "සහ",
+    "ta": "மற்றும்",
+    "hi": "और",
+    "zh": "和",
+    "es": "y",
+    "fr": "et",
+    "de": "und"
+  },
+  "animal": {
+    "si": "සතෙකු",
+    "ta": "விலங்கு",
+    "hi": "जानवर",
+    "zh": "动物",
+    "es": "animal",
+    "fr": "animal",
+    "de": "Tier"
+  },
+  "animals": {
+    "si": "සතුන්",
+    "ta": "விலங்குகள்",
+    "hi": "जानवरों",
+    "zh": "动物",
+    "es": "animales",
+    "fr": "animaux",
+    "de": "Tiere"
+  },
+  "answer": {
+    "si": "පිළිතුර",
+    "ta": "பதில்",
+    "hi": "जवाब",
+    "zh": "回答",
+    "es": "respuesta",
+    "fr": "réponse",
+    "de": "Antwort"
+  },
+  "any": {
+    "si": "ඕනෑම",
+    "ta": "எந்த",
+    "hi": "कोई भी",
+    "zh": "任何",
+    "es": "cualquier",
+    "fr": "n'importe quel",
+    "de": "jeder"
+  },
+  "archaeological": {
+    "si": "පුරාවිද්‍යාත්මක",
+    "ta": "தொல்பொருள்",
+    "hi": "पुरातात्विक",
+    "zh": "考古的",
+    "es": "arqueológico",
+    "fr": "archéologique",
+    "de": "archäologisch"
+  },
+  "archaeology": {
+    "si": "පුරාවිද්‍යාව",
+    "ta": "தொல்லியல்",
+    "hi": "पुरातत्व",
+    "zh": "考古学",
+    "es": "arqueología",
+    "fr": "archéologie",
+    "de": "Archäologie"
+  },
+  "are": {
+    "si": "වේ",
+    "ta": "ஆகும்",
+    "hi": "हैं",
+    "zh": "是",
+    "es": "son",
+    "fr": "sont",
+    "de": "sind"
+  },
+  "area": {
+    "si": "ප්‍රදේශය",
+    "ta": "பகுதி",
+    "hi": "क्षेत्र",
+    "zh": "区域",
+    "es": "área",
+    "fr": "zone",
+    "de": "Bereich"
+  },
+  "around": {
+    "si": "වටේට",
+    "ta": "சுற்றி",
+    "hi": "चारों ओर",
+    "zh": "周围",
+    "es": "alrededor",
+    "fr": "autour",
+    "de": "um"
+  },
+  "arrive": {
+    "si": "පැමිණෙන්න",
+    "ta": "வந்தடை",
+    "hi": "पहुँचना",
+    "zh": "到达",
+    "es": "llegar",
+    "fr": "arriver",
+    "de": "ankommen"
+  },
+  "art": {
+    "si": "කලාව",
+    "ta": "கலை",
+    "hi": "कला",
+    "zh": "艺术",
+    "es": "arte",
+    "fr": "art",
+    "de": "Kunst"
+  },
+  "ascend": {
+    "si": "ඉහළට යන්න",
+    "ta": "மேலேறு",
+    "hi": "ऊपर चढ़ना",
+    "zh": "攀登",
+    "es": "ascender",
+    "fr": "monter",
+    "de": "aufsteigen"
+  },
+  "ask": {
+    "si": "අසන්න",
+    "ta": "கேளுங்கள்",
+    "hi": "पूछना",
+    "zh": "问",
+    "es": "preguntar",
+    "fr": "demander",
+    "de": "fragen"
+  },
+  "at": {
+    "si": "හිදී",
+    "ta": "இல்",
+    "hi": "पर",
+    "zh": "在",
+    "es": "en",
+    "fr": "à",
+    "de": "bei"
+  },
+  "attack": {
+    "si": "ප්‍රහාරය",
+    "ta": "தாக்குதல்",
+    "hi": "हमला",
+    "zh": "攻击",
+    "es": "ataque",
+    "fr": "attaque",
+    "de": "Angriff"
+  },
+  "attention": {
+    "si": "අවධානය",
+    "ta": "கவனம்",
+    "hi": "ध्यान",
+    "zh": "注意",
+    "es": "atención",
+    "fr": "attention",
+    "de": "Achtung"
+  },
+  "audience": {
+    "si": "සභාව",
+    "ta": "பார்வையாளர்கள்",
+    "hi": "दर्शक",
+    "zh": "观众",
+    "es": "audiencia",
+    "fr": "audience",
+    "de": "Publikum"
+  },
+  "authorized": {
+    "si": "අවසර ලත්",
+    "ta": "அங்கீகரிக்கப்பட்ட",
+    "hi": "अधिकृत",
+    "zh": "授权",
+    "es": "autorizado",
+    "fr": "autorisé",
+    "de": "autorisiert"
+  },
+  "avoid": {
+    "si": "වළක්වා ගන්න",
+    "ta": "தவிர்க்கவும்",
+    "hi": "बचें",
+    "zh": "避免",
+    "es": "evitar",
+    "fr": "éviter",
+    "de": "vermeiden"
+  },
+  "away": {
+    "si": "ඈත",
+    "ta": "தூரம்",
+    "hi": "दूर",
+    "zh": "远离",
+    "es": "lejos",
+    "fr": "loin",
+    "de": "weg"
+  },
+  "back": {
+    "si": "ආපසු",
+    "ta": "பின்னால்",
+    "hi": "वापस",
+    "zh": "返回",
+    "es": "atrás",
+    "fr": "arrière",
+    "de": "zurück"
+  },
+  "bad": {
+    "si": "නරක",
+    "ta": "மோசமான",
+    "hi": "बुरा",
+    "zh": "坏",
+    "es": "malo",
+    "fr": "mauvais",
+    "de": "schlecht"
+  },
+  "bag": {
+    "si": "බෑගය",
+    "ta": "பை",
+    "hi": "बैग",
+    "zh": "袋子",
+    "es": "bolsa",
+    "fr": "sac",
+    "de": "Tasche"
+  },
+  "bank": {
+    "si": "බැංකුව",
+    "ta": "வங்கி",
+    "hi": "बैंक",
+    "zh": "银行",
+    "es": "banco",
+    "fr": "banque",
+    "de": "Bank"
+  },
+  "bath": {
+    "si": "ස්නානය",
+    "ta": "குளியல்",
+    "hi": "स्नान",
+    "zh": "沐浴",
+    "es": "baño",
+    "fr": "bain",
+    "de": "Bad"
+  },
+  "bathing": {
+    "si": "ස්නානය",
+    "ta": "குளியல்",
+    "hi": "स्नान",
+    "zh": "洗澡",
+    "es": "baño",
+    "fr": "baignade",
+    "de": "Baden"
+  },
+  "bathroom": {
+    "si": "නාන කාමරය",
+    "ta": "குளியலறை",
+    "hi": "बाथरूम",
+    "zh": "浴室",
+    "es": "baño",
+    "fr": "salle de bain",
+    "de": "Badezimmer"
+  },
+  "beautiful": {
+    "si": "ලස්සන",
+    "ta": "அழகான",
+    "hi": "सुंदर",
+    "zh": "美丽",
+    "es": "hermoso",
+    "fr": "beau",
+    "de": "schön"
+  },
+  "bee": {
+    "si": "මීමැස්සා",
+    "ta": "தேனீ",
+    "hi": "मधुमक्खी",
+    "zh": "蜜蜂",
+    "es": "abeja",
+    "fr": "abeille",
+    "de": "Biene"
+  },
+  "bees": {
+    "si": "මීමැස්සන්",
+    "ta": "தேனீக்கள்",
+    "hi": "मधुमक्खियाँ",
+    "zh": "蜜蜂",
+    "es": "abejas",
+    "fr": "abeilles",
+    "de": "Bienen"
+  },
+  "before": {
+    "si": "කලින්",
+    "ta": "முன்பු",
+    "hi": "पहले",
+    "zh": "之前",
+    "es": "antes",
+    "fr": "avant",
+    "de": "vor"
+  },
+  "between": {
+    "si": "අතර",
+    "ta": "இடையில்",
+    "hi": "बीच में",
+    "zh": "之间",
+    "es": "entre",
+    "fr": "entre",
+    "de": "zwischen"
+  },
+  "beware": {
+    "si": "ප්‍රවේසම් වන්න",
+    "ta": "எச்சரிக்கையாக இருங்கள்",
+    "hi": "सावधान रहें",
+    "zh": "当心",
+    "es": "tenga cuidado",
+    "fr": "attention à",
+    "de": "vorsicht vor"
+  },
+  "beyond": {
+    "si": "ඔබ්බෙන්",
+    "ta": "அப்பால்",
+    "hi": "परे",
+    "zh": "超出",
+    "es": "más allá",
+    "fr": "au-delà",
+    "de": "jenseits"
+  },
+  "bicycle": {
+    "si": "බයිසිකලය",
+    "ta": "சைக்கிள்",
+    "hi": "साइकिल",
+    "zh": "自行车",
+    "es": "bicicleta",
+    "fr": "vélo",
+    "de": "Fahrrad"
+  },
+  "bin": {
+    "si": "බඳුන",
+    "ta": "குப்பைத் தொட்டி",
+    "hi": "कूड़ेदान",
+    "zh": "垃圾桶",
+    "es": "cubo de basura",
+    "fr": "poubelle",
+    "de": "Mülleimer"
+  },
+  "bins": {
+    "si": "බඳුන්",
+    "ta": "குப்பைத் தொட்டிகள்",
+    "hi": "कूड़ेदान",
+    "zh": "垃圾桶",
+    "es": "cubos de basura",
+    "fr": "poubelles",
+    "de": "Mülleimer"
+  },
+  "bird": {
+    "si": "කුරුල්ලා",
+    "ta": "பறவை",
+    "hi": "पक्षी",
+    "zh": "鸟",
+    "es": "pájaro",
+    "fr": "oiseau",
+    "de": "Vogel"
+  },
+  "book": {
+    "si": "පොත",
+    "ta": "புத்தகம்",
+    "hi": "किताब",
+    "zh": "书",
+    "es": "libro",
+    "fr": "livre",
+    "de": "Buch"
+  },
+  "border": {
+    "si": "මායිම",
+    "ta": "எல்லை",
+    "hi": "सीमा",
+    "zh": "边界",
+    "es": "frontera",
+    "fr": "frontière",
+    "de": "Grenze"
+  },
+  "boulder": {
+    "si": "ගල් පරය",
+    "ta": "பாறை",
+    "hi": "चट्टान",
+    "zh": "巨石",
+    "es": "roca grande",
+    "fr": "rocher",
+    "de": "Felsbrocken"
+  },
+  "boulders": {
+    "si": "ගල් පර",
+    "ta": "பாறைகள்",
+    "hi": "चट्टानें",
+    "zh": "巨石群",
+    "es": "rocas",
+    "fr": "rochers",
+    "de": "Felsen"
+  },
+  "bridge": {
+    "si": "පාලම",
+    "ta": "பாலம்",
+    "hi": "पुल",
+    "zh": "桥",
+    "es": "puente",
+    "fr": "pont",
+    "de": "Brücke"
+  },
+  "broken": {
+    "si": "කැඩුණු",
+    "ta": "உடைந்த",
+    "hi": "टूटा",
+    "zh": "破碎",
+    "es": "roto",
+    "fr": "cassé",
+    "de": "kaputt"
+  },
+  "building": {
+    "si": "ගොඩනැගිල්ල",
+    "ta": "கட்டிடம்",
+    "hi": "इमारत",
+    "zh": "建筑",
+    "es": "edificio",
+    "fr": "bâtiment",
+    "de": "Gebäude"
+  },
+  "bus": {
+    "si": "බස් රථ",
+    "ta": "பேருந்து",
+    "hi": "बस",
+    "zh": "公交车",
+    "es": "autobús",
+    "fr": "bus",
+    "de": "Bus"
+  },
+  "but": {
+    "si": "නමුත්",
+    "ta": "ஆனால்",
+    "hi": "लेकिन",
+    "zh": "但是",
+    "es": "pero",
+    "fr": "mais",
+    "de": "aber"
+  },
+  "buy": {
+    "si": "ගන්න",
+    "ta": "வாங்கு",
+    "hi": "खरीदना",
+    "zh": "买",
+    "es": "comprar",
+    "fr": "acheter",
+    "de": "kaufen"
+  },
+  "cafe": {
+    "si": "කෝපිශාලාව",
+    "ta": "கஃபே",
+    "hi": "कैफे",
+    "zh": "咖啡馆",
+    "es": "café",
+    "fr": "café",
+    "de": "Café"
+  },
+  "camera": {
+    "si": "කැමරා",
+    "ta": "கேமரா",
+    "hi": "कैमरा",
+    "zh": "相机",
+    "es": "cámara",
+    "fr": "appareil photo",
+    "de": "Kamera"
+  },
+  "cancel": {
+    "si": "අවලංගු කරන්න",
+    "ta": "ரத்து செய்",
+    "hi": "रद्द करें",
+    "zh": "取消",
+    "es": "cancelar",
+    "fr": "annuler",
+    "de": "stornieren"
+  },
+  "car": {
+    "si": "මෝටර් රථය",
+    "ta": "கார்",
+    "hi": "कार",
+    "zh": "汽车",
+    "es": "coche",
+    "fr": "voiture",
+    "de": "Auto"
+  },
+  "careful": {
+    "si": "ප්‍රවේශමෙන්",
+    "ta": "கவனமாக",
+    "hi": "सावधान",
+    "zh": "小心",
+    "es": "cuidadoso",
+    "fr": "prudent",
+    "de": "vorsichtig"
+  },
+  "cash": {
+    "si": "මුදල්",
+    "ta": "பணம்",
+    "hi": "नकद",
+    "zh": "现金",
+    "es": "efectivo",
+    "fr": "espèces",
+    "de": "Bargeld"
+  },
+  "caution": {
+    "si": "ප්‍රවේශම",
+    "ta": "எச்சரிக்கை",
+    "hi": "सावधानी",
+    "zh": "注意",
+    "es": "precaución",
+    "fr": "attention",
+    "de": "Vorsicht"
+  },
+  "cave": {
+    "si": "ගුහාව",
+    "ta": "குகை",
+    "hi": "गुफा",
+    "zh": "洞穴",
+    "es": "cueva",
+    "fr": "grotte",
+    "de": "Höhle"
+  },
+  "center": {
+    "si": "මධ්‍යස්ථානය",
+    "ta": "மையம்",
+    "hi": "केंद्र",
+    "zh": "中心",
+    "es": "centro",
+    "fr": "centre",
+    "de": "Zentrum"
+  },
+  "century": {
+    "si": "සියවස",
+    "ta": "நூற்றாண்டு",
+    "hi": "शताब्दी",
+    "zh": "世纪",
+    "es": "siglo",
+    "fr": "siècle",
+    "de": "Jahrhundert"
+  },
+  "child": {
+    "si": "ළමා",
+    "ta": "குழந்தை",
+    "hi": "बच्चा",
+    "zh": "儿童",
+    "es": "niño",
+    "fr": "enfant",
+    "de": "Kind"
+  },
+  "church": {
+    "si": "පල්ලිය",
+    "ta": "தேவாலயம்",
+    "hi": "चर्च",
+    "zh": "教堂",
+    "es": "iglesia",
+    "fr": "église",
+    "de": "Kirche"
+  },
+  "city": {
+    "si": "නගරය",
+    "ta": "நகரம்",
+    "hi": "शहर",
+    "zh": "城市",
+    "es": "ciudad",
+    "fr": "ville",
+    "de": "Stadt"
+  },
+  "clean": {
+    "si": "පිරිසිදු",
+    "ta": "சுத்தம்",
+    "hi": "साफ",
+    "zh": "干净",
+    "es": "limpio",
+    "fr": "propre",
+    "de": "sauber"
+  },
+  "clear": {
+    "si": "පැහැදිලි",
+    "ta": "தெளிவான",
+    "hi": "स्पष्ट",
+    "zh": "清楚",
+    "es": "claro",
+    "fr": "clair",
+    "de": "klar"
+  },
+  "climb": {
+    "si": "නැගීම",
+    "ta": "ஏறுங்கள்",
+    "hi": "चढ़ना",
+    "zh": "攀登",
+    "es": "escalar",
+    "fr": "grimper",
+    "de": "klettern"
+  },
+  "climbing": {
+    "si": "නැගීම",
+    "ta": "ஏறுதல்",
+    "hi": "चढ़ाई",
+    "zh": "攀爬",
+    "es": "escalada",
+    "fr": "escalade",
+    "de": "Klettern"
+  },
+  "close": {
+    "si": "වසන්න",
+    "ta": "மூடு",
+    "hi": "बंद",
+    "zh": "关闭",
+    "es": "cerrar",
+    "fr": "fermer",
+    "de": "schließen"
+  },
+  "closed": {
+    "si": "වසා ඇත",
+    "ta": "மூடப்பட்டுள்ளது",
+    "hi": "बंद है",
+    "zh": "关闭",
+    "es": "cerrado",
+    "fr": "fermé",
+    "de": "geschlossen"
+  },
+  "clothing": {
+    "si": "ඇඳුම",
+    "ta": "ஆடை",
+    "hi": "कपड़े",
+    "zh": "衣物",
+    "es": "ropa",
+    "fr": "vêtements",
+    "de": "Kleidung"
+  },
+  "cobra": {
+    "si": "නගයා",
+    "ta": "நல்லபாம்பு",
+    "hi": "नाग",
+    "zh": "眼镜蛇",
+    "es": "cobra",
+    "fr": "cobra",
+    "de": "Kobra"
+  },
+  "coin": {
+    "si": "කාසිය",
+    "ta": "நாணயம்",
+    "hi": "सिक्का",
+    "zh": "硬币",
+    "es": "moneda",
+    "fr": "pièce",
+    "de": "Münze"
+  },
+  "cold": {
+    "si": "සීතල",
+    "ta": "குளிர்",
+    "hi": "ठंडा",
+    "zh": "冷",
+    "es": "frío",
+    "fr": "froid",
+    "de": "kalt"
+  },
+  "come": {
+    "si": "එන්න",
+    "ta": "வா",
+    "hi": "आना",
+    "zh": "来",
+    "es": "venir",
+    "fr": "venir",
+    "de": "kommen"
+  },
+  "confirm": {
+    "si": "තහවුරු කරන්න",
+    "ta": "உறுதிப்படுத்து",
+    "hi": "पुष्टि करें",
+    "zh": "确认",
+    "es": "confirmar",
+    "fr": "confirmer",
+    "de": "bestätigen"
+  },
+  "cost": {
+    "si": "මිල",
+    "ta": "விலை",
+    "hi": "कीमत",
+    "zh": "费用",
+    "es": "costo",
+    "fr": "coût",
+    "de": "Kosten"
+  },
+  "counter": {
+    "si": "කවුන්ටරය",
+    "ta": "மேசை",
+    "hi": "काउंटर",
+    "zh": "柜台",
+    "es": "mostrador",
+    "fr": "comptoir",
+    "de": "Schalter"
+  },
+  "crocodile": {
+    "si": "කිඹුලා",
+    "ta": "முதலை",
+    "hi": "मगरमच्छ",
+    "zh": "鳄鱼",
+    "es": "cocodrilo",
+    "fr": "crocodile",
+    "de": "Krokodil"
+  },
+  "crocodiles": {
+    "si": "කිඹුලන්",
+    "ta": "முதலைகள்",
+    "hi": "मगरमच्छ",
+    "zh": "鳄鱼",
+    "es": "cocodrilos",
+    "fr": "crocodiles",
+    "de": "Krokodile"
+  },
+  "crossing": {
+    "si": "තරණය",
+    "ta": "கடத்தல்",
+    "hi": "पार करना",
+    "zh": "穿越",
+    "es": "cruce",
+    "fr": "traversée",
+    "de": "Überquerung"
+  },
+  "currency": {
+    "si": "මුදල් ගව්ව",
+    "ta": "நாணயம்",
+    "hi": "मुद्रा",
+    "zh": "货币",
+    "es": "moneda",
+    "fr": "devise",
+    "de": "Währung"
+  },
+  "custom": {
+    "si": "රීතිය",
+    "ta": "வழக்கம்",
+    "hi": "रिवाज",
+    "zh": "习俗",
+    "es": "costumbre",
+    "fr": "coutume",
+    "de": "Brauch"
+  },
+  "daily": {
+    "si": "දිනපතා",
+    "ta": "தினசரி",
+    "hi": "रोज",
+    "zh": "每天",
+    "es": "diario",
+    "fr": "quotidien",
+    "de": "täglich"
+  },
+  "damage": {
+    "si": "හානි",
+    "ta": "சேதம்",
+    "hi": "नुकसान",
+    "zh": "损坏",
+    "es": "daño",
+    "fr": "dommage",
+    "de": "Schaden"
+  },
+  "danger": {
+    "si": "අනතුරු",
+    "ta": "ஆபத்து",
+    "hi": "खतरा",
+    "zh": "危险",
+    "es": "peligro",
+    "fr": "danger",
+    "de": "Gefahr"
+  },
+  "dangerous": {
+    "si": "අනතුරුදායක",
+    "ta": "ஆபத்தான",
+    "hi": "खतरनाक",
+    "zh": "危险的",
+    "es": "peligroso",
+    "fr": "dangereux",
+    "de": "gefährlich"
+  },
+  "date": {
+    "si": "දිනය",
+    "ta": "தேதி",
+    "hi": "तारीख",
+    "zh": "日期",
+    "es": "fecha",
+    "fr": "date",
+    "de": "Datum"
+  },
+  "day": {
+    "si": "දිනය",
+    "ta": "நாள்",
+    "hi": "दिन",
+    "zh": "天",
+    "es": "día",
+    "fr": "jour",
+    "de": "Tag"
+  },
+  "delay": {
+    "si": "ප්‍රමාදය",
+    "ta": "தாமதம்",
+    "hi": "देरी",
+    "zh": "延误",
+    "es": "retraso",
+    "fr": "retard",
+    "de": "Verzögerung"
+  },
+  "department": {
+    "si": "දෙපාර්තමේන්තුව",
+    "ta": "துறை",
+    "hi": "विभाग",
+    "zh": "部门",
+    "es": "departamento",
+    "fr": "département",
+    "de": "Abteilung"
+  },
+  "departure": {
+    "si": "පිටත්වීම",
+    "ta": "புறப்பாடு",
+    "hi": "प्रस्थान",
+    "zh": "出发",
+    "es": "salida",
+    "fr": "départ",
+    "de": "Abfahrt"
+  },
+  "deposit": {
+    "si": "තැන්පතුව",
+    "ta": "வைப்பு",
+    "hi": "जमा",
+    "zh": "押金",
+    "es": "depósito",
+    "fr": "dépôt",
+    "de": "Einzahlung"
+  },
+  "destination": {
+    "si": "ගමනාන්තය",
+    "ta": "சேருமிடம்",
+    "hi": "गंतव्य",
+    "zh": "目的地",
+    "es": "destino",
+    "fr": "destination",
+    "de": "Ziel"
+  },
+  "direction": {
+    "si": "දිශාව",
+    "ta": "திசை",
+    "hi": "दिशा",
+    "zh": "方向",
+    "es": "dirección",
+    "fr": "direction",
+    "de": "Richtung"
+  },
+  "disabled": {
+    "si": "ආබාධිත",
+    "ta": "ஊனமுற்றோர்",
+    "hi": "विकलांग",
+    "zh": "残疾",
+    "es": "discapacitado",
+    "fr": "handicapé",
+    "de": "behindert"
+  },
+  "discount": {
+    "si": "වට්ටම",
+    "ta": "தள்ளුபடி",
+    "hi": "छूट",
+    "zh": "折扣",
+    "es": "descuento",
+    "fr": "réduction",
+    "de": "Rabatt"
+  },
+  "do": {
+    "si": "කරන්න",
+    "ta": "செய்",
+    "hi": "करना",
+    "zh": "做",
+    "es": "hacer",
+    "fr": "faire",
+    "de": "tun"
+  },
+  "doctor": {
+    "si": "වෛද්‍යවරයා",
+    "ta": "மருத்துவர்",
+    "hi": "डॉक्टर",
+    "zh": "医生",
+    "es": "doctor",
+    "fr": "médecin",
+    "de": "Arzt"
+  },
+  "document": {
+    "si": "ලේඛනය",
+    "ta": "ஆவணம்",
+    "hi": "दस्तावेज",
+    "zh": "文件",
+    "es": "documento",
+    "fr": "document",
+    "de": "Dokument"
+  },
+  "does": {
+    "si": "කරයි",
+    "ta": "செய்கிறது",
+    "hi": "करता है",
+    "zh": "做",
+    "es": "hace",
+    "fr": "fait",
+    "de": "tut"
+  },
+  "door": {
+    "si": "දොර",
+    "ta": "கதவு",
+    "hi": "दरवाजा",
+    "zh": "门",
+    "es": "puerta",
+    "fr": "porte",
+    "de": "Tür"
+  },
+  "down": {
+    "si": "පහළ",
+    "ta": "கீழே",
+    "hi": "नीचे",
+    "zh": "下",
+    "es": "abajo",
+    "fr": "en bas",
+    "de": "unten"
+  },
+  "drink": {
+    "si": "බීම",
+    "ta": "குடிக்க",
+    "hi": "पीना",
+    "zh": "饮料",
+    "es": "bebida",
+    "fr": "boisson",
+    "de": "Getränk"
+  },
+  "drinking": {
+    "si": "පානය කිරීම",
+    "ta": "குடிநீர்",
+    "hi": "पीने",
+    "zh": "饮用",
+    "es": "beber",
+    "fr": "boire",
+    "de": "Trinken"
+  },
+  "drive": {
+    "si": "රිය පදවන්න",
+    "ta": "ஓட்டு",
+    "hi": "गाड़ी चलाना",
+    "zh": "驾驶",
+    "es": "manejar",
+    "fr": "conduire",
+    "de": "fahren"
+  },
+  "drone": {
+    "si": "ඩ්‍රෝන",
+    "ta": "ட்ரோன்",
+    "hi": "ड्रोन",
+    "zh": "无人机",
+    "es": "dron",
+    "fr": "drone",
+    "de": "Drohne"
+  },
+  "drones": {
+    "si": "ඩ්‍රෝන යානා",
+    "ta": "ட்ரோன்கள்",
+    "hi": "ड्रोन",
+    "zh": "无人机",
+    "es": "drones",
+    "fr": "drones",
+    "de": "Drohnen"
+  },
+  "dry": {
+    "si": "සිදි",
+    "ta": "உலர்ந்த",
+    "hi": "सूखा",
+    "zh": "干燥",
+    "es": "seco",
+    "fr": "sec",
+    "de": "trocken"
+  },
+  "dusk": {
+    "si": "සන්ධ්‍යාව",
+    "ta": "மாலை நேரம்",
+    "hi": "शाम",
+    "zh": "黄昏",
+    "es": "anochecer",
+    "fr": "crépuscule",
+    "de": "Dämmerung"
+  },
+  "each": {
+    "si": "එක් එක්",
+    "ta": "ஒவ்வொரு",
+    "hi": "प्रत्येक",
+    "zh": "每个",
+    "es": "cada",
+    "fr": "chaque",
+    "de": "jeder"
+  },
+  "early": {
+    "si": "වේලාසනින්",
+    "ta": "சீக்கிரம்",
+    "hi": "जल्दी",
+    "zh": "早",
+    "es": "temprano",
+    "fr": "tôt",
+    "de": "früh"
+  },
+  "east": {
+    "si": "නැගෙනහිර",
+    "ta": "கிழக்கு",
+    "hi": "पूर्व",
+    "zh": "东",
+    "es": "este",
+    "fr": "est",
+    "de": "Osten"
+  },
+  "electricity": {
+    "si": "විදුලිය",
+    "ta": "மின்சாரம்",
+    "hi": "बिजली",
+    "zh": "电",
+    "es": "electricidad",
+    "fr": "électricité",
+    "de": "Elektrizität"
+  },
+  "elephant": {
+    "si": "අලියා",
+    "ta": "யானை",
+    "hi": "हाथी",
+    "zh": "大象",
+    "es": "elefante",
+    "fr": "éléphant",
+    "de": "Elefant"
+  },
+  "elephants": {
+    "si": "අලින්",
+    "ta": "யானைகள்",
+    "hi": "हाथी",
+    "zh": "大象",
+    "es": "elefantes",
+    "fr": "éléphants",
+    "de": "Elefanten"
+  },
+  "emergency": {
+    "si": "හදිසි",
+    "ta": "அவசரகால",
+    "hi": "आपातकाल",
+    "zh": "紧急",
+    "es": "emergencia",
+    "fr": "urgence",
+    "de": "Notfall"
+  },
+  "empty": {
+    "si": "හිස්",
+    "ta": "காலி",
+    "hi": "खाली",
+    "zh": "空",
+    "es": "vacío",
+    "fr": "vide",
+    "de": "leer"
+  },
+  "end": {
+    "si": "අවසානය",
+    "ta": "முடிவு",
+    "hi": "अंत",
+    "zh": "结束",
+    "es": "fin",
+    "fr": "fin",
+    "de": "Ende"
+  },
+  "enter": {
+    "si": "ඇතුළු වන්න",
+    "ta": "நுழையவும்",
+    "hi": "प्रवेश करें",
+    "zh": "进入",
+    "es": "entrar",
+    "fr": "entrer",
+    "de": "eintreten"
+  },
+  "entrance": {
+    "si": "ඇතුල්වීම",
+    "ta": "நுழைவாயில்",
+    "hi": "प्रवेश",
+    "zh": "入口",
+    "es": "entrada",
+    "fr": "entrée",
+    "de": "Eingang"
+  },
+  "evening": {
+    "si": "සවස",
+    "ta": "மாலை",
+    "hi": "शाम",
+    "zh": "晚上",
+    "es": "tarde",
+    "fr": "soir",
+    "de": "Abend"
+  },
+  "every": {
+    "si": "සෑම",
+    "ta": "ஒவ்வொரு",
+    "hi": "हर",
+    "zh": "每个",
+    "es": "cada",
+    "fr": "chaque",
+    "de": "jeder"
+  },
+  "exit": {
+    "si": "පිටවීම",
+    "ta": "வெளியேறு",
+    "hi": "निकास",
+    "zh": "出口",
+    "es": "salida",
+    "fr": "sortie",
+    "de": "Ausgang"
+  },
+  "expensive": {
+    "si": "මිල අධික",
+    "ta": "விலையுயர்ந்த",
+    "hi": "महंगा",
+    "zh": "昂贵",
+    "es": "caro",
+    "fr": "cher",
+    "de": "teuer"
+  },
+  "fast": {
+    "si": "ඉක්මන්",
+    "ta": "வேகமாக",
+    "hi": "जल्दी",
+    "zh": "快",
+    "es": "rápido",
+    "fr": "rapide",
+    "de": "schnell"
+  },
+  "fee": {
+    "si": "ගාස්තුව",
+    "ta": "கட்டணம்",
+    "hi": "शुल्क",
+    "zh": "费用",
+    "es": "tarifa",
+    "fr": "frais",
+    "de": "Gebühr"
+  },
+  "feed": {
+    "si": "කෑම දෙන්න",
+    "ta": "உணவளி",
+    "hi": "खिलाना",
+    "zh": "喂食",
+    "es": "alimentar",
+    "fr": "nourrir",
+    "de": "füttern"
+  },
+  "feeding": {
+    "si": "ආහාර දීම",
+    "ta": "உணவளித்தல்",
+    "hi": "खिलाना",
+    "zh": "喂食",
+    "es": "alimentación",
+    "fr": "alimentation",
+    "de": "Füttern"
+  },
+  "fees": {
+    "si": "ගාස්තු",
+    "ta": "கட்டணங்கள்",
+    "hi": "शुल्क",
+    "zh": "费用",
+    "es": "tarifas",
+    "fr": "frais",
+    "de": "Gebühren"
+  },
+  "filming": {
+    "si": "රූගත කිරීම",
+    "ta": "படமெடுத்தல்",
+    "hi": "फिल्मांकन",
+    "zh": "拍摄",
+    "es": "filmación",
+    "fr": "tournage",
+    "de": "Filmen"
+  },
+  "fire": {
+    "si": "ගිනි",
+    "ta": "தீ",
+    "hi": "आग",
+    "zh": "火",
+    "es": "fuego",
+    "fr": "feu",
+    "de": "Feuer"
+  },
+  "first": {
+    "si": "පළමු",
+    "ta": "முதல்",
+    "hi": "पहला",
+    "zh": "第一",
+    "es": "primero",
+    "fr": "premier",
+    "de": "erste"
+  },
+  "flash": {
+    "si": "ෆ්ලෑෂ්",
+    "ta": "ப்ளாஷ்",
+    "hi": "फ्लैश",
+    "zh": "闪光灯",
+    "es": "flash",
+    "fr": "flash",
+    "de": "Blitz"
+  },
+  "food": {
+    "si": "ආහාර",
+    "ta": "உணவு",
+    "hi": "खाना",
+    "zh": "食物",
+    "es": "comida",
+    "fr": "nourriture",
+    "de": "Essen"
+  },
+  "for": {
+    "si": "සඳහා",
+    "ta": "க்காக",
+    "hi": "के लिए",
+    "zh": "为了",
+    "es": "para",
+    "fr": "pour",
+    "de": "für"
+  },
+  "forbidden": {
+    "si": "තහනම්",
+    "ta": "தடைசெய்யப்பட்டது",
+    "hi": "निषिद्ध",
+    "zh": "禁止",
+    "es": "prohibido",
+    "fr": "interdit",
+    "de": "verboten"
+  },
+  "foreign": {
+    "si": "විදේශීය",
+    "ta": "வெளிநாட்டு",
+    "hi": "विदेशी",
+    "zh": "外国",
+    "es": "extranjero",
+    "fr": "étranger",
+    "de": "ausländisch"
+  },
+  "forest": {
+    "si": "වනාන්තරය",
+    "ta": "காடு",
+    "hi": "जंगल",
+    "zh": "森林",
+    "es": "bosque",
+    "fr": "forêt",
+    "de": "Wald"
+  },
+  "fortress": {
+    "si": "බලකොටුව",
+    "ta": "கோட்டை",
+    "hi": "किला",
+    "zh": "堡垒",
+    "es": "fortaleza",
+    "fr": "forteresse",
+    "de": "Festung"
+  },
+  "found": {
+    "si": "හමු විය",
+    "ta": "கிடைத்தது",
+    "hi": "मिला",
+    "zh": "发现",
+    "es": "encontrado",
+    "fr": "trouvé",
+    "de": "gefunden"
+  },
+  "fountain": {
+    "si": "දිය උල්පත",
+    "ta": "நீரூற்று",
+    "hi": "फव्वारा",
+    "zh": "喷泉",
+    "es": "fuente",
+    "fr": "fontaine",
+    "de": "Brunnen"
+  },
+  "fountains": {
+    "si": "දිය උල්පත්",
+    "ta": "நீரூற்றுகள்",
+    "hi": "फव्वारे",
+    "zh": "喷泉群",
+    "es": "fuentes",
+    "fr": "fontaines",
+    "de": "Brunnen"
+  },
+  "free": {
+    "si": "නොමිලේ",
+    "ta": "இலவசம்",
+    "hi": "मुफ्त",
+    "zh": "免费",
+    "es": "gratis",
+    "fr": "gratuit",
+    "de": "kostenlos"
+  },
+  "fresco": {
+    "si": "බිතුසිතුවම",
+    "ta": "சுவரோவியம்",
+    "hi": "भित्तिचित्र",
+    "zh": "壁画",
+    "es": "fresco",
+    "fr": "fresque",
+    "de": "Fresko"
+  },
+  "frescoes": {
+    "si": "බිතුසිතුවම්",
+    "ta": "ஓவியங்கள்",
+    "hi": "भित्तिचित्रों",
+    "zh": "壁画群",
+    "es": "frescos",
+    "fr": "fresques",
+    "de": "Fresken"
+  },
+  "fresh": {
+    "si": "නැවුම්",
+    "ta": "புதிதான",
+    "hi": "ताजा",
+    "zh": "新鲜",
+    "es": "fresco",
+    "fr": "frais",
+    "de": "frisch"
+  },
+  "from": {
+    "si": "සිට",
+    "ta": "இருந்து",
+    "hi": "से",
+    "zh": "从",
+    "es": "desde",
+    "fr": "de",
+    "de": "von"
+  },
+  "front": {
+    "si": "ඉදිරිපස",
+    "ta": "முன்பக்கம்",
+    "hi": "आगे",
+    "zh": "前面",
+    "es": "frente",
+    "fr": "devant",
+    "de": "vorne"
+  },
+  "full": {
+    "si": "පිරී",
+    "ta": "நிறைந்த",
+    "hi": "भरा",
+    "zh": "满",
+    "es": "lleno",
+    "fr": "plein",
+    "de": "voll"
+  },
+  "gallery": {
+    "si": "ගැලරිය",
+    "ta": "கேலரி",
+    "hi": "गैलरी",
+    "zh": "画廊",
+    "es": "galería",
+    "fr": "galerie",
+    "de": "Galerie"
+  },
+  "garden": {
+    "si": "උද්‍යානය",
+    "ta": "தோட்டம்",
+    "hi": "बगीचा",
+    "zh": "花园",
+    "es": "jardín",
+    "fr": "jardin",
+    "de": "Garten"
+  },
+  "gardens": {
+    "si": "උද්‍යාන",
+    "ta": "தோட்டங்கள்",
+    "hi": "उद्यान",
+    "zh": "花园群",
+    "es": "jardines",
+    "fr": "jardins",
+    "de": "Gärten"
+  },
+  "gate": {
+    "si": "දොරටුව",
+    "ta": "நுழைவாயில்",
+    "hi": "द्वार",
+    "zh": "大门",
+    "es": "puerta",
+    "fr": "porte",
+    "de": "Tor"
+  },
+  "give": {
+    "si": "දෙන්න",
+    "ta": "கொடு",
+    "hi": "देना",
+    "zh": "给",
+    "es": "dar",
+    "fr": "donner",
+    "de": "geben"
+  },
+  "go": {
+    "si": "යන්න",
+    "ta": "போ",
+    "hi": "जाना",
+    "zh": "去",
+    "es": "ir",
+    "fr": "aller",
+    "de": "gehen"
+  },
+  "good": {
+    "si": "හොඳ",
+    "ta": "நல்ல",
+    "hi": "अच्छा",
+    "zh": "好",
+    "es": "bueno",
+    "fr": "bon",
+    "de": "gut"
+  },
+  "graffiti": {
+    "si": "කුරුටු ගී",
+    "ta": "சுவரெழுத்துக்கள்",
+    "hi": "भित्तिलेख",
+    "zh": "涂鸦",
+    "es": "grafiti",
+    "fr": "graffitis",
+    "de": "Graffiti"
+  },
+  "ground": {
+    "si": "බිම",
+    "ta": "தரை",
+    "hi": "जमीन",
+    "zh": "地面",
+    "es": "suelo",
+    "fr": "sol",
+    "de": "Boden"
+  },
+  "group": {
+    "si": "කණ්ඩායම",
+    "ta": "குழு",
+    "hi": "समूह",
+    "zh": "团体",
+    "es": "grupo",
+    "fr": "groupe",
+    "de": "Gruppe"
+  },
+  "guide": {
+    "si": "මාර්ගෝපදේශකය",
+    "ta": "வழிகாட்டி",
+    "hi": "गाइड",
+    "zh": "导游",
+    "es": "guía",
+    "fr": "guide",
+    "de": "Führer"
+  },
+  "hall": {
+    "si": "ශාලාව",
+    "ta": "மண்டபம்",
+    "hi": "हॉल",
+    "zh": "大厅",
+    "es": "salón",
+    "fr": "salle",
+    "de": "Halle"
+  },
+  "hazard": {
+    "si": "අනතුර",
+    "ta": "ஆபத்து",
+    "hi": "खतरा",
+    "zh": "危险",
+    "es": "peligro",
+    "fr": "danger",
+    "de": "Gefahr"
+  },
+  "help": {
+    "si": "උදව්",
+    "ta": "உதவி",
+    "hi": "मदद",
+    "zh": "帮助",
+    "es": "ayuda",
+    "fr": "aide",
+    "de": "Hilfe"
+  },
+  "here": {
+    "si": "මෙහි",
+    "ta": "இங்கே",
+    "hi": "यहाँ",
+    "zh": "这里",
+    "es": "aquí",
+    "fr": "ici",
+    "de": "hier"
+  },
+  "heritage": {
+    "si": "උරුමය",
+    "ta": "பாரம்பரியம்",
+    "hi": "विरासत",
+    "zh": "遗产",
+    "es": "patrimonio",
+    "fr": "patrimoine",
+    "de": "Erbe"
+  },
+  "hill": {
+    "si": "කඳු නොය",
+    "ta": "மேடு",
+    "hi": "पहाड़ी",
+    "zh": "山丘",
+    "es": "colina",
+    "fr": "colline",
+    "de": "Hügel"
+  },
+  "historic": {
+    "si": "ඓතිහාසික",
+    "ta": "வரலாற்று",
+    "hi": "ऐतिहासिक",
+    "zh": "历史性",
+    "es": "histórico",
+    "fr": "historique",
+    "de": "historisch"
+  },
+  "hood": {
+    "si": "පෙණ",
+    "ta": "படம்",
+    "hi": "फण",
+    "zh": "罩",
+    "es": "capucha",
+    "fr": "capuchon",
+    "de": "Haube"
+  },
+  "hornet": {
+    "si": "බඹරා",
+    "ta": "குளவி",
+    "hi": "बर्रैया",
+    "zh": "大黄蜂",
+    "es": "avispón",
+    "fr": "frelon",
+    "de": "Hornisse"
+  },
+  "hornets": {
+    "si": "බඹරුන්",
+    "ta": "குளவிகள்",
+    "hi": "बर्रैया",
+    "zh": "大黄蜂",
+    "es": "avispones",
+    "fr": "frelons",
+    "de": "Hornissen"
+  },
+  "hospital": {
+    "si": "රෝහල",
+    "ta": "மருத்துவமனை",
+    "hi": "अस्पताल",
+    "zh": "医院",
+    "es": "hospital",
+    "fr": "hôpital",
+    "de": "Krankenhaus"
+  },
+  "hot": {
+    "si": "උණුසුම්",
+    "ta": "சூடான",
+    "hi": "गर्म",
+    "zh": "热",
+    "es": "caliente",
+    "fr": "chaud",
+    "de": "heiß"
+  },
+  "hotel": {
+    "si": "හෝටලය",
+    "ta": "ஹோட்டல்",
+    "hi": "होटल",
+    "zh": "酒店",
+    "es": "hotel",
+    "fr": "hôtel",
+    "de": "Hotel"
+  },
+  "hour": {
+    "si": "පැය",
+    "ta": "மணி",
+    "hi": "घंटा",
+    "zh": "小时",
+    "es": "hora",
+    "fr": "heure",
+    "de": "Stunde"
+  },
+  "hours": {
+    "si": "පැය ගණන",
+    "ta": "மணிநேரம்",
+    "hi": "घंटे",
+    "zh": "营业时间",
+    "es": "horas",
+    "fr": "heures",
+    "de": "Stunden"
+  },
+  "house": {
+    "si": "ගෙය",
+    "ta": "வீடு",
+    "hi": "घर",
+    "zh": "房子",
+    "es": "casa",
+    "fr": "maison",
+    "de": "Haus"
+  },
+  "important": {
+    "si": "වැදගත්",
+    "ta": "முக்கியமான",
+    "hi": "महत्वपूर्ण",
+    "zh": "重要",
+    "es": "importante",
+    "fr": "important",
+    "de": "wichtig"
+  },
+  "in": {
+    "si": "තුළ",
+    "ta": "இல்",
+    "hi": "में",
+    "zh": "在",
+    "es": "en",
+    "fr": "dans",
+    "de": "in"
+  },
+  "info": {
+    "si": "තොරතුරු",
+    "ta": "தகவல்",
+    "hi": "जानकारी",
+    "zh": "信息",
+    "es": "info",
+    "fr": "info",
+    "de": "Info"
+  },
+  "information": {
+    "si": "තොරතුරු",
+    "ta": "தகவல்",
+    "hi": "जानकारी",
+    "zh": "信息",
+    "es": "información",
+    "fr": "information",
+    "de": "Information"
+  },
+  "inside": {
+    "si": "ඇතුළත",
+    "ta": "உள்ளே",
+    "hi": "अंदर",
+    "zh": "里面",
+    "es": "dentro",
+    "fr": "à l'intérieur",
+    "de": "innen"
+  },
+  "into": {
+    "si": "තුළට",
+    "ta": "உள்ளே",
+    "hi": "में",
+    "zh": "进入",
+    "es": "en",
+    "fr": "dans",
+    "de": "in"
+  },
+  "is": {
+    "si": "වේ",
+    "ta": "ஆகும்",
+    "hi": "है",
+    "zh": "是",
+    "es": "es",
+    "fr": "est",
+    "de": "ist"
+  },
+  "just": {
+    "si": "පමණක්",
+    "ta": "மட்டும்",
+    "hi": "बस",
+    "zh": "只是",
+    "es": "solo",
+    "fr": "juste",
+    "de": "nur"
+  },
+  "keep": {
+    "si": "තබා ගන්න",
+    "ta": "வைத்திருங்கள்",
+    "hi": "रखें",
+    "zh": "保持",
+    "es": "mantener",
+    "fr": "garder",
+    "de": "behalten"
+  },
+  "key": {
+    "si": "යතුර",
+    "ta": "சாவி",
+    "hi": "चाबी",
+    "zh": "钥匙",
+    "es": "llave",
+    "fr": "clé",
+    "de": "Schlüssel"
+  },
+  "king": {
+    "si": "රජු",
+    "ta": "அரசன்",
+    "hi": "राजा",
+    "zh": "国王",
+    "es": "rey",
+    "fr": "roi",
+    "de": "König"
+  },
+  "lake": {
+    "si": "විල",
+    "ta": "ஏரி",
+    "hi": "झील",
+    "zh": "湖",
+    "es": "lago",
+    "fr": "lac",
+    "de": "See"
+  },
+  "late": {
+    "si": "ප්‍රමාද",
+    "ta": "தாமதமான",
+    "hi": "देर",
+    "zh": "晚了",
+    "es": "tarde",
+    "fr": "tard",
+    "de": "spät"
+  },
+  "left": {
+    "si": "වමට",
+    "ta": "இடது",
+    "hi": "बाएँ",
+    "zh": "左",
+    "es": "izquierda",
+    "fr": "gauche",
+    "de": "links"
+  },
+  "level": {
+    "si": "මට්ටම",
+    "ta": "நிலை",
+    "hi": "स्तर",
+    "zh": "层",
+    "es": "nivel",
+    "fr": "niveau",
+    "de": "Ebene"
+  },
+  "lion": {
+    "si": "සිංහ",
+    "ta": "சிங்கம்",
+    "hi": "सिंह",
+    "zh": "狮子",
+    "es": "león",
+    "fr": "lion",
+    "de": "Löwe"
+  },
+  "litter": {
+    "si": "කසළ",
+    "ta": "குப்பை",
+    "hi": "कचरा",
+    "zh": "垃圾",
+    "es": "basura",
+    "fr": "déchets",
+    "de": "Müll"
+  },
+  "littering": {
+    "si": "කුණු දැමීම",
+    "ta": "குப்பை வீசுதல்",
+    "hi": "कचरा फैलाना",
+    "zh": "乱扔垃圾",
+    "es": "tirar basura",
+    "fr": "jeter des déchets",
+    "de": "Müll werfen"
+  },
+  "local": {
+    "si": "දේශීය",
+    "ta": "உள்ளூர்",
+    "hi": "स्थानीय",
+    "zh": "当地",
+    "es": "local",
+    "fr": "local",
+    "de": "lokal"
+  },
+  "lost": {
+    "si": "නැති",
+    "ta": "தொலைந்தது",
+    "hi": "खोया",
+    "zh": "丢失",
+    "es": "perdido",
+    "fr": "perdu",
+    "de": "verloren"
+  },
+  "main": {
+    "si": "ප්‍රධාන",
+    "ta": "பிரதான",
+    "hi": "मुख्य",
+    "zh": "主要",
+    "es": "principal",
+    "fr": "principal",
+    "de": "Haupt-"
+  },
+  "map": {
+    "si": "සිතියම",
+    "ta": "வரைபடம்",
+    "hi": "नक्शा",
+    "zh": "地图",
+    "es": "mapa",
+    "fr": "carte",
+    "de": "Karte"
+  },
+  "market": {
+    "si": "වෙළඳපොළ",
+    "ta": "சந்தை",
+    "hi": "बाजार",
+    "zh": "市场",
+    "es": "mercado",
+    "fr": "marché",
+    "de": "Markt"
+  },
+  "medical": {
+    "si": "වෛද්‍ය",
+    "ta": "மருத்துவ",
+    "hi": "चिकित्सा",
+    "zh": "医疗",
+    "es": "médico",
+    "fr": "médical",
+    "de": "medizinisch"
+  },
+  "men": {
+    "si": "පිරිමි",
+    "ta": "ஆண்கள்",
+    "hi": "पुरुष",
+    "zh": "男性",
+    "es": "hombres",
+    "fr": "hommes",
+    "de": "Männer"
+  },
+  "minute": {
+    "si": "මිනිත්තුව",
+    "ta": "நிமிடம்",
+    "hi": "मिनट",
+    "zh": "分钟",
+    "es": "minuto",
+    "fr": "minute",
+    "de": "Minute"
+  },
+  "mirror": {
+    "si": "කැඩපත්",
+    "ta": "கண்ணாடி",
+    "hi": "दर्पण",
+    "zh": "镜子",
+    "es": "espejo",
+    "fr": "miroir",
+    "de": "Spiegel"
+  },
+  "mobile": {
+    "si": "ජංගම දුරකථනය",
+    "ta": "மொபைல்",
+    "hi": "मोबाइल",
+    "zh": "手机",
+    "es": "móvil",
+    "fr": "portable",
+    "de": "Mobiltelefon"
+  },
+  "money": {
+    "si": "මුදල්",
+    "ta": "பணம்",
+    "hi": "पैसा",
+    "zh": "钱",
+    "es": "dinero",
+    "fr": "argent",
+    "de": "Geld"
+  },
+  "monkey": {
+    "si": "වඳුරා",
+    "ta": "குரங்கு",
+    "hi": "बंदर",
+    "zh": "猴子",
+    "es": "mono",
+    "fr": "singe",
+    "de": "Affe"
+  },
+  "monkeys": {
+    "si": "වඳුරන්",
+    "ta": "குரங்குகள்",
+    "hi": "बंदर",
+    "zh": "猴子",
+    "es": "monos",
+    "fr": "singes",
+    "de": "Affen"
+  },
+  "monument": {
+    "si": "ස්මාරකය",
+    "ta": "நினைவுச்சின்னம்",
+    "hi": "स्मारक",
+    "zh": "纪念碑",
+    "es": "monumento",
+    "fr": "monument",
+    "de": "Denkmal"
+  },
+  "more": {
+    "si": "වැඩි",
+    "ta": "மேலும்",
+    "hi": "अधिक",
+    "zh": "更多",
+    "es": "más",
+    "fr": "plus",
+    "de": "mehr"
+  },
+  "morning": {
+    "si": "උදෑසන",
+    "ta": "காலை",
+    "hi": "सुबह",
+    "zh": "早上",
+    "es": "mañana",
+    "fr": "matin",
+    "de": "Morgen"
+  },
+  "most": {
+    "si": "වැඩිම",
+    "ta": "மிகவும்",
+    "hi": "सबसे अधिक",
+    "zh": "最多",
+    "es": "más",
+    "fr": "le plus",
+    "de": "meist"
+  },
+  "mountain": {
+    "si": "කඳු",
+    "ta": "மலை",
+    "hi": "पहाड़",
+    "zh": "山",
+    "es": "montaña",
+    "fr": "montagne",
+    "de": "Berg"
+  },
+  "museum": {
+    "si": "කෞතුකාගාරය",
+    "ta": "அருங்காட்சியகம்",
+    "hi": "संग्रहालय",
+    "zh": "博物馆",
+    "es": "museo",
+    "fr": "musée",
+    "de": "Museum"
+  },
+  "name": {
+    "si": "නම",
+    "ta": "பெயர்",
+    "hi": "नाम",
+    "zh": "名字",
+    "es": "nombre",
+    "fr": "nom",
+    "de": "Name"
+  },
+  "near": {
+    "si": "ආසන්න",
+    "ta": "அருகில்",
+    "hi": "पास",
+    "zh": "近",
+    "es": "cerca",
+    "fr": "près",
+    "de": "nah"
+  },
+  "new": {
+    "si": "නව",
+    "ta": "புதிய",
+    "hi": "नया",
+    "zh": "新",
+    "es": "nuevo",
+    "fr": "nouveau",
+    "de": "neu"
+  },
+  "next": {
+    "si": "ඊළඟ",
+    "ta": "அடுத்த",
+    "hi": "अगला",
+    "zh": "下一个",
+    "es": "siguiente",
+    "fr": "suivant",
+    "de": "nächste"
+  },
+  "night": {
+    "si": "රාත්‍රිය",
+    "ta": "இரவு",
+    "hi": "रात",
+    "zh": "夜晚",
+    "es": "noche",
+    "fr": "nuit",
+    "de": "Nacht"
+  },
+  "no": {
+    "si": "නැහැ",
+    "ta": "இல்லை",
+    "hi": "नहीं",
+    "zh": "不",
+    "es": "no",
+    "fr": "non",
+    "de": "nein"
+  },
+  "noise": {
+    "si": "ශබ්දය",
+    "ta": "சத்தம்",
+    "hi": "शोर",
+    "zh": "噪音",
+    "es": "ruido",
+    "fr": "bruit",
+    "de": "Lärm"
+  },
+  "north": {
+    "si": "උතුර",
+    "ta": "வடக்கு",
+    "hi": "उत्तर",
+    "zh": "北",
+    "es": "norte",
+    "fr": "nord",
+    "de": "Norden"
+  },
+  "not": {
+    "si": "නොවේ",
+    "ta": "இல்லை",
+    "hi": "नहीं",
+    "zh": "不",
+    "es": "no",
+    "fr": "ne pas",
+    "de": "nicht"
+  },
+  "notice": {
+    "si": "දැන්වීම",
+    "ta": "அறிவிப்பு",
+    "hi": "सूचना",
+    "zh": "通知",
+    "es": "aviso",
+    "fr": "avis",
+    "de": "Hinweis"
+  },
+  "number": {
+    "si": "අංකය",
+    "ta": "எண்",
+    "hi": "नंबर",
+    "zh": "号码",
+    "es": "número",
+    "fr": "numéro",
+    "de": "Nummer"
+  },
+  "of": {
+    "si": "වල",
+    "ta": "இன்",
+    "hi": "का",
+    "zh": "的",
+    "es": "de",
+    "fr": "de",
+    "de": "von"
+  },
+  "off": {
+    "si": "විසන්ධි",
+    "ta": "அணைக்கவும்",
+    "hi": "बंद",
+    "zh": "关闭",
+    "es": "apagado",
+    "fr": "éteint",
+    "de": "aus"
+  },
+  "office": {
+    "si": "කාර්යාලය",
+    "ta": "அலுவலகம்",
+    "hi": "कार्यालय",
+    "zh": "办公室",
+    "es": "oficina",
+    "fr": "bureau",
+    "de": "Büro"
+  },
+  "official": {
+    "si": "නිල",
+    "ta": "அதிகாரப்பூர்வ",
+    "hi": "आधिकारिक",
+    "zh": " official",
+    "es": "oficial",
+    "fr": "officiel",
+    "de": "offiziell"
+  },
+  "old": {
+    "si": "පැරණි",
+    "ta": "பழைய",
+    "hi": "पुराना",
+    "zh": "旧",
+    "es": "viejo",
+    "fr": "vieux",
+    "de": "alt"
+  },
+  "on": {
+    "si": "මත",
+    "ta": "மேல்",
+    "hi": "पर",
+    "zh": "在上面",
+    "es": "en",
+    "fr": "sur",
+    "de": "auf"
+  },
+  "only": {
+    "si": "පමණක්",
+    "ta": "மட்டும்",
+    "hi": "केवल",
+    "zh": "只",
+    "es": "solo",
+    "fr": "seulement",
+    "de": "nur"
+  },
+  "open": {
+    "si": "විවෘතයි",
+    "ta": "திறந்திருக்கும்",
+    "hi": "खुला है",
+    "zh": "开放",
+    "es": "abierto",
+    "fr": "ouvert",
+    "de": "geöffnet"
+  },
+  "or": {
+    "si": "හෝ",
+    "ta": "அல்லது",
+    "hi": "या",
+    "zh": "或",
+    "es": "o",
+    "fr": "ou",
+    "de": "oder"
+  },
+  "other": {
+    "si": "වෙනත්",
+    "ta": "மற்ற",
+    "hi": "अन्य",
+    "zh": "其他",
+    "es": "otro",
+    "fr": "autre",
+    "de": "andere"
+  },
+  "our": {
+    "si": "අපගේ",
+    "ta": "எங்கள்",
+    "hi": "हमारा",
+    "zh": "我们的",
+    "es": "nuestro",
+    "fr": "notre",
+    "de": "unser"
+  },
+  "out": {
+    "si": "පිටතට",
+    "ta": "வெளியே",
+    "hi": "बाहर",
+    "zh": "出去",
+    "es": "afuera",
+    "fr": "dehors",
+    "de": "raus"
+  },
+  "outside": {
+    "si": "පිටත",
+    "ta": "வெளியේ",
+    "hi": "बाहर",
+    "zh": "外面",
+    "es": "fuera",
+    "fr": "dehors",
+    "de": "außen"
+  },
+  "over": {
+    "si": "උඩින්",
+    "ta": "மேலே",
+    "hi": "ऊपर",
+    "zh": "在上面",
+    "es": "sobre",
+    "fr": "au-dessus",
+    "de": "über"
+  },
+  "palace": {
+    "si": "මාලිගය",
+    "ta": "அரண்மனை",
+    "hi": "महल",
+    "zh": "宫殿",
+    "es": "palacio",
+    "fr": "palais",
+    "de": "Palast"
+  },
+  "park": {
+    "si": "උද්‍යානය",
+    "ta": "பூங்கா",
+    "hi": "पार्क",
+    "zh": "公园",
+    "es": "parque",
+    "fr": "parc",
+    "de": "Park"
+  },
+  "parking": {
+    "si": "වාහන නැවතුම",
+    "ta": "நிறுத்துமிடம்",
+    "hi": "पार्किंग",
+    "zh": "停车",
+    "es": "estacionamiento",
+    "fr": "parking",
+    "de": "Parkplatz"
+  },
+  "path": {
+    "si": "මාර්ගය",
+    "ta": "பாதை",
+    "hi": "रास्ता",
+    "zh": "小路",
+    "es": "camino",
+    "fr": "chemin",
+    "de": "Pfad"
+  },
+  "paw": {
+    "si": "පාද",
+    "ta": "பாதம்",
+    "hi": "पंजा",
+    "zh": "爪",
+    "es": "garra",
+    "fr": "patte",
+    "de": "Tatze"
+  },
+  "paws": {
+    "si": "පාදයන්",
+    "ta": "பாதங்கள்",
+    "hi": "पंजों",
+    "zh": "爪子",
+    "es": "garras",
+    "fr": "pattes",
+    "de": "Tatzen"
+  },
+  "pay": {
+    "si": "ගෙවීම",
+    "ta": "செலுத்து",
+    "hi": "भुगतान",
+    "zh": "支付",
+    "es": "pagar",
+    "fr": "payer",
+    "de": "bezahlen"
+  },
+  "personnel": {
+    "si": "කාර්ය මණ්ඩලය",
+    "ta": "பணியாளர்கள்",
+    "hi": "कर्मचारी",
+    "zh": "人员",
+    "es": "personal",
+    "fr": "personnel",
+    "de": "Personal"
+  },
+  "phone": {
+    "si": "දුරකථනය",
+    "ta": "தொலைபேசி",
+    "hi": "फोन",
+    "zh": "电话",
+    "es": "teléfono",
+    "fr": "téléphone",
+    "de": "Telefon"
+  },
+  "photo": {
+    "si": "ඡායාරූපය",
+    "ta": "புகைப்படம்",
+    "hi": "फोटो",
+    "zh": "照片",
+    "es": "foto",
+    "fr": "photo",
+    "de": "Foto"
+  },
+  "photography": {
+    "si": "ඡායාරූප ගැනීම",
+    "ta": "புகைப்படம்",
+    "hi": "फोटोग्राफी",
+    "zh": "摄影",
+    "es": "fotografía",
+    "fr": "photographie",
+    "de": "Fotografie"
+  },
+  "photos": {
+    "si": "ඡායාරූප",
+    "ta": "புகைப்படங்கள்",
+    "hi": "फोटो",
+    "zh": "照片",
+    "es": "fotos",
+    "fr": "photos",
+    "de": "Fotos"
+  },
+  "place": {
+    "si": "ස්ථානය",
+    "ta": "இடம்",
+    "hi": "जगह",
+    "zh": "地方",
+    "es": "lugar",
+    "fr": "endroit",
+    "de": "Ort"
+  },
+  "please": {
+    "si": "කරුණාකර",
+    "ta": "தயவுசெய்து",
+    "hi": "कृपया",
+    "zh": "请",
+    "es": "por favor",
+    "fr": "s'il vous plaît",
+    "de": "bitte"
+  },
+  "police": {
+    "si": "පොලිස්",
+    "ta": "காவல்துறை",
+    "hi": "पुलिस",
+    "zh": "警察",
+    "es": "policía",
+    "fr": "police",
+    "de": "Polizei"
+  },
+  "pool": {
+    "si": "පොකුණ",
+    "ta": "குளம்",
+    "hi": "तालाब",
+    "zh": "池塘",
+    "es": "piscina",
+    "fr": "bassin",
+    "de": "Becken"
+  },
+  "price": {
+    "si": "මිල",
+    "ta": "விலை",
+    "hi": "कीमत",
+    "zh": "价格",
+    "es": "precio",
+    "fr": "prix",
+    "de": "Preis"
+  },
+  "private": {
+    "si": "පෞද්ගලික",
+    "ta": "தனியார்",
+    "hi": "निजी",
+    "zh": "私人",
+    "es": "privado",
+    "fr": "privé",
+    "de": "privat"
+  },
+  "prohibited": {
+    "si": "තහනම්",
+    "ta": "தடை",
+    "hi": "निषेध",
+    "zh": "禁止",
+    "es": "prohibido",
+    "fr": "interdit",
+    "de": "verboten"
+  },
+  "protected": {
+    "si": "ආරක්ෂිත",
+    "ta": "பாதுகாக்கப்பட்ட",
+    "hi": "संरक्षित",
+    "zh": "受保护",
+    "es": "protegido",
+    "fr": "protégé",
+    "de": "geschützt"
+  },
+  "provoke": {
+    "si": "අවුස්සීම",
+    "ta": "தூண்டுதல்",
+    "hi": "उकसाना",
+    "zh": "激怒",
+    "es": "provocar",
+    "fr": "provoquer",
+    "de": "provozieren"
+  },
+  "public": {
+    "si": "පොදු",
+    "ta": "பொது",
+    "hi": "सार्वजनिक",
+    "zh": "公共",
+    "es": "público",
+    "fr": "public",
+    "de": "öffentlich"
+  },
+  "queue": {
+    "si": "පෝළිම",
+    "ta": "வரிசை",
+    "hi": "लाइन",
+    "zh": "排队",
+    "es": "fila",
+    "fr": "file",
+    "de": "Warteschlange"
+  },
+  "quiet": {
+    "si": "නිශ්ශබ්ද",
+    "ta": "அமைதி",
+    "hi": "शांत",
+    "zh": "安静",
+    "es": "silencio",
+    "fr": "silence",
+    "de": "Ruhe"
+  },
+  "rain": {
+    "si": "වැස්ස",
+    "ta": "மழை",
+    "hi": "बारिश",
+    "zh": "雨",
+    "es": "lluvia",
+    "fr": "pluie",
+    "de": "Regen"
+  },
+  "receipt": {
+    "si": "රිසිට්",
+    "ta": "ரசீது",
+    "hi": "रसीद",
+    "zh": "收据",
+    "es": "recibo",
+    "fr": "reçu",
+    "de": "Quittung"
+  },
+  "refrain": {
+    "si": "වළකින්න",
+    "ta": "தவிர்த்துக் கொள்ளுங்கள்",
+    "hi": "बचें",
+    "zh": "避免",
+    "es": "abstenerse",
+    "fr": "s'abstenir",
+    "de": "unterlassen"
+  },
+  "reserved": {
+    "si": "රෝදතන්ත",
+    "ta": "ஒதுக்கப்பட்டது",
+    "hi": "आरक्षित",
+    "zh": "预留",
+    "es": "reservado",
+    "fr": "réservé",
+    "de": "reserviert"
+  },
+  "respect": {
+    "si": "ගරු කරන්න",
+    "ta": "மதிக்கவும்",
+    "hi": "सम्मान करें",
+    "zh": "尊重",
+    "es": "respetar",
+    "fr": "respecter",
+    "de": "respektieren"
+  },
+  "rest": {
+    "si": "විවේකය",
+    "ta": "ஓய்வு",
+    "hi": "विश्राम",
+    "zh": "休息",
+    "es": "descanso",
+    "fr": "repos",
+    "de": "Rast"
+  },
+  "restaurant": {
+    "si": "ආපනශාලාව",
+    "ta": "உணவகம்",
+    "hi": "रेस्तरां",
+    "zh": "餐厅",
+    "es": "restaurante",
+    "fr": "restaurant",
+    "de": "Restaurant"
+  },
+  "restricted": {
+    "si": "සීමිත",
+    "ta": "கட்டுப்படுத்தப்பட்ட",
+    "hi": "प्रतिबंधित",
+    "zh": "受限",
+    "es": "restringido",
+    "fr": "restreint",
+    "de": "beschränkt"
+  },
+  "restroom": {
+    "si": "වැසිකිළිය",
+    "ta": "கழிப்பறை",
+    "hi": "शौचालय",
+    "zh": "洗手间",
+    "es": "baño",
+    "fr": "toilettes",
+    "de": "Toilette"
+  },
+  "restrooms": {
+    "si": "වැසිකිළි",
+    "ta": "கழிப்பறைகள்",
+    "hi": "शौचालय",
+    "zh": "洗手间",
+    "es": "baños",
+    "fr": "toilettes",
+    "de": "Toiletten"
+  },
+  "return": {
+    "si": "ආපසු",
+    "ta": "திரும்பு",
+    "hi": "वापसी",
+    "zh": "返回",
+    "es": "regresar",
+    "fr": "retour",
+    "de": "Rückkehr"
+  },
+  "right": {
+    "si": "දකුණට",
+    "ta": "வலது",
+    "hi": "दाएँ",
+    "zh": "右",
+    "es": "derecha",
+    "fr": "droite",
+    "de": "rechts"
+  },
+  "river": {
+    "si": "ගඟ",
+    "ta": "ஆறு",
+    "hi": "நதி",
+    "zh": "河",
+    "es": "río",
+    "fr": "rivière",
+    "de": "Fluss"
+  },
+  "road": {
+    "si": "මාර්ගය",
+    "ta": "சாலை",
+    "hi": "सड़क",
+    "zh": "路",
+    "es": "carretera",
+    "fr": "route",
+    "de": "Straße"
+  },
+  "roam": {
+    "si": "සැරිසැරීම",
+    "ta": "சுற்றித் திரிதல்",
+    "hi": "घूमना",
+    "zh": "游荡",
+    "es": "vagar",
+    "fr": "errer",
+    "de": "umherstreifen"
+  },
+  "roaming": {
+    "si": "සැරිසැරීම",
+    "ta": "நடமாடும்",
+    "hi": "विचरण",
+    "zh": "游荡",
+    "es": "vagando",
+    "fr": "errance",
+    "de": "Umherstreifen"
+  },
+  "rock": {
+    "si": "ගල / පර්වතය",
+    "ta": "பாறை",
+    "hi": "चट्टान",
+    "zh": "岩石",
+    "es": "roca",
+    "fr": "rocher",
+    "de": "Fels"
+  },
+  "room": {
+    "si": "කාමරය",
+    "ta": "அறை",
+    "hi": "कमरा",
+    "zh": "房间",
+    "es": "habitación",
+    "fr": "chambre",
+    "de": "Zimmer"
+  },
+  "rooms": {
+    "si": "කාමර",
+    "ta": "அறைகள்",
+    "hi": "कमरे",
+    "zh": "房间",
+    "es": "habitaciones",
+    "fr": "chambres",
+    "de": "Zimmer"
+  },
+  "route": {
+    "si": "මාර්ගය",
+    "ta": "பாதை",
+    "hi": "मार्ग",
+    "zh": "路线",
+    "es": "ruta",
+    "fr": "route",
+    "de": "Route"
+  },
+  "ruins": {
+    "si": "නටබුන්",
+    "ta": "இடிபாடுகள்",
+    "hi": "खंडहर",
+    "zh": "遗址",
+    "es": "ruinas",
+    "fr": "ruines",
+    "de": "Ruinen"
+  },
+  "safe": {
+    "si": "ආරක්ෂිත",
+    "ta": "பாதுகாப்பான",
+    "hi": "सुरक्षित",
+    "zh": "安全",
+    "es": "seguro",
+    "fr": "sûr",
+    "de": "sicher"
+  },
+  "safety": {
+    "si": "ආරක්ෂාව",
+    "ta": "பாதுகாப்பு",
+    "hi": "सुरक्षा",
+    "zh": "安全",
+    "es": "seguridad",
+    "fr": "sécurité",
+    "de": "Sicherheit"
+  },
+  "sanctuary": {
+    "si": "අභයභූමිය",
+    "ta": "அபயாரண்யம்",
+    "hi": "अभयारण्य",
+    "zh": "保护区",
+    "es": "santuario",
+    "fr": "sanctuaire",
+    "de": "Schutzgebiet"
+  },
+  "school": {
+    "si": "පාසල",
+    "ta": "பள்ளி",
+    "hi": "स्कूल",
+    "zh": "学校",
+    "es": "escuela",
+    "fr": "école",
+    "de": "Schule"
+  },
+  "sea": {
+    "si": "මුහුද",
+    "ta": "கடல்",
+    "hi": "समुद्र",
+    "zh": "海",
+    "es": "mar",
+    "fr": "mer",
+    "de": "Meer"
+  },
+  "security": {
+    "si": "ආරක්ෂාව",
+    "ta": "பாதுகாப்பு",
+    "hi": "सुरक्षा",
+    "zh": "安全",
+    "es": "seguridad",
+    "fr": "sécurité",
+    "de": "Sicherheit"
+  },
+  "shop": {
+    "si": "කඩය",
+    "ta": "கடை",
+    "hi": "दुकान",
+    "zh": "商店",
+    "es": "tienda",
+    "fr": "boutique",
+    "de": "Geschäft"
+  },
+  "silence": {
+    "si": "නිශ්ශබ්දතාව",
+    "ta": "அமைதி",
+    "hi": "शांति",
+    "zh": "安静",
+    "es": "silencio",
+    "fr": "silence",
+    "de": "Stille"
+  },
+  "silent": {
+    "si": "නිශ්ශබ්ද",
+    "ta": "அமைதியான",
+    "hi": "मौन",
+    "zh": "安静",
+    "es": "silencioso",
+    "fr": "silencieux",
+    "de": "still"
+  },
+  "site": {
+    "si": "ස්ථානය",
+    "ta": "இடம்",
+    "hi": "स्थल",
+    "zh": "遗址",
+    "es": "sitio",
+    "fr": "site",
+    "de": "Stätte"
+  },
+  "slippery": {
+    "si": "ලිස්සන සුළු",
+    "ta": "வழுக்கும்",
+    "hi": "फिसलनदार",
+    "zh": "滑的",
+    "es": "resbaladizo",
+    "fr": "glissant",
+    "de": "rutschig"
+  },
+  "slow": {
+    "si": "සෙමෙන්",
+    "ta": "மெதுவாக",
+    "hi": "धीरे",
+    "zh": "慢",
+    "es": "despacio",
+    "fr": "lentement",
+    "de": "langsam"
+  },
+  "small": {
+    "si": "කුඩා",
+    "ta": "சிறிய",
+    "hi": "छोटा",
+    "zh": "小",
+    "es": "pequeño",
+    "fr": "petit",
+    "de": "klein"
+  },
+  "smoke": {
+    "si": "දුම් පානය",
+    "ta": "புகைத்தல்",
+    "hi": "धूम्रपान",
+    "zh": "吸烟",
+    "es": "fumar",
+    "fr": "fumer",
+    "de": "rauchen"
+  },
+  "smoking": {
+    "si": "දුම්පානය",
+    "ta": "புகைபிடித்தல்",
+    "hi": "धूम्रपान",
+    "zh": "吸烟",
+    "es": "fumar",
+    "fr": "tabagisme",
+    "de": "Rauchen"
+  },
+  "some": {
+    "si": "සමහර",
+    "ta": "சில",
+    "hi": "कुछ",
+    "zh": "一些",
+    "es": "algunos",
+    "fr": "quelques",
+    "de": "einige"
+  },
+  "sorry": {
+    "si": "සමාවෙන්න",
+    "ta": "மன்னிக்கவும்",
+    "hi": "माफ करें",
+    "zh": "对不起",
+    "es": "lo siento",
+    "fr": "désolé",
+    "de": "Entschuldigung"
+  },
+  "south": {
+    "si": "දකුණ",
+    "ta": "தெற்கு",
+    "hi": "दक्षिण",
+    "zh": "南",
+    "es": "sur",
+    "fr": "sud",
+    "de": "Süden"
+  },
+  "speed": {
+    "si": "වේගය",
+    "ta": "வேகம்",
+    "hi": "गति",
+    "zh": "速度",
+    "es": "velocidad",
+    "fr": "vitesse",
+    "de": "Geschwindigkeit"
+  },
+  "staff": {
+    "si": "කාර්ය මණ්ඩලය",
+    "ta": "பணியாளர்கள்",
+    "hi": "कर्मचारी",
+    "zh": "工作人员",
+    "es": "personal",
+    "fr": "personnel",
+    "de": "Personal"
+  },
+  "staircase": {
+    "si": "පඩිපෙළ",
+    "ta": "படிக்கட்டு",
+    "hi": "सीढ़ी",
+    "zh": "楼梯",
+    "es": "escalinata",
+    "fr": "escalier",
+    "de": "Treppenhaus"
+  },
+  "stairs": {
+    "si": "පඩිපෙළ",
+    "ta": "படிக்கட்டு",
+    "hi": "सीढ़ियाँ",
+    "zh": "楼梯",
+    "es": "escaleras",
+    "fr": "escaliers",
+    "de": "Treppen"
+  },
+  "station": {
+    "si": "නිකේතනය",
+    "ta": "நிலையம்",
+    "hi": "स्टेशन",
+    "zh": "车站",
+    "es": "estación",
+    "fr": "gare",
+    "de": "Bahnhof"
+  },
+  "stay": {
+    "si": "රැඳෙන්න",
+    "ta": "தங்கு",
+    "hi": "रहना",
+    "zh": "停留",
+    "es": "quedarse",
+    "fr": "rester",
+    "de": "bleiben"
+  },
+  "steep": {
+    "si": "කපොල්ල / බෑවුම්",
+    "ta": "செங்குத்தான",
+    "hi": "खड़ी",
+    "zh": "陡峭",
+    "es": "empinado",
+    "fr": "escarpé",
+    "de": "steil"
+  },
+  "stone": {
+    "si": "ගල",
+    "ta": "கல்",
+    "hi": "पत्थर",
+    "zh": "石头",
+    "es": "piedra",
+    "fr": "pierre",
+    "de": "Stein"
+  },
+  "stop": {
+    "si": "නවත්වන්න",
+    "ta": "நிறுத்து",
+    "hi": "रुकें",
+    "zh": "停止",
+    "es": "parar",
+    "fr": "arrêt",
+    "de": "Stopp"
+  },
+  "straight": {
+    "si": "කෙලින්ම",
+    "ta": "நேராக",
+    "hi": "सीधे",
+    "zh": "直走",
+    "es": "recto",
+    "fr": "tout droit",
+    "de": "geradeaus"
+  },
+  "street": {
+    "si": "වීදිය",
+    "ta": "தெரு",
+    "hi": "गली",
+    "zh": "街道",
+    "es": "calle",
+    "fr": "rue",
+    "de": "Straße"
+  },
+  "strictly": {
+    "si": "තදින්ම",
+    "ta": "கண்டிப்பாக",
+    "hi": "सख्ती से",
+    "zh": "严格",
+    "es": "estrictamente",
+    "fr": "strictement",
+    "de": "streng"
+  },
+  "such": {
+    "si": "එවැනි",
+    "ta": "அத்தகைய",
+    "hi": "ऐसा",
+    "zh": "这样的",
+    "es": "tal",
+    "fr": "tel",
+    "de": "solch"
+  },
+  "summit": {
+    "si": "ශිඛරය",
+    "ta": "உச்சி",
+    "hi": "शिखर",
+    "zh": "山顶",
+    "es": "cumbre",
+    "fr": "sommet",
+    "de": "Gipfel"
+  },
+  "sun": {
+    "si": "හිරු",
+    "ta": "சூரியன்",
+    "hi": "सूरज",
+    "zh": "太阳",
+    "es": "sol",
+    "fr": "soleil",
+    "de": "Sonne"
+  },
+  "surface": {
+    "si": "මතුපිට",
+    "ta": "மேற்பரப்பு",
+    "hi": "सतह",
+    "zh": "表面",
+    "es": "superficie",
+    "fr": "surface",
+    "de": "Oberfläche"
+  },
+  "swim": {
+    "si": "පිහිනීම",
+    "ta": "நீச்சல்",
+    "hi": "तैरना",
+    "zh": "游泳",
+    "es": "nadar",
+    "fr": "nager",
+    "de": "schwimmen"
+  },
+  "swimming": {
+    "si": "පිහිනීම",
+    "ta": "நீச்சல்",
+    "hi": "तैराकी",
+    "zh": "游泳",
+    "es": "natación",
+    "fr": "natation",
+    "de": "Schwimmen"
+  },
+  "taxi": {
+    "si": "ටැක්සිය",
+    "ta": "டாக்சி",
+    "hi": "टैक्सी",
+    "zh": "出租车",
+    "es": "taxi",
+    "fr": "taxi",
+    "de": "Taxi"
+  },
+  "telephone": {
+    "si": "දුරකථනය",
+    "ta": "தொலைபேசி",
+    "hi": "फोन",
+    "zh": "电话",
+    "es": "teléfono",
+    "fr": "téléphone",
+    "de": "Telefon"
+  },
+  "temple": {
+    "si": "කෝවිල / විහාරය",
+    "ta": "கோயில்",
+    "hi": "मंदिर",
+    "zh": "寺庙",
+    "es": "templo",
+    "fr": "temple",
+    "de": "Tempel"
+  },
+  "terrace": {
+    "si": "මළුව",
+    "ta": "முற்றம்",
+    "hi": "छत",
+    "zh": "平台",
+    "es": "terraza",
+    "fr": "terrasse",
+    "de": "Terrasse"
+  },
+  "terraced": {
+    "si": "පියගැට",
+    "ta": "மாடி",
+    "hi": "सीढ़ीदार",
+    "zh": "梯田式的",
+    "es": "en terrazas",
+    "fr": "en terrasses",
+    "de": "terrassiert"
+  },
+  "thank": {
+    "si": "ස්තූතිය",
+    "ta": "நன்றி",
+    "hi": "धन्यवाद",
+    "zh": "谢谢",
+    "es": "gracias",
+    "fr": "merci",
+    "de": "danke"
+  },
+  "that": {
+    "si": "එය",
+    "ta": "அது",
+    "hi": "वह",
+    "zh": "那个",
+    "es": "eso",
+    "fr": "cela",
+    "de": "das"
+  },
+  "the": {
+    "si": "",
+    "ta": "",
+    "hi": "",
+    "zh": "",
+    "es": "el",
+    "fr": "le",
+    "de": "der"
+  },
+  "there": {
+    "si": "එහි",
+    "ta": "அங்கு",
+    "hi": "वहाँ",
+    "zh": "那里",
+    "es": "allí",
+    "fr": "là",
+    "de": "dort"
+  },
+  "these": {
+    "si": "මේවා",
+    "ta": "இவை",
+    "hi": "ये",
+    "zh": "这些",
+    "es": "estos",
+    "fr": "ces",
+    "de": "diese"
+  },
+  "this": {
+    "si": "මෙය",
+    "ta": "இது",
+    "hi": "यह",
+    "zh": "这个",
+    "es": "esto",
+    "fr": "ceci",
+    "de": "dies"
+  },
+  "those": {
+    "si": "ඒවා",
+    "ta": "அවை",
+    "hi": "वे",
+    "zh": "那些",
+    "es": "esos",
+    "fr": "ces",
+    "de": "jene"
+  },
+  "through": {
+    "si": "හරහා",
+    "ta": "வழியாக",
+    "hi": "के माध्यम से",
+    "zh": "通过",
+    "es": "a través de",
+    "fr": "à travers",
+    "de": "durch"
+  },
+  "ticket": {
+    "si": "ප්‍රවේශ පත",
+    "ta": "சீட்டு",
+    "hi": "टिकट",
+    "zh": "票",
+    "es": "boleto",
+    "fr": "billet",
+    "de": "Ticket"
+  },
+  "tickets": {
+    "si": "ප්‍රවේශ පත්",
+    "ta": "சீட்டுகள்",
+    "hi": "टिकट",
+    "zh": "门票",
+    "es": "boletos",
+    "fr": "billets",
+    "de": "Tickets"
+  },
+  "time": {
+    "si": "වේලාව",
+    "ta": "நேரம்",
+    "hi": "समय",
+    "zh": "时间",
+    "es": "tiempo",
+    "fr": "temps",
+    "de": "Zeit"
+  },
+  "to": {
+    "si": "ට",
+    "ta": "க்கு",
+    "hi": "को",
+    "zh": "到",
+    "es": "a",
+    "fr": "à",
+    "de": "zu"
+  },
+  "today": {
+    "si": "අද",
+    "ta": "இன்று",
+    "hi": "आज",
+    "zh": "今天",
+    "es": "hoy",
+    "fr": "aujourd'hui",
+    "de": "heute"
+  },
+  "toilet": {
+    "si": "වැසිකිළිය",
+    "ta": "கழிவறை",
+    "hi": "शौचालय",
+    "zh": "洗手间",
+    "es": "baño",
+    "fr": "toilettes",
+    "de": "Toilette"
+  },
+  "toilets": {
+    "si": "වැසිකිළි",
+    "ta": "கழிவறைகள்",
+    "hi": "शौचालय",
+    "zh": "洗手间",
+    "es": "baños",
+    "fr": "toilettes",
+    "de": "Toiletten"
+  },
+  "tomorrow": {
+    "si": "හෙට",
+    "ta": "நாளை",
+    "hi": "कल",
+    "zh": "明天",
+    "es": "mañana",
+    "fr": "demain",
+    "de": "morgen"
+  },
+  "touch": {
+    "si": "ස්පර්ශ කිරීම",
+    "ta": "தொடுதல்",
+    "hi": "छूना",
+    "zh": "触摸",
+    "es": "tocar",
+    "fr": "toucher",
+    "de": "anfassen"
+  },
+  "tour": {
+    "si": "සංචාරය",
+    "ta": "சுற்றுப்பயணம்",
+    "hi": "यात्रा",
+    "zh": "旅游",
+    "es": "tour",
+    "fr": "visite",
+    "de": "Tour"
+  },
+  "tourist": {
+    "si": "සංචාරකයා",
+    "ta": "சுற்றுலா பயணி",
+    "hi": "पर्यटक",
+    "zh": "游客",
+    "es": "turista",
+    "fr": "touriste",
+    "de": "Tourist"
+  },
+  "tourists": {
+    "si": "සංචාරකයින්",
+    "ta": "சுற்றுலா பயணிகள்",
+    "hi": "पर्यटकों",
+    "zh": "游客们",
+    "es": "turistas",
+    "fr": "touristes",
+    "de": "Touristen"
+  },
+  "tower": {
+    "si": "කුළුණ",
+    "ta": "கோபுரம்",
+    "hi": "मीनार",
+    "zh": "塔",
+    "es": "torre",
+    "fr": "tour",
+    "de": "Turm"
+  },
+  "train": {
+    "si": "දුම්රිය",
+    "ta": "ரயில்",
+    "hi": "ट्रेन",
+    "zh": "火车",
+    "es": "tren",
+    "fr": "train",
+    "de": "Zug"
+  },
+  "tree": {
+    "si": "ගස",
+    "ta": "மரம்",
+    "hi": "पेड़",
+    "zh": "树",
+    "es": "árbol",
+    "fr": "arbre",
+    "de": "Baum"
+  },
+  "trespassing": {
+    "si": "අනවසරයෙන් ඇතුළුවීම",
+    "ta": "அத்துமீறி நுழைதல்",
+    "hi": "अतिक्रमण",
+    "zh": "非法闯入",
+    "es": "intrusión",
+    "fr": "intrusion",
+    "de": "unbefugtes Betreten"
+  },
+  "under": {
+    "si": "යටින්",
+    "ta": "கீழே",
+    "hi": "नीचे",
+    "zh": "在下面",
+    "es": "debajo",
+    "fr": "sous",
+    "de": "unter"
+  },
+  "unesco": {
+    "si": "යුනෙස්කෝ",
+    "ta": "யுனெஸ்கோ",
+    "hi": "यूनेस्को",
+    "zh": "联合国教科文组织",
+    "es": "UNESCO",
+    "fr": "UNESCO",
+    "de": "UNESCO"
+  },
+  "up": {
+    "si": "ඉහළ",
+    "ta": "மேலே",
+    "hi": "ऊपर",
+    "zh": "上",
+    "es": "arriba",
+    "fr": "en haut",
+    "de": "oben"
+  },
+  "urgent": {
+    "si": "හදිසි",
+    "ta": "அவசர",
+    "hi": "जरूरी",
+    "zh": "紧急",
+    "es": "urgente",
+    "fr": "urgent",
+    "de": "dringend"
+  },
+  "very": {
+    "si": "ඉතා",
+    "ta": "மிகவும்",
+    "hi": "बहुत",
+    "zh": "非常",
+    "es": "muy",
+    "fr": "très",
+    "de": "sehr"
+  },
+  "view": {
+    "si": "දර්ශනය",
+    "ta": "பார்வை",
+    "hi": "दृश्य",
+    "zh": "景观",
+    "es": "vista",
+    "fr": "vue",
+    "de": "Aussicht"
+  },
+  "viewpoint": {
+    "si": "දර්ශන ස්ථානය",
+    "ta": "பார்வை புள்ளி",
+    "hi": "दृश्य बिंदु",
+    "zh": "观景点",
+    "es": "mirador",
+    "fr": "point de vue",
+    "de": "Aussichtspunkt"
+  },
+  "village": {
+    "si": "ගම",
+    "ta": "கிராமம்",
+    "hi": "गाँव",
+    "zh": "村庄",
+    "es": "pueblo",
+    "fr": "village",
+    "de": "Dorf"
+  },
+  "visit": {
+    "si": "පිවිසීම",
+    "ta": "சந்திப்பு",
+    "hi": "यात्रा",
+    "zh": "参观",
+    "es": "visitar",
+    "fr": "visiter",
+    "de": "besuchen"
+  },
+  "visitor": {
+    "si": "නරඹන්නා",
+    "ta": "பார்வையாளர்",
+    "hi": "आगंतुक",
+    "zh": "访客",
+    "es": "visitante",
+    "fr": "visiteur",
+    "de": "Besucher"
+  },
+  "visitors": {
+    "si": "නරඹන්නන්",
+    "ta": "பார்வையாளர்கள்",
+    "hi": "आगंतुकों",
+    "zh": "游客",
+    "es": "visitantes",
+    "fr": "visiteurs",
+    "de": "Besucher"
+  },
+  "wait": {
+    "si": "රැඳෙන්න",
+    "ta": "காத்திருங்கள்",
+    "hi": "रुकें",
+    "zh": "等待",
+    "es": "esperar",
+    "fr": "attendre",
+    "de": "warten"
+  },
+  "walk": {
+    "si": "ඇවිදින්න",
+    "ta": "நடங்கள்",
+    "hi": "চলना",
+    "zh": "步行",
+    "es": "caminar",
+    "fr": "marcher",
+    "de": "gehen"
+  },
+  "wall": {
+    "si": "පවුර / බිත්තිය",
+    "ta": "சுவர்",
+    "hi": "दीवार",
+    "zh": "墙",
+    "es": "pared",
+    "fr": "mur",
+    "de": "Wand"
+  },
+  "warning": {
+    "si": "අවවාදය",
+    "ta": "எச்சரிக்கை",
+    "hi": "चेतावनी",
+    "zh": "警告",
+    "es": "advertencia",
+    "fr": "avertissement",
+    "de": "Warnung"
+  },
+  "was": {
+    "si": "විය",
+    "ta": "இருந்தது",
+    "hi": "था",
+    "zh": "曾是",
+    "es": "fue",
+    "fr": "était",
+    "de": "war"
+  },
+  "wasp": {
+    "si": "බඹරා",
+    "ta": "குளவி",
+    "hi": "ततैया",
+    "zh": "黄蜂",
+    "es": "avispa",
+    "fr": "guêpe",
+    "de": "Wespe"
+  },
+  "wasps": {
+    "si": "බඹරුන්",
+    "ta": "குளவிகள்",
+    "hi": "ततैया",
+    "zh": "黄蜂群",
+    "es": "avispas",
+    "fr": "guêpes",
+    "de": "Wespen"
+  },
+  "water": {
+    "si": "ජලය",
+    "ta": "நீர்",
+    "hi": "पानी",
+    "zh": "水",
+    "es": "agua",
+    "fr": "eau",
+    "de": "Wasser"
+  },
+  "way": {
+    "si": "මාර්ගය",
+    "ta": "வழி",
+    "hi": "रास्ता",
+    "zh": "方向",
+    "es": "camino",
+    "fr": "chemin",
+    "de": "Weg"
+  },
+  "welcome": {
+    "si": "ඔබව සාදරයෙන් පිළිගනිමු",
+    "ta": "வரவேற்கிறோம்",
+    "hi": "स्वागत है",
+    "zh": "欢迎",
+    "es": "bienvenido",
+    "fr": "bienvenue",
+    "de": "Willkommen"
+  },
+  "were": {
+    "si": "විය",
+    "ta": "இருந்தன",
+    "hi": "थे",
+    "zh": "曾是",
+    "es": "fueron",
+    "fr": "étaient",
+    "de": "waren"
+  },
+  "west": {
+    "si": "බටහිර",
+    "ta": "மேற்கு",
+    "hi": "पश्चिम",
+    "zh": "西",
+    "es": "oeste",
+    "fr": "ouest",
+    "de": "Westen"
+  },
+  "wifi": {
+    "si": "වයිෆයි",
+    "ta": "வைஃபை",
+    "hi": "वाई-फाई",
+    "zh": "无线网络",
+    "es": "wifi",
+    "fr": "wifi",
+    "de": "WLAN"
+  },
+  "wild": {
+    "si": "වන",
+    "ta": "காட்டு",
+    "hi": "जंगली",
+    "zh": "野生",
+    "es": "salvaje",
+    "fr": "sauvage",
+    "de": "wild"
+  },
+  "wildlife": {
+    "si": "වන සතුන්",
+    "ta": "வனவிலங்கு",
+    "hi": "वन्यजीव",
+    "zh": "野生动物",
+    "es": "vida silvestre",
+    "fr": "faune",
+    "de": "Wildtiere"
+  },
+  "wind": {
+    "si": "සුළං",
+    "ta": "காற்று",
+    "hi": "हवा",
+    "zh": "风",
+    "es": "viento",
+    "fr": "vent",
+    "de": "Wind"
+  },
+  "with": {
+    "si": "සමඟ",
+    "ta": "உடன்",
+    "hi": "साथ",
+    "zh": "与",
+    "es": "con",
+    "fr": "avec",
+    "de": "mit"
+  },
+  "without": {
+    "si": "රහිතව",
+    "ta": "இல்லாமல்",
+    "hi": "बिना",
+    "zh": "没有",
+    "es": "sin",
+    "fr": "sans",
+    "de": "ohne"
+  },
+  "women": {
+    "si": "කාන්තා",
+    "ta": "பெண்கள்",
+    "hi": "महिला",
+    "zh": "女性",
+    "es": "mujeres",
+    "fr": "femmes",
+    "de": "Frauen"
+  },
+  "yes": {
+    "si": "ඔව්",
+    "ta": "ஆம்",
+    "hi": "हाँ",
+    "zh": "是",
+    "es": "sí",
+    "fr": "oui",
+    "de": "ja"
+  },
+  "yesterday": {
+    "si": "ඊයේ",
+    "ta": "நேற்று",
+    "hi": "कल",
+    "zh": "昨天",
+    "es": "ayer",
+    "fr": "hier",
+    "de": "gestern"
+  },
+  "you": {
+    "si": "ඔබ",
+    "ta": "நீங்கள்",
+    "hi": "आप",
+    "zh": "你",
+    "es": "tú",
+    "fr": "vous",
+    "de": "du"
+  },
+  "your": {
+    "si": "ඔබේ",
+    "ta": "உங்கள்",
+    "hi": "आपका",
+    "zh": "你的",
+    "es": "tu",
+    "fr": "votre",
+    "de": "dein"
+  },
+  "zone": {
+    "si": "කලාපය",
+    "ta": "மண்டலம்",
+    "hi": "क्षेत्र",
+    "zh": "区域",
+    "es": "zona",
+    "fr": "zone",
+    "de": "Zone"
+  }
+}

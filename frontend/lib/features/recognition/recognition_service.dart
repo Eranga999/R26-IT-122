@@ -1,6 +1,6 @@
-import 'dart:io';
 import 'dart:isolate';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/services.dart';
@@ -82,8 +82,18 @@ void _inferenceIsolateEntry(SendPort mainSendPort) async {
   int inputWidth = 640;
   int inputHeight = 640;
   List<int> outputShape = [];
-  List<int> fullOutputShape = [];
   bool isTransposed = false;
+
+  // ── Quantization info ────────────────────────────────────────────────────
+  // Populated from the tensors at load time so both a plain float32 export
+  // and an int8-quantized export (input/output tensors as uint8 or int8)
+  // work without needing to know in advance which one was bundled.
+  TensorType inputTensorType = TensorType.float32;
+  double inputScale = 1.0;
+  int inputZeroPoint = 0;
+  TensorType outputTensorType = TensorType.float32;
+  double outputScale = 1.0;
+  int outputZeroPoint = 0;
 
   final labels = [
     'sigiriya_lion_paws',
@@ -94,12 +104,19 @@ void _inferenceIsolateEntry(SendPort mainSendPort) async {
   ];
 
   // Helper functions inside isolate
-  List<List<List<List<double>>>> preprocessImage(_InferenceRequest req) {
+  //
+  // Writes straight into a flat Float32List instead of building a
+  // List<List<List<List<double>>>> tensor. The nested-list version allocates
+  // ~410k tiny List<double> objects per frame (640*640), which dominates
+  // frame time and is the main reason the bounding box used to lag behind
+  // the live camera feed. A flat typed buffer avoids all of that boxing.
+  Float32List preprocessImage(_InferenceRequest req) {
     final int inW = req.width;
     final int inH = req.height;
     final int outW = req.inputW;
     final int outH = req.inputH;
     final orientation = req.sensorOrientation;
+    final tensor = Float32List(outH * outW * 3);
 
     if (req.format != 'yuv420') {
       // Fallback for BGRA8888 (e.g. iOS simulator) which isn't the primary bottleneck
@@ -109,14 +126,16 @@ void _inferenceIsolateEntry(SendPort mainSendPort) async {
       if (orientation == 180) src = img.copyRotate(src, angle: 180);
       if (orientation == 270) src = img.copyRotate(src, angle: 270);
       final resized = img.copyResize(src, width: outW, height: outH, interpolation: img.Interpolation.linear);
-      return List.generate(
-        1,
-        (_) => List.generate(outH, (y) => List.generate(outW, (x) {
+      int i = 0;
+      for (int y = 0; y < outH; y++) {
+        for (int x = 0; x < outW; x++) {
           final p = resized.getPixel(x, y);
-          return <double>[p.r / 255.0, p.g / 255.0, p.b / 255.0];
-        }, growable: false), growable: false),
-        growable: false,
-      );
+          tensor[i++] = p.r / 255.0;
+          tensor[i++] = p.g / 255.0;
+          tensor[i++] = p.b / 255.0;
+        }
+      }
+      return tensor;
     }
 
     // --- Fast Direct YUV420 to Normalized Float32 Tensor ---
@@ -129,83 +148,98 @@ void _inferenceIsolateEntry(SendPort mainSendPort) async {
     final uvStride = req.planes[1]['bytesPerRow'] as int;
     final uvPixelStride = req.planes[1]['bytesPerPixel'] as int? ?? 1;
 
-    return List<List<List<List<double>>>>.generate(
-      1,
-      (_) => List<List<List<double>>>.generate(
-        outH,
-        (y) => List<List<double>>.generate(
-          outW,
-          (x) {
-            // 1. Map target tensor (x, y) back to normalized [0..1] space
-            double normX = x / outW;
-            double normY = y / outH;
+    final bool rot90 = orientation == 90;
+    final bool rot180 = orientation == 180;
+    final bool rot270 = orientation == 270;
 
-            // 2. Reverse the camera rotation
-            double srcNormX = normX;
-            double srcNormY = normY;
-            if (orientation == 90) {
-              srcNormX = normY;
-              srcNormY = 1.0 - normX;
-            } else if (orientation == 180) {
-              srcNormX = 1.0 - normX;
-              srcNormY = 1.0 - normY;
-            } else if (orientation == 270) {
-              srcNormX = 1.0 - normY;
-              srcNormY = normX;
-            }
+    int i = 0;
+    for (int y = 0; y < outH; y++) {
+      // 1. Map target tensor row back to normalized [0..1] space
+      final double normY = y / outH;
+      for (int x = 0; x < outW; x++) {
+        final double normX = x / outW;
 
-            // 3. Map to original camera buffer dimensions
-            int srcX = (srcNormX * inW).floor().clamp(0, inW - 1);
-            int srcY = (srcNormY * inH).floor().clamp(0, inH - 1);
+        // 2. Reverse the camera rotation
+        double srcNormX = normX;
+        double srcNormY = normY;
+        if (rot90) {
+          srcNormX = normY;
+          srcNormY = 1.0 - normX;
+        } else if (rot180) {
+          srcNormX = 1.0 - normX;
+          srcNormY = 1.0 - normY;
+        } else if (rot270) {
+          srcNormX = 1.0 - normY;
+          srcNormY = normX;
+        }
 
-            // 4. Sample the Y, U, V channels at this exact pixel
-            final yIdx = yStride * srcY + srcX;
-            final uvIdx = uvStride * (srcY >> 1) + (srcX >> 1) * uvPixelStride;
+        // 3. Map to original camera buffer dimensions
+        final int srcX = (srcNormX * inW).floor().clamp(0, inW - 1);
+        final int srcY = (srcNormY * inH).floor().clamp(0, inH - 1);
 
-            final yf = yBytes[yIdx].toDouble();
-            final uf = uBytes[uvIdx].toDouble() - 128.0;
-            final vf = vBytes[uvIdx].toDouble() - 128.0;
+        // 4. Sample the Y, U, V channels at this exact pixel
+        final yIdx = yStride * srcY + srcX;
+        final uvIdx = uvStride * (srcY >> 1) + (srcX >> 1) * uvPixelStride;
 
-            // 5. Convert to RGB
-            final r = (yf + 1.402 * vf).round().clamp(0, 255);
-            final g = (yf - 0.344136 * uf - 0.714136 * vf).round().clamp(0, 255);
-            final b = (yf + 1.772 * uf).round().clamp(0, 255);
+        final yf = yBytes[yIdx].toDouble();
+        final uf = uBytes[uvIdx].toDouble() - 128.0;
+        final vf = vBytes[uvIdx].toDouble() - 128.0;
 
-            // 6. Normalize to [0...1] float and return innermost tensor array
-            return <double>[r / 255.0, g / 255.0, b / 255.0];
-          },
-          growable: false,
-        ),
-        growable: false,
-      ),
-      growable: false,
-    );
-  }
+        // 5. Convert to RGB
+        final r = (yf + 1.402 * vf).round().clamp(0, 255);
+        final g = (yf - 0.344136 * uf - 0.714136 * vf).round().clamp(0, 255);
+        final b = (yf + 1.772 * uf).round().clamp(0, 255);
 
-  dynamic _buildNestedOutputBuffer(List<int> shape) {
-    if (shape.isEmpty) return 0.0;
-    if (shape.length == 1) return List<double>.filled(shape[0], 0.0, growable: false);
-    return List.generate(
-      shape[0],
-      (_) => _buildNestedOutputBuffer(shape.sublist(1)),
-      growable: false,
-    );
-  }
-
-  void _collectOutputValues(dynamic value, List<double> buffer) {
-    if (value is num) {
-      buffer.add(value.toDouble());
-    } else if (value is List) {
-      for (final item in value) {
-        _collectOutputValues(item, buffer);
+        // 6. Normalize to [0...1] float straight into the tensor buffer
+        tensor[i++] = r / 255.0;
+        tensor[i++] = g / 255.0;
+        tensor[i++] = b / 255.0;
       }
     }
+    return tensor;
   }
 
-  Float32List _flattenOutput(dynamic value) {
-    final buffer = <double>[];
-    _collectOutputValues(value, buffer);
-    return Float32List.fromList(buffer);
+  // ── Quantized tensor conversion ──────────────────────────────────────────
+  // An int8/uint8-quantized TFLite export needs its input written as
+  // integers (real = (quantized - zeroPoint) * scale, i.e. the inverse of
+  // this) and its output read back as real numbers via that same formula.
+  // A plain float32 export needs neither and is handled inline where these
+  // are called.
+  Uint8List quantizeInput(
+      Float32List normalized, TensorType type, double scale, int zeroPoint) {
+    final n = normalized.length;
+    if (type == TensorType.int8) {
+      final out = Int8List(n);
+      for (int i = 0; i < n; i++) {
+        final q = (normalized[i] / scale + zeroPoint).round();
+        out[i] = q.clamp(-128, 127);
+      }
+      return out.buffer.asUint8List();
+    }
+    // uint8 (default assumption for any other quantized type)
+    final out = Uint8List(n);
+    for (int i = 0; i < n; i++) {
+      final q = (normalized[i] / scale + zeroPoint).round();
+      out[i] = q.clamp(0, 255);
+    }
+    return out;
+  }
+
+  Float32List dequantizeOutput(
+      Uint8List raw, TensorType type, double scale, int zeroPoint) {
+    final out = Float32List(raw.length);
+    if (type == TensorType.int8) {
+      final signed = Int8List.sublistView(raw);
+      for (int i = 0; i < signed.length; i++) {
+        out[i] = (signed[i] - zeroPoint) * scale;
+      }
+    } else {
+      // uint8
+      for (int i = 0; i < raw.length; i++) {
+        out[i] = (raw[i] - zeroPoint) * scale;
+      }
+    }
+    return out;
   }
 
   List<DetectionResult> _parseOutput(Float32List flat, _InferenceRequest req) {
@@ -287,9 +321,24 @@ void _inferenceIsolateEntry(SendPort mainSendPort) async {
       if (rawW > 1.2 || rawH > 1.2) continue;
 
       // 2. Area Limit: If an out-of-bounds box gets clamped to [0.0, 1.0], it becomes a full-screen box.
-      // A legitimate landmark object almost never occupies symmetrically >90% of a camera feed.
+      // With only 5 known classes and no explicit "background" class, an
+      // ambiguous/generic frame (blank wall, sky, empty ground) still forces
+      // the model to pick one — this is the main source of a full-screen
+      // hallucinated box. 0.90 was too lenient to catch that in practice;
+      // a real sub-landmark essentially never fills more than ~3/4 of the
+      // frame during normal scanning (that would mean the phone is almost
+      // touching it).
       final boxArea = (nx2 - nx1) * (ny2 - ny1);
-      if (boxArea > 0.90) continue;
+      if (boxArea > 0.75) continue;
+
+      // 3. Size-aware confidence: a real close-up detection has both a
+      // large box AND very high confidence. A hallucination that slips
+      // past the area cap on an ambiguous background (blank wall, plaza,
+      // stonework) typically only reaches moderate confidence, so require
+      // progressively higher confidence for larger boxes rather than
+      // trusting the flat req.threshold alone for everything.
+      if (boxArea > 0.35 && bestScore < 0.80) continue;
+      if (boxArea > 0.55 && bestScore < 0.88) continue;
 
       results.add(DetectionResult(
         label: labelStr,
@@ -338,18 +387,39 @@ void _inferenceIsolateEntry(SendPort mainSendPort) async {
       try {
         interpreter = Interpreter.fromBuffer(msg.modelBytes, options: InterpreterOptions()..threads = 4);
         interpreter.allocateTensors();
-        
-        final inShape = interpreter.getInputTensor(0).shape;
+
+        final inTensor = interpreter.getInputTensor(0);
+        final inShape = inTensor.shape;
         if (inShape.length >= 4) {
           inputHeight = inShape[1];
           inputWidth = inShape[2];
         }
-        
+        inputTensorType = inTensor.type;
+        if (inputTensorType == TensorType.uint8 || inputTensorType == TensorType.int8) {
+          inputScale = inTensor.params.scale;
+          inputZeroPoint = inTensor.params.zeroPoint;
+        } else if (inputTensorType != TensorType.float32) {
+          debugPrint('[RecognitionService] Unexpected input tensor type '
+              '$inputTensorType — treating as float32.');
+          inputTensorType = TensorType.float32;
+        }
+
         final outTensor = interpreter.getOutputTensor(0);
         final outShape = outTensor.shape;
-        fullOutputShape = outShape;
         outputShape = outShape.length > 1 ? outShape.sublist(1) : outShape;
         isTransposed = outputShape.length >= 2 && outputShape[0] < outputShape[1];
+        outputTensorType = outTensor.type;
+        if (outputTensorType == TensorType.uint8 || outputTensorType == TensorType.int8) {
+          outputScale = outTensor.params.scale;
+          outputZeroPoint = outTensor.params.zeroPoint;
+        } else if (outputTensorType != TensorType.float32) {
+          debugPrint('[RecognitionService] Unexpected output tensor type '
+              '$outputTensorType — treating as float32.');
+          outputTensorType = TensorType.float32;
+        }
+        debugPrint('[RecognitionService] Model loaded: input=$inputTensorType '
+            '(scale=$inputScale, zp=$inputZeroPoint), '
+            'output=$outputTensorType (scale=$outputScale, zp=$outputZeroPoint)');
 
         msg.replyPort.send(_InferenceWorkerReady(
           sendPort: receivePort.sendPort,
@@ -368,20 +438,29 @@ void _inferenceIsolateEntry(SendPort mainSendPort) async {
       try {
          final totalSw = Stopwatch()..start();
 
-         // 1. Preprocess (YUV -> Resize -> Normalize)
+         // 1. Preprocess (YUV -> Resize -> Normalize) directly into a flat tensor buffer
          final preSw = Stopwatch()..start();
-         final inputTensor = preprocessImage(msg);
+         final inputFloats = preprocessImage(msg);
          final preMs = preSw.elapsedMilliseconds;
-         
-         // 2. Run Inference
+
+         // 2. Run Inference — write/read tensor bytes directly, skipping the
+         // nested List<List<...>> copy that runForMultipleInputs would do.
+         // Branches on the tensor's actual type so both a float32 export and
+         // an int8-quantized export (uint8/int8 in+out tensors) work as-is.
          final inferSw = Stopwatch()..start();
-         final rawOutput = _buildNestedOutputBuffer(fullOutputShape);
-         interpreter.runForMultipleInputs([inputTensor], {0: rawOutput});
+         final inputBytes = inputTensorType == TensorType.float32
+             ? inputFloats.buffer.asUint8List()
+             : quantizeInput(inputFloats, inputTensorType, inputScale, inputZeroPoint);
+         interpreter.getInputTensor(0).data = inputBytes;
+         interpreter.invoke();
+         final outRaw = interpreter.getOutputTensor(0).data;
+         final flat = outputTensorType == TensorType.float32
+             ? Float32List.sublistView(outRaw)
+             : dequantizeOutput(outRaw, outputTensorType, outputScale, outputZeroPoint);
          final inferMs = inferSw.elapsedMilliseconds;
 
-         // 3. Postprocess (Flatten, Decode, NMS)
+         // 3. Postprocess (Decode, NMS)
          final postSw = Stopwatch()..start();
-         final flat = _flattenOutput(rawOutput);
          final detections = _parseOutput(flat, msg);
          final finalResults = _nms(detections, msg.nmsIouThreshold);
          final postMs = postSw.elapsedMilliseconds;

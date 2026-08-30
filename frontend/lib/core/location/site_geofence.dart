@@ -48,6 +48,7 @@ class SiteLockResult {
     this.confidenceScore,
     this.message,
     this.source = 'gps',
+    this.openSettings = false,
   });
 
   final SiteLockStatus status;
@@ -57,6 +58,8 @@ class SiteLockResult {
   final double? confidenceScore;
   final String? message;
   final String source;
+  /// When true, UI should offer a button to open app/location settings.
+  final bool openSettings;
 
   bool get isLocked => status == SiteLockStatus.locked && site != null;
 

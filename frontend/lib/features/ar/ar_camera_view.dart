@@ -1,24 +1,36 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show EventChannel, HapticFeedback;
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:model_viewer_plus/model_viewer_plus.dart';
+import 'package:pedometer/pedometer.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 
 import '../database/landmark_model.dart';
 import '../database/sub_landmark_model.dart';
 import '../database/database_helper.dart';
 import '../recognition/recognition_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../rag/rag_screen.dart';
+import '../home/home_screen.dart' show LandmarkDetailScreen;
+import '../../core/location/site_lock_service.dart';
 import 'ar_navigation_service.dart';
 
 enum ArGpsFailure { none, serviceDisabled, permissionDenied, permissionDeniedForever }
 
 /// Live-camera AR overlay view.
 ///
-/// For Sigiriya: provides full camera-based AR waypoint navigation
-/// using GPS + compass + YOLO landmark confirmation.
+/// For Sigiriya: provides full camera-based AR waypoint navigation. Walking
+/// distance is estimated from accelerometer/gyroscope/step sensors (see
+/// ArNavigationService); GPS + compass + YOLO landmark confirmation handle
+/// everything else (Ticket Counter direction, arrow orientation, detection).
 ///
 /// For other sites: shows the original hotspot/info-panel overlay.
 class ArCameraView extends StatefulWidget {
@@ -58,16 +70,72 @@ class _ArCameraViewState extends State<ArCameraView>
   StreamSubscription<Position>? _gpsSub;
   StreamSubscription<CompassEvent>? _compassSub;
 
+  // Feed ArNavigationService's sensor-fused distance estimator — GPS is
+  // validation-only there; these two streams (plus native step events
+  // below) are what actually drive the route countdown. See
+  // ArNavigationService's "Distance estimation" doc for the full picture.
+  StreamSubscription<UserAccelerometerEvent>? _userAccelSub;
+  StreamSubscription<GyroscopeEvent>? _gyroSub;
+
+  // ── Step-based segment progress ─────────────────────────────────────────
+  // Android: raw TYPE_STEP_DETECTOR events (see `_startStepDetection` for
+  // why this bypasses the pedometer package's own debounced Dart stream).
+  // iOS: the package's documented cumulative stepCountStream (CMPedometer).
+  StreamSubscription? _stepDetectionSub;
+  StreamSubscription<StepCount>? _stepCountSub;
+
   // Frame throttle for YOLO in nav mode
   bool _isProcessingFrame = false;
   int _lastFrameMs = 0;
-  static const int _frameThrottleMs = 500;
+  // 200 ms (5 fps) – enough for smooth box updates without overwhelming the isolate.
+  static const int _frameThrottleMs = 200;
   List<DetectionResult> _liveDetections = [];
+
+  // ── Nav-mode bounding-box smoothing & stale-box timeout ────────────────
+  Rect? _smoothedNavBox;
+  int _lastNavDetectionMs = 0;
+  /// 0.35 → 35% toward new position per frame – glides without snapping.
+  static const double _navBoxAlpha = 0.35;
+  /// After 1 s with no detection the box is cleared to avoid stale ghosts.
+  static const int _navBoxHoldMs = 1000;
 
 
   // GPS accuracy warning
   double? _gpsAccuracyM;
   ArGpsFailure _gpsFailure = ArGpsFailure.none;
+  bool _reverifying = false; // a "Verify again" location re-check is in flight
+
+  // ── Arrival/turn banner hold ────────────────────────────────────────────
+  // The nav snapshot stream can tick many times per second (compass events
+  // alone fire fast), so a justArrivedFlash snapshot is only ever "current"
+  // for a single tick. Latch it locally for a couple of seconds so the user
+  // actually gets to read "Turn Right" / "Sinhapadaya" / etc.
+  String? _flashBannerTitle;
+  Timer? _flashBannerTimer;
+
+  // ── Opportunistic landmark popup (bounding box + info card) ─────────────
+  // Same stable-detection pattern as camera_screen.dart's scan mode: a
+  // detection must clear a confidence bar for several consecutive frames
+  // before it earns a popup, so a single noisy frame can't flash one in.
+  // This is purely informational — it never feeds route progression, which
+  // stays driven only by ArNavigationService's own segment-scoped matching.
+  String? _arCandidateLabel;
+  int _arCandidateCount = 0;
+  int _arLastConfirmedTime = 0;
+  static const double _arCardThreshold = 0.78;
+  static const int _arRequiredFrames = 3;
+  static const int _arPopupHoldMs = 6000;
+  DetectionResult? _arPopupDetection;
+
+  // ── Arrow .glb load tracking ─────────────────────────────────────────────
+  // model_viewer_plus's WebView can silently fail to render on some devices
+  // (blocked loopback socket, WebView quirks, etc.) with no visible error —
+  // that's what left the arrow spot blank before. A fallback Material icon
+  // arrow is shown by default and only fades out once the model's own JS
+  // 'load' event actually fires (see _buildArrowModel/_onArrowModelStatus),
+  // so navigation is never left with nothing on screen.
+  bool _arrowModelReady = false;
+  Timer? _arrowModelTimeoutTimer;
 
   @override
   void initState() {
@@ -87,7 +155,14 @@ class _ArCameraViewState extends State<ArCameraView>
 
     _initCamera();
     if (_isSigiriya) {
+      _configureSiteGeofence();
       _startNavigation();
+      _arrowModelTimeoutTimer = Timer(const Duration(seconds: 5), () {
+        if (mounted && !_arrowModelReady) {
+          debugPrint('[AR NAV] Arrow .glb did not report a load event within '
+              '5s — staying on the fallback icon arrow.');
+        }
+      });
     } else {
       _loadSubLandmarks();
       // Legacy simulated lock-on for non-Sigiriya sites
@@ -131,6 +206,53 @@ class _ArCameraViewState extends State<ArCameraView>
     }
   }
 
+  /// Pull the Sigiriya geofence (centre + radius) from the same
+  /// assets/config/landmark_sites.json every other screen uses, so the
+  /// "are you at Sigiriya?" check has one source of truth.
+  Future<void> _configureSiteGeofence() async {
+    try {
+      final sites = await SiteLockService.instance.loadSites();
+      final match = sites.where(
+          (s) => s.landmarkName.toLowerCase().contains('sigiriya'));
+      if (match.isNotEmpty) {
+        final s = match.first;
+        _navService.configureSiteGeofence(
+          lat: s.centerLat,
+          lon: s.centerLng,
+          radiusMeters: s.radiusMeters,
+        );
+      }
+    } catch (_) {
+      // Keep the service's built-in defaults.
+    }
+  }
+
+  /// "Verify again" — force one fresh high-accuracy fix and feed it straight
+  /// into the nav service so the site-presence state re-evaluates now instead
+  /// of waiting for the next stream tick.
+  Future<void> _reverify() async {
+    if (_reverifying) return;
+    setState(() => _reverifying = true);
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.bestForNavigation,
+          timeLimit: Duration(seconds: 20),
+        ),
+      );
+      _gpsAccuracyM = pos.accuracy;
+      _applySnapshot(_navService.onGpsUpdate(
+        pos.latitude,
+        pos.longitude,
+        accuracyMeters: pos.accuracy,
+      ));
+    } catch (_) {
+      // The live position stream keeps running; leave it to recover.
+    } finally {
+      if (mounted) setState(() => _reverifying = false);
+    }
+  }
+
   Future<void> _startNavigation() async {
     if (!mounted) return;
     setState(() => _gpsFailure = ArGpsFailure.none);
@@ -163,8 +285,12 @@ class _ArCameraViewState extends State<ArCameraView>
     ).listen(
       (pos) {
         _gpsAccuracyM = pos.accuracy;
-        final snap = _navService.onGpsUpdate(pos.latitude, pos.longitude);
-        if (mounted) setState(() => _navSnapshot = snap);
+        final snap = _navService.onGpsUpdate(
+          pos.latitude,
+          pos.longitude,
+          accuracyMeters: pos.accuracy,
+        );
+        _applySnapshot(snap);
       },
       onError: (dynamic error) {
         _navService.onGpsLost();
@@ -181,12 +307,121 @@ class _ArCameraViewState extends State<ArCameraView>
       final heading = event.heading;
       if (heading != null && heading.isFinite) {
         final snap = _navService.onHeadingUpdate(heading);
-        if (mounted) setState(() => _navSnapshot = snap);
+        _applySnapshot(snap);
       }
     });
 
+    // --- Accelerometer + gyroscope: the software pedometer ---
+    // No permission or async setup needed (raw motion sensors, unlike the
+    // step counter, don't require ACTIVITY_RECOGNITION) — start immediately
+    // so this is warm from segment 1, before native step events (if any)
+    // ever arrive. This — not GPS — is what drives the route countdown
+    // until/unless the native step sensor below proves itself; see
+    // ArNavigationService's "Distance estimation" doc for the full picture.
+    // gameInterval (~50Hz) rather than the coarser uiInterval: a real
+    // peak-detection pedometer needs enough samples per stride to resolve
+    // the step waveform, not just a coarse "is it moving" read.
+    _userAccelSub = userAccelerometerEventStream(
+      samplingPeriod: SensorInterval.gameInterval,
+    ).listen(
+      (event) {
+        final snap = _navService.onAccelerometerSample(event.x, event.y, event.z);
+        if (snap != null) _applySnapshot(snap);
+      },
+      onError: (dynamic _) {}, // sensor unavailable on this device — pedometer gate degrades gracefully (see _gateSatisfied)
+      cancelOnError: true,
+    );
+    _gyroSub = gyroscopeEventStream(
+      samplingPeriod: SensorInterval.gameInterval,
+    ).listen(
+      (event) => _navService.onGyroscopeSample(event.x, event.y, event.z),
+      onError: (dynamic _) {}, // same graceful degradation as the accelerometer above
+      cancelOnError: true,
+    );
+
     // Ensure model is loaded
     RecognitionService.instance.loadModel();
+
+    // Native step sensor — preferred once it proves itself, but the
+    // software pedometer above is already driving progress from segment 1,
+    // so there's no gap to fall back into if this permission is denied or
+    // the platform sensor is missing (see enableStepMode's doc).
+    unawaited(_startStepDetection());
+  }
+
+  // ── Step-based segment progress ─────────────────────────────────────────
+
+  Future<void> _startStepDetection() async {
+    var status = await Permission.activityRecognition.status;
+    if (!status.isGranted) {
+      status = await Permission.activityRecognition.request();
+    }
+    if (!status.isGranted) {
+      debugPrint('[AR NAV] Activity recognition permission denied — '
+          'staying on the software pedometer (accelerometer/gyroscope).');
+      return;
+    }
+    if (!mounted) return;
+
+    if (Platform.isAndroid) {
+      // The pedometer package's own `pedestrianStatusStream` debounces
+      // Android's raw per-step TYPE_STEP_DETECTOR events into a coarse
+      // walking/stopped state (confirmed by reading its native source) —
+      // exactly the granularity this app can't use for several segments
+      // that are only a handful of steps long. Its native plugin already
+      // registers an EventChannel('step_detection') wired directly to
+      // TYPE_STEP_DETECTOR (one event per physical step); listening to it
+      // directly here gets genuine per-step events without any new native
+      // code. If a future pedometer version renames this internal channel,
+      // this simply stops receiving events and the app stays on the
+      // software pedometer — see the fallback note above.
+      const rawStepChannel = EventChannel('step_detection');
+      _stepDetectionSub = rawStepChannel.receiveBroadcastStream().listen(
+        (_) => _onStepEvent(),
+        onError: (dynamic _) {}, // sensor unavailable on this device — stay on the software pedometer
+        cancelOnError: true,
+      );
+    } else {
+      // iOS: CMPedometer's raw event stream reports pause/resume type
+      // codes, not per-step events, so per-step counting isn't meaningful
+      // there — drive progress from the documented cumulative stream
+      // instead (still far better than nothing, just not per-step latency).
+      int? lastCount;
+      _stepCountSub = Pedometer.stepCountStream.listen(
+        (event) {
+          final prev = lastCount;
+          lastCount = event.steps;
+          if (prev == null) return; // first reading is just a baseline
+          final delta = event.steps - prev;
+          for (var i = 0; i < delta; i++) {
+            _onStepEvent();
+          }
+        },
+        onError: (dynamic _) {},
+        cancelOnError: true,
+      );
+    }
+
+    // Cumulative counter, on Android too — debug/reconciliation only, never
+    // drives the countdown itself (see ArNavigationService.onStepCountUpdate).
+    if (Platform.isAndroid) {
+      _stepCountSub = Pedometer.stepCountStream.listen(
+        (event) => _applySnapshot(_navService.onStepCountUpdate(event.steps)),
+        onError: (dynamic _) {},
+        cancelOnError: true,
+      );
+    }
+  }
+
+  bool _stepModeAnnounced = false;
+
+  void _onStepEvent() {
+    if (!mounted) return;
+    if (!_stepModeAnnounced) {
+      _stepModeAnnounced = true;
+      _navService.enableStepMode();
+    }
+    _applySnapshot(_navService.onStepDetected());
   }
 
   // ── YOLO Frame Processing (nav mode, throttled) ────────────────────────────
@@ -201,8 +436,12 @@ class _ArCameraViewState extends State<ArCameraView>
     final snap = _navSnapshot;
     if (snap == null || snap.routeComplete) return;
 
-    final wp = _navService.current;
-    if (!wp.requiresDetection) return; // skip YOLO for path-only waypoints
+    // Before the Ticket Counter is confirmed only that one class is scanned
+    // for; once the measured route is underway every known class is scanned
+    // opportunistically so any landmark the camera sees can surface a
+    // bounding box + info popup, matching camera_screen.dart's scan mode.
+    final activeLabels = _navService.activeYoloLabels;
+    if (activeLabels.isEmpty) return;
 
     _isProcessingFrame = true;
     _lastFrameMs = now;
@@ -213,42 +452,72 @@ class _ArCameraViewState extends State<ArCameraView>
         sensorOrientation: _controller?.description.sensorOrientation ?? 0,
         threshold: 0.70,
         nmsIouThreshold: 0.45,
-        allowedLabels: {
-          'sigiriya_ticket_counter',
-          'sigiriya_water_gardens', 
-          'sigiriya_mirror_wall',
-          'sigiriya_lion_paws',
-          'sigiriya_lion_rock',
-          'sigiriya_throne'
-        },
+        allowedLabels: activeLabels,
       );
 
       if (!mounted) return;
 
-      setState(() {
-        _liveDetections = results;
-      });
-
       if (results.isEmpty) {
+        // ── No detection ────────────────────────────────────────────────
+        final staleMs = now - _lastNavDetectionMs;
+        if (staleMs > _navBoxHoldMs) {
+          // Box has been empty long enough – clear it so it doesn’t ghost.
+          if (mounted && _liveDetections.isNotEmpty) {
+            setState(() {
+              _liveDetections = const [];
+              _smoothedNavBox = null;
+            });
+          }
+        }
+        _arCandidateCount = 0;
+        _arCandidateLabel = null;
+        if (_arPopupDetection != null && now - _arLastConfirmedTime > _arPopupHoldMs) {
+          _dismissArPopup();
+        }
         final s = _navService.onDetectionUpdate(
           label: null,
           confidence: 0,
           bboxCenterX: null,
           bboxCenterY: null,
         );
-        setState(() => _navSnapshot = s);
+        _applySnapshot(s);
       } else {
+        // ── Live detection ─────────────────────────────────────────────
+        _lastNavDetectionMs = now;
         final best =
             results.reduce((a, b) => a.confidence > b.confidence ? a : b);
-        final cx = best.boundingBox.left + best.boundingBox.width / 2;
-        final cy = best.boundingBox.top + best.boundingBox.height / 2;
+
+        // Exponential smoothing on the box position to reduce jitter.
+        final ref = best.boundingBox;
+        _smoothedNavBox = _smoothedNavBox == null
+            ? ref
+            : Rect.fromLTRB(
+                _smoothedNavBox!.left   * (1 - _navBoxAlpha) + ref.left   * _navBoxAlpha,
+                _smoothedNavBox!.top    * (1 - _navBoxAlpha) + ref.top    * _navBoxAlpha,
+                _smoothedNavBox!.right  * (1 - _navBoxAlpha) + ref.right  * _navBoxAlpha,
+                _smoothedNavBox!.bottom * (1 - _navBoxAlpha) + ref.bottom * _navBoxAlpha,
+              );
+
+        final smoothedBest = DetectionResult(
+          label: best.label,
+          confidence: best.confidence,
+          boundingBox: _smoothedNavBox!,
+          classIndex: best.classIndex,
+        );
+
+        final cx = _smoothedNavBox!.left + _smoothedNavBox!.width / 2;
+        final cy = _smoothedNavBox!.top + _smoothedNavBox!.height / 2;
+
+        setState(() => _liveDetections = [smoothedBest]);
+        _updateArPopup(smoothedBest, now);
+
         final s = _navService.onDetectionUpdate(
           label: best.label,
           confidence: best.confidence,
           bboxCenterX: cx,
           bboxCenterY: cy,
         );
-        setState(() => _navSnapshot = s);
+        _applySnapshot(s);
       }
     } catch (_) {
       // ignore inference errors; keep navigating
@@ -257,6 +526,65 @@ class _ArCameraViewState extends State<ArCameraView>
         _isProcessingFrame = false;
       }
     }
+  }
+
+  // ── Opportunistic landmark popup ────────────────────────────────────────
+
+  /// Requires [_arRequiredFrames] consecutive frames above [_arCardThreshold]
+  /// for the SAME class before it counts as stable — one noisy frame can
+  /// show a bounding box, but never a popup card.
+  bool _isArDetectionStable(DetectionResult best) {
+    if (best.confidence < _arCardThreshold) {
+      _arCandidateCount = 0;
+      return false;
+    }
+    if (best.label == _arCandidateLabel) {
+      _arCandidateCount++;
+    } else {
+      _arCandidateLabel = best.label;
+      _arCandidateCount = 1;
+    }
+    return _arCandidateCount >= _arRequiredFrames;
+  }
+
+  void _updateArPopup(DetectionResult best, int now) {
+    if (_isArDetectionStable(best)) {
+      _arLastConfirmedTime = now;
+      final isNew = _arPopupDetection == null || _arPopupDetection!.label != best.label;
+      if (isNew) {
+        setState(() => _arPopupDetection = best);
+        HapticFeedback.mediumImpact();
+      } else {
+        _arPopupDetection = best; // refresh confidence/box without a full rebuild
+      }
+    } else if (_arPopupDetection != null &&
+        now - _arLastConfirmedTime > _arPopupHoldMs) {
+      _dismissArPopup();
+    }
+  }
+
+  void _dismissArPopup() {
+    if (_arPopupDetection == null) return;
+    setState(() => _arPopupDetection = null);
+    _arCandidateCount = 0;
+    _arCandidateLabel = null;
+  }
+
+  /// e.g. 'sigiriya_lion_rock' → 'Lion Rock'
+  String _classLabelToDisplayName(String label) {
+    final normalized = label.trim().toLowerCase();
+    const nameMap = {
+      'sigiriya_lion_paws': 'Lion Paws',
+      'sigiriya_lion_rock': 'Lion Rock',
+      'sigiriya_mirror_wall': 'Mirror Wall',
+      'sigiriya_throne': 'Throne',
+      'sigiriya_ticket_counter': 'Ticket Counter',
+    };
+    if (nameMap.containsKey(normalized)) return nameMap[normalized]!;
+    final parts = normalized.replaceFirst('sigiriya_', '').split('_');
+    return parts
+        .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '')
+        .join(' ');
   }
 
   // ── Legacy sub-landmark helper ────────────────────────────────────────────
@@ -281,7 +609,26 @@ class _ArCameraViewState extends State<ArCameraView>
     _controller?.dispose();
     _gpsSub?.cancel();
     _compassSub?.cancel();
+    _stepDetectionSub?.cancel();
+    _stepCountSub?.cancel();
+    _userAccelSub?.cancel();
+    _gyroSub?.cancel();
+    _arrowModelTimeoutTimer?.cancel();
+    _flashBannerTimer?.cancel();
     super.dispose();
+  }
+
+  // ── Nav snapshot application (latches justArrivedFlash banners) ───────────
+
+  void _applySnapshot(ArNavigationSnapshot snap) {
+    if (snap.justArrivedFlash && snap.hasArrived) {
+      _flashBannerTitle = snap.waypointTitle;
+      _flashBannerTimer?.cancel();
+      _flashBannerTimer = Timer(const Duration(seconds: 2), () {
+        if (mounted) setState(() => _flashBannerTitle = null);
+      });
+    }
+    if (mounted) setState(() => _navSnapshot = snap);
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -348,11 +695,19 @@ class _ArCameraViewState extends State<ArCameraView>
               ),
             ),
           ),
-        // Arrived banner (brief)
-        if (snap.hasArrived && snap.justArrivedFlash) _buildArrivedBanner(snap.waypointTitle),
+        // Main HUD — always shown, including while a turn banner is up, so
+        // the arrow visibly agrees with "Turn Left" instead of vanishing
+        // behind it for ~2s (which was the arrow feeling disconnected from
+        // the instruction it's supposed to be illustrating).
+        _buildArNavHud(snap),
 
-        // Main HUD (always shown)
-        if (!snap.hasArrived) _buildArNavHud(snap),
+        // Arrival / turn banner — a slim strip near the top (Google Maps'
+        // turn-by-turn style), latched briefly so it's actually readable,
+        // layered on top WITHOUT covering the arrow underneath it.
+        if (_flashBannerTitle != null) _buildArrivedBanner(_flashBannerTitle!),
+
+        // Opportunistic landmark info popup (bounding box already drawn above)
+        _buildArDetectionPopup(),
 
         // GPS weak accuracy warning
         if (_gpsAccuracyM != null && _gpsAccuracyM! > 20 && snap.gpsStatus == ArGpsStatus.live)
@@ -364,8 +719,10 @@ class _ArCameraViewState extends State<ArCameraView>
         else if (snap.gpsStatus == ArGpsStatus.degraded)
           _buildGpsWarningBanner('GPS accuracy reduced. Waiting for GPS signal.', Colors.deepOrange),
           
-        // Manual Selection (Simulation) if user is far away
-        if (snap.distanceMeters > 500 && snap.gpsStatus != ArGpsStatus.unavailable)
+        // Manual Selection (Simulation) — only once a fix confirms the
+        // visitor really is outside Sigiriya (never on a not-yet-acquired fix).
+        if (snap.phase == ArNavPhase.seekingTicketCounter &&
+            snap.sitePresence == ArSitePresence.outside)
           _buildManualSelectionBanner(),
       ],
     );
@@ -392,7 +749,7 @@ class _ArCameraViewState extends State<ArCameraView>
               SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Outside heritage site? Tap here to manually simulate navigating to waypoints.',
+                  'Far from the site? Tap to simulate the walking route.',
                   style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
                 ),
               ),
@@ -405,13 +762,13 @@ class _ArCameraViewState extends State<ArCameraView>
   }
 
   void _showManualWaypointSelector() {
-    final route = _navService.route;
+    final segments = _navService.segments;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) => Container(
-        height: MediaQuery.of(context).size.height * 0.6,
+        height: MediaQuery.of(context).size.height * 0.65,
         decoration: const BoxDecoration(
           color: Color(0xFF1A0A00),
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -436,28 +793,52 @@ class _ArCameraViewState extends State<ArCameraView>
             ),
             const SizedBox(height: 6),
             const Text(
-              'Select a waypoint to instantly simulate arriving near it.',
+              'Jump directly to a measured segment to test turn instructions without physically walking.',
               style: TextStyle(color: Colors.white60, fontSize: 13),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
             Expanded(
               child: ListView.builder(
-                itemCount: route.length,
+                itemCount: segments.length + 1,
                 itemBuilder: (context, i) {
-                  final wp = route[i];
+                  if (i == 0) {
+                    return ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: Colors.teal,
+                        child: Icon(Icons.confirmation_number_rounded, color: Colors.white, size: 18),
+                      ),
+                      title: const Text(
+                        'Confirm Ticket Counter & start route',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: const Text('Skip GPS search and begin at Segment 1',
+                          style: TextStyle(color: Colors.white54, fontSize: 12)),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _applySnapshot(_navService.simulateTicketCounterConfirmed());
+                      },
+                    );
+                  }
+                  final seg = segments[i - 1];
+                  final label = seg.isReturn
+                      ? 'Segment ${seg.number} · Return ${seg.distanceMeters.toStringAsFixed(2)} m'
+                      : 'Segment ${seg.number} · ${seg.distanceMeters.toStringAsFixed(2)} m';
+                  final subtitle = seg.landmarkLabel ??
+                      (seg.turnAtEnd == TurnDirection.straight
+                          ? 'Continue straight'
+                          : 'Turn ${turnDirectionLabel(seg.turnAtEnd)}');
                   return ListTile(
                     leading: CircleAvatar(
                       backgroundColor: Colors.teal.shade700,
-                      child: Text('${i + 1}', style: const TextStyle(color: Colors.white)),
+                      child: Text('${seg.number}', style: const TextStyle(color: Colors.white, fontSize: 12)),
                     ),
-                    title: Text(wp.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                    subtitle: Text(wp.description, style: const TextStyle(color: Colors.white54, fontSize: 12), maxLines: 1),
+                    title: Text(label,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
+                    subtitle: Text(subtitle, style: const TextStyle(color: Colors.white54, fontSize: 12)),
                     onTap: () {
                       Navigator.pop(context);
-                      // Simulate location just 10 meters away from the waypoint
-                      _navService.simulateLocation(wp.latitude + 0.0001, wp.longitude + 0.0001);
-                      if (mounted) setState(() {});
+                      _applySnapshot(_navService.simulateJumpToSegment(seg.number));
                     },
                   );
                 },
@@ -549,19 +930,187 @@ class _ArCameraViewState extends State<ArCameraView>
     );
   }
 
+  // ── Opportunistic landmark popup card ───────────────────────────────────
+
+  Widget _buildArDetectionPopup() {
+    final det = _arPopupDetection;
+    return Positioned(
+      left: 16,
+      right: 16,
+      bottom: 172,
+      child: IgnorePointer(
+        ignoring: det == null,
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 280),
+          transitionBuilder: (child, anim) => FadeTransition(
+            opacity: anim,
+            child: SlideTransition(
+              position: Tween<Offset>(begin: const Offset(0, 0.25), end: Offset.zero)
+                  .animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
+              child: child,
+            ),
+          ),
+          child: det == null
+              ? const SizedBox.shrink(key: ValueKey('ar-popup-empty'))
+              : _buildArDetectionPopupCard(det, key: ValueKey('ar-popup-${det.label}')),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildArDetectionPopupCard(DetectionResult det, {Key? key}) {
+    final displayName = _classLabelToDisplayName(det.label);
+    return Material(
+      key: key,
+      color: Colors.transparent,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.black.withOpacity(0.72), Colors.black.withOpacity(0.5)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: const Color(0xFFFFB300).withOpacity(0.35)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.45),
+                  blurRadius: 24,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        const Color(0xFFFFB300).withOpacity(0.25),
+                        const Color(0xFFFF8F00).withOpacity(0.05),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.account_balance_rounded,
+                      color: Color(0xFFFFB300), size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        displayName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Georgia',
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${(det.confidence * 100).toStringAsFixed(0)}% match',
+                        style: const TextStyle(
+                          color: Color(0xFFFFB300),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _arPopupIconButton(
+                  icon: Icons.smart_toy_rounded,
+                  tooltip: 'Ask AI',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => RagScreen(landmarkName: widget.landmark.name)),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                _arPopupIconButton(
+                  icon: Icons.open_in_full_rounded,
+                  tooltip: 'Details',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => LandmarkDetailScreen(
+                        landmark: widget.landmark,
+                        highlightSubLandmarkLabel: det.label,
+                      ),
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: _dismissArPopup,
+                  child: const Padding(
+                    padding: EdgeInsets.all(6),
+                    child: Icon(Icons.close_rounded, color: Colors.white54, size: 18),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _arPopupIconButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.12),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white24),
+          ),
+          child: Icon(icon, color: Colors.white, size: 17),
+        ),
+      ),
+    );
+  }
+
   Widget _buildArNavHud(ArNavigationSnapshot snap) {
     final size = MediaQuery.of(context).size;
+    // The direction arrow is now always on screen (Google Maps never hides
+    // its walking puck either) — it just sits neutral/straight before the
+    // Ticket Counter is confirmed, with a small hint badge underneath
+    // instead of swapping out for an unrelated icon.
+    final isSeekingTicketCounter = snap.phase == ArNavPhase.seekingTicketCounter;
     return Stack(
       children: [
         // ── AR Virtual Breadcrumbs (Footsteps) ─────────────────────────────
         Positioned(
-          top: size.height * 0.35, 
+          top: size.height * 0.35,
           left: 0,
           right: 0,
           child: _buildFootstepsOverlay(snap),
         ),
 
-        // ── Big directional arrow (3D Perspective Hologram) ────────────────
+        // ── Big directional arrow (3D model) ────────────────────────────────
         Positioned(
           top: size.height * 0.35, // Moved down to simulate ground projection
           left: 0,
@@ -570,7 +1119,9 @@ class _ArCameraViewState extends State<ArCameraView>
             children: [
               _buildDirectionArrow(snap),
               const SizedBox(height: 24),
-              if (!snap.hasCompassFix)
+              if (isSeekingTicketCounter)
+                _buildSeekHint(snap)
+              else if (!snap.hasCompassFix)
                 _buildCalibrationHint(),
             ],
           ),
@@ -587,20 +1138,139 @@ class _ArCameraViewState extends State<ArCameraView>
     );
   }
 
+  /// Seek-phase hint above the arrow. Keyed off `snap.sitePresence`:
+  ///  * inside  → green "You're at Sigiriya" confirmation (or the pulsing
+  ///    camera-search prompt once within `cameraSearchRadiusMeters`)
+  ///  * locating→ neutral "Confirming you're at Sigiriya…" + Verify again
+  ///  * outside → amber "You appear to be outside Sigiriya" + Verify again
+  Widget _buildSeekHint(ArNavigationSnapshot snap) {
+    if (snap.sitePresence == ArSitePresence.inside) {
+      final bool cameraTier = snap.distanceMeters > 0 &&
+          snap.distanceMeters <= ArNavigationService.cameraSearchRadiusMeters;
+      if (cameraTier) return _buildTicketCounterSearchHint();
+      return _seekChip(
+        tint: Colors.greenAccent,
+        icon: Icons.verified_rounded,
+        text: "You're in the Sigiriya heritage site",
+      );
+    }
+
+    final bool outside = snap.sitePresence == ArSitePresence.outside;
+    return _seekChip(
+      tint: outside ? Colors.orangeAccent : Colors.lightBlueAccent,
+      icon: outside ? Icons.wrong_location_rounded : Icons.my_location_rounded,
+      text: outside
+          ? 'You appear to be outside Sigiriya'
+          : 'Confirming you’re at Sigiriya…',
+      showVerify: true,
+    );
+  }
+
+  Widget _seekChip({
+    required Color tint,
+    required IconData icon,
+    required String text,
+    bool showVerify = false,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 32),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: tint.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: tint.withOpacity(0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: tint, size: 14),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              text,
+              style: const TextStyle(color: Colors.white, fontSize: 11),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          if (showVerify) ...[
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: _reverifying ? null : _reverify,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: tint.withOpacity(0.22),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: tint.withOpacity(0.6)),
+                ),
+                child: _reverifying
+                    ? const SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text(
+                        'Verify again',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700),
+                      ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTicketCounterSearchHint() {
+    return AnimatedBuilder(
+      animation: _pulseAnim,
+      builder: (_, __) => Container(
+        margin: const EdgeInsets.symmetric(horizontal: 40),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.tealAccent.withOpacity(0.12 + _pulseAnim.value * 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.tealAccent.withOpacity(0.35 + _pulseAnim.value * 0.3),
+          ),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.confirmation_number_rounded, color: Colors.tealAccent, size: 14),
+            SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                'Point your camera at the Ticket Counter',
+                style: TextStyle(color: Colors.white, fontSize: 11),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildFootstepsOverlay(ArNavigationSnapshot snap) {
     if (snap.footsteps.isEmpty) return const SizedBox.shrink();
-    
+
     return SizedBox(
-      height: 220, // Match the arrow's anchor box
+      height: 240, // Match the arrow's anchor box
       child: Stack(
         alignment: Alignment.center,
         children: snap.footsteps.map((step) {
           // Normalize distance: translating negatively in Y moves "forward" in the ground plane
           final double depthShift = -(step.distanceMeters * 12.0); // 1 meter = 12 virtual pixels
-          
-          final angle = snap.hasCompassFix
-              ? step.relativeAngleDeg * math.pi / 180.0
-              : 0.0;
+
+          // Direction comes from the measured route's TurnDirection, not the
+          // compass — so it stays meaningful even before compass calibrates.
+          final angle = step.relativeAngleDeg * math.pi / 180.0;
 
           final matrix = Matrix4.identity()
             ..setEntry(3, 2, 0.0025) // Ground perspective tilt
@@ -628,106 +1298,172 @@ class _ArCameraViewState extends State<ArCameraView>
     );
   }
 
+  // The real .glb arrow model, offline-rendered via a local WebView. Its own
+  // orientation/rotation attributes can't be updated live after load (a
+  // limitation of model_viewer_plus), so the left/right/reverse turn is
+  // applied the same way it always was for this widget: by rotating the
+  // whole rendered arrow in Flutter's own transform layer (`rotateZ` below)
+  // rather than asking the model itself to turn.
+  //
+  // IMPORTANT: this used to also get an outer fake-3D skew (rotateX +
+  // perspective) left over from the old flat-icon design, plus a decorative
+  // ring/tick overlay around it. On a real device that combination warped
+  // the whole thing into an unrecognisable translucent oval — a circle
+  // rotated ~63° on X with perspective projects as an ellipse, which is
+  // exactly what showed up. The model already renders its own real 3D
+  // perspective via `cameraOrbit` below; it must not get a second, unrelated
+  // skew stacked on top, and nothing should visually compete with it.
+  static const String _arrowModelSrc =
+      'assets/models/Arrow by Max Level - 1TUCDmHZKQY.glb';
+  // model-viewer's own well-tested default framing (works reasonably for
+  // most objects) — a safer starting point than a custom-guessed angle that
+  // was never actually previewed. If the arrowhead doesn't visually point
+  // "forward/away from the viewer" once seen on a real device, rotate the
+  // first (theta) value here in ~90deg steps until it does; everything else
+  // (the turn animation) layers on top of whatever this default pose is.
+  static const String _arrowModelCameraOrbit = '0deg 75deg 105%';
+
+  /// The model-viewer web component fires its own DOM 'load'/'error'
+  /// events — this JS hooks those and reports back over a JavascriptChannel
+  /// so Dart actually knows whether the .glb rendered, instead of assuming
+  /// silently (which is exactly how the arrow went missing before: the
+  /// WebView failed with no visible signal anywhere in the Flutter layer).
+  static const String _arrowModelStatusJs = '''
+(function () {
+  var mv = document.querySelector('model-viewer');
+  if (!mv) { return; }
+  mv.addEventListener('load', function () {
+    ModelStatus.postMessage('load');
+  });
+  mv.addEventListener('error', function (e) {
+    var detail = 'unknown';
+    try { detail = JSON.stringify(e && e.detail); } catch (err) {}
+    ModelStatus.postMessage('error:' + detail);
+  });
+})();
+''';
+
+  void _onArrowModelStatus(String message) {
+    if (!mounted) return;
+    if (message == 'load') {
+      if (!_arrowModelReady) {
+        setState(() => _arrowModelReady = true);
+        debugPrint('[AR NAV] Arrow .glb loaded successfully.');
+      }
+    } else {
+      debugPrint('[AR NAV] Arrow .glb reported an error: $message');
+    }
+  }
+
+  Widget _buildArrowModel() {
+    return SizedBox(
+      width: 220,
+      height: 220,
+      child: ModelViewer(
+        backgroundColor: Colors.transparent,
+        src: _arrowModelSrc,
+        alt: 'AR navigation direction arrow',
+        autoRotate: false,
+        cameraControls: false,
+        disableZoom: true,
+        disablePan: true,
+        disableTap: true,
+        touchAction: TouchAction.none,
+        interactionPrompt: InteractionPrompt.none,
+        cameraOrbit: _arrowModelCameraOrbit,
+        javascriptChannels: {
+          JavascriptChannel(
+            'ModelStatus',
+            onMessageReceived: (msg) => _onArrowModelStatus(msg.message),
+          ),
+        },
+        relatedJs: _arrowModelStatusJs,
+      ),
+    );
+  }
+
   Widget _buildDirectionArrow(ArNavigationSnapshot snap) {
-    // 0 means straight ahead.
-    final angle = snap.hasCompassFix
-        ? snap.relativeAngleDeg * math.pi / 180.0
-        : 0.0;
+    // relativeAngleDeg is compass-fused by ArNavigationService once each
+    // segment's heading reference locks in (~1.5s after it starts) — so this
+    // angle swings live as the phone physically rotates, on top of the base
+    // turn instruction. 0=straight, ±90=left/right, 180=back, before lock.
+    final angle = snap.relativeAngleDeg * math.pi / 180.0;
 
     final isConfirmed = snap.detectionConfirmed;
-    final primaryColor = isConfirmed ? const Color(0xFFFFB300) : Colors.greenAccent;
+    final glowColor = isConfirmed ? const Color(0xFFFFB300) : Colors.greenAccent;
+
+    // Built once and passed through as AnimatedBuilder's `child` so the
+    // underlying WebView/3D model is never torn down and reloaded just
+    // because the ambient glow is pulsing ~60 times a second.
+    final arrowModel = _buildArrowModel();
 
     return AnimatedBuilder(
       animation: _pulseAnim,
-      builder: (_, __) {
-        // Perspective 3D Tilt for realistic AR arrow floating on the ground
-        final matrix = Matrix4.identity()
-          ..setEntry(3, 2, 0.0025) // depth perspective
-          ..rotateX(1.1)           // Tilt backward into the screen
-          ..rotateZ(angle);        // Swivel based on compass bearing
-
+      child: arrowModel,
+      builder: (_, child) {
         return SizedBox(
-          height: 220,
-          child: Transform(
-            transform: matrix,
+          height: 240,
+          child: Stack(
             alignment: Alignment.center,
-            child: Container(
-              width: 240,
-              height: 240,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: primaryColor.withOpacity(0.08),
-                border: Border.all(
-                  color: primaryColor.withOpacity(0.4 + _pulseAnim.value * 0.4),
-                  width: 3,
+            children: [
+              // Solid contrast pedestal — keeps the arrow legible against
+              // ANY camera background (busy screen, foliage, bright sky).
+              // A shadow-only glow alone can be nearly invisible depending
+              // on what's actually behind it.
+              Container(
+                width: 178,
+                height: 178,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [Color(0x6B000000), Color(0x00000000)],
+                  ),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: primaryColor.withOpacity(0.15 + _pulseAnim.value * 0.25),
-                    blurRadius: 45,
-                    spreadRadius: 10,
-                  ),
-                ],
               ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Outer dashed glowing ring / compass ticks
-                  for (int i = 0; i < 12; i++)
-                    Transform.rotate(
-                      angle: i * math.pi / 6,
-                      child: Align(
-                        alignment: Alignment.topCenter,
-                        child: Container(
-                          width: i % 3 == 0 ? 4 : 2,
-                          height: i % 3 == 0 ? 16 : 8,
-                          decoration: BoxDecoration(
-                            color: primaryColor.withOpacity(0.7),
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                          margin: const EdgeInsets.only(top: 8),
-                        ),
-                      ),
+              // Soft ambient glow ring on top of the pedestal.
+              Container(
+                width: 190,
+                height: 190,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: glowColor.withOpacity(0.25 + _pulseAnim.value * 0.2),
+                      blurRadius: 60,
+                      spreadRadius: 12,
                     ),
-                  // Inner concentric radar circle
-                  Container(
-                    width: 140,
-                    height: 140,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: primaryColor.withOpacity(0.2), width: 2),
-                    ),
-                  ),
-                  // Inner target tick
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: primaryColor.withOpacity(0.4), width: 1.5),
-                    ),
-                  ),
-                  // The 3D navigational wedge / arrow
-                  Align(
-                    alignment: Alignment.topCenter,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 10),
-                      child: Icon(
-                        Icons.change_history_rounded, // Better futuristic arrow shape
-                        color: primaryColor,
-                        size: 90,
-                        shadows: [
-                          Shadow(
-                            color: primaryColor,
-                            blurRadius: 20,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+              // Instant fallback: a plain Material arrow visible the moment
+              // navigation starts, so the visitor is never looking at a
+              // blank spot while the 3D model's WebView loads — or on a
+              // device where it never manages to (see _onArrowModelStatus).
+              // Fades out once the real .glb confirms it actually rendered.
+              AnimatedOpacity(
+                opacity: _arrowModelReady ? 0.0 : 1.0,
+                duration: const Duration(milliseconds: 350),
+                child: Transform.rotate(
+                  angle: angle,
+                  child: Icon(
+                    Icons.navigation_rounded,
+                    size: 108,
+                    color: glowColor,
+                    shadows: [
+                      Shadow(color: Colors.black.withOpacity(0.6), blurRadius: 14),
+                    ],
+                  ),
+                ),
+              ),
+              // Only the model spins for the turn direction — a plain
+              // screen-plane rotation, no perspective skew stacked on its
+              // own already-3D render.
+              AnimatedOpacity(
+                opacity: _arrowModelReady ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 350),
+                child: Transform.rotate(angle: angle, child: child),
+              ),
+            ],
           ),
         );
       },
@@ -749,7 +1485,7 @@ class _ArCameraViewState extends State<ArCameraView>
           SizedBox(width: 6),
           Flexible(
             child: Text(
-              'Move slowly forward to calibrate direction',
+              'Compass calibrating — turn instructions are still accurate',
               style: TextStyle(color: Colors.white, fontSize: 11),
               textAlign: TextAlign.center,
             ),
@@ -759,15 +1495,30 @@ class _ArCameraViewState extends State<ArCameraView>
     );
   }
 
+  static IconData _turnIcon(TurnDirection d) {
+    switch (d) {
+      case TurnDirection.left:
+        return Icons.turn_left_rounded;
+      case TurnDirection.right:
+        return Icons.turn_right_rounded;
+      case TurnDirection.reverse:
+        return Icons.u_turn_left_rounded;
+      case TurnDirection.straight:
+        return Icons.straight_rounded;
+      case TurnDirection.none:
+        return Icons.explore_rounded;
+    }
+  }
+
   Widget _buildBottomHudPanel(ArNavigationSnapshot snap) {
     final dist = snap.distanceMeters;
-    final distLabel = dist < 1000
-        ? '${dist.toStringAsFixed(0)} m'
-        : '${(dist / 1000).toStringAsFixed(2)} km';
+    final isKm = dist >= 1000;
+    final distNumber = isKm ? (dist / 1000).toStringAsFixed(2) : dist.toStringAsFixed(0);
+    final distUnit = isKm ? 'km' : 'm';
 
     return Container(
       padding: EdgeInsets.fromLTRB(
-          20, 20, 20, MediaQuery.of(context).padding.bottom + 20),
+          20, 18, 20, MediaQuery.of(context).padding.bottom + 20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.bottomCenter,
@@ -815,42 +1566,64 @@ class _ArCameraViewState extends State<ArCameraView>
             ],
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
-          // Waypoint name
-          Text(
-            snap.waypointTitle,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Georgia',
-            ),
-          ),
-
-          const SizedBox(height: 4),
-
-          // Distance
+          // ── Google-Maps-style hero row: turn icon + huge distance ─────────
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Icon(Icons.straighten_rounded,
-                  color: Color(0xFFFFB300), size: 16),
-              const SizedBox(width: 6),
-              Text(
-                distLabel,
-                style: const TextStyle(
-                    color: Color(0xFFFFB300),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700),
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFB300).withOpacity(0.15),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFFFB300).withOpacity(0.5)),
+                ),
+                child: Icon(_turnIcon(snap.turnDirection),
+                    color: const Color(0xFFFFB300), size: 28),
               ),
               const SizedBox(width: 14),
-              const Icon(Icons.info_outlined, color: Colors.white38, size: 14),
-              const SizedBox(width: 4),
               Expanded(
-                child: Text(
-                  snap.instruction,
-                  style: const TextStyle(color: Colors.white54, fontSize: 12),
-                  overflow: TextOverflow.ellipsis,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          distNumber,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 42,
+                            fontWeight: FontWeight.w800,
+                            height: 1.0,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          distUnit,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      snap.instruction,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -885,44 +1658,80 @@ class _ArCameraViewState extends State<ArCameraView>
                 ),
               ),
             ),
+
+          // Contextual landmark note (opportunistic — never gates the route)
+          if (snap.contextNote != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFB300).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFFB300).withOpacity(0.5)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.landscape_rounded, color: Color(0xFFFFB300), size: 14),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      snap.contextNote!,
+                      style: const TextStyle(
+                        color: Color(0xFFFFB300),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
   Widget _buildArrivedBanner(String title) {
+    // A slim strip near the top (Google Maps' turn-by-turn card style)
+    // rather than a full block over the arrow's screen region — the arrow
+    // stays visible and in sync with this instruction instead of vanishing
+    // behind it, so "Turn Left" and the arrow pointing left are always seen
+    // together.
     return Positioned(
-      top: MediaQuery.of(context).size.height * 0.35,
-      left: 30,
-      right: 30,
+      top: MediaQuery.of(context).padding.top + 78,
+      left: 20,
+      right: 20,
       child: Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.green.withOpacity(0.9),
-          borderRadius: BorderRadius.circular(20),
+          color: Colors.green.shade700.withOpacity(0.94),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.greenAccent.withOpacity(0.4),
-              blurRadius: 30,
-              spreadRadius: 6,
+              color: Colors.greenAccent.withOpacity(0.35),
+              blurRadius: 20,
+              spreadRadius: 2,
             ),
           ],
         ),
-        child: Column(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.check_circle_rounded,
-                color: Colors.white, size: 52),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Georgia',
+            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 28),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Georgia',
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -931,35 +1740,42 @@ class _ArCameraViewState extends State<ArCameraView>
   }
 
   Widget _buildRouteCompleteOverlay() {
+    // This is NOT a celebratory "tour complete" state — the physical survey
+    // simply hasn't been extended past this point yet. Framing it as
+    // finished would misrepresent how much of Sigiriya is actually covered.
     return Container(
       color: Colors.black.withOpacity(0.82),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.emoji_events_rounded,
-                color: Color(0xFFFFB300), size: 72),
+            const Icon(Icons.hourglass_bottom_rounded,
+                color: Color(0xFFFFB300), size: 64),
             const SizedBox(height: 16),
             const Text(
-              'Tour Complete!',
+              'End of Mapped Route',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 28,
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
                 fontFamily: 'Georgia',
               ),
             ),
             const SizedBox(height: 10),
-            const Text(
-              'You have completed the Sigiriya\nAR Navigation route.',
-              style: TextStyle(color: Colors.white60, fontSize: 14, height: 1.5),
-              textAlign: TextAlign.center,
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                'You have reached the end of the currently measured Sigiriya route. '
+                'More segments will be added once surveyed.',
+                style: TextStyle(color: Colors.white60, fontSize: 14, height: 1.5),
+                textAlign: TextAlign.center,
+              ),
             ),
             const SizedBox(height: 30),
             ElevatedButton.icon(
               onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.check_rounded),
-              label: const Text('Finish'),
+              icon: const Icon(Icons.close_rounded),
+              label: const Text('Close'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFFB300),
                 foregroundColor: Colors.black,
@@ -1115,6 +1931,24 @@ class _ArCameraViewState extends State<ArCameraView>
                     ),
                   ),
                 ]),
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Manual route-segment picker — icon only, no visible label.
+            // Always available so the measured route can be jumped into at
+            // any point (testing turns, or resuming mid-walk) without waiting
+            // on the GPS/YOLO Ticket Counter trigger.
+            GestureDetector(
+              onTap: _showManualWaypointSelector,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: const Icon(Icons.alt_route_rounded,
+                    color: Colors.white, size: 18),
               ),
             ),
           ],

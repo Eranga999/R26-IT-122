@@ -34,6 +34,9 @@ dependencies:
   onnxruntime: ^1.4.1
   llama_cpp_dart: ^0.2.2
 
+  # ML Kit (Offline OCR and Translation)
+  google_mlkit_text_recognition: ^0.13.1
+
   # Voice chat – fully offline STT & TTS via device engines
   speech_to_text: ^7.0.0
   flutter_tts: ^4.2.0
@@ -48,6 +51,19 @@ dependencies:
   flutter_map: ^6.1.0
   latlong2: ^0.9.0
   geolocator: ^14.0.3
+  google_mlkit_translation: ^0.11.1
+
+  # Renders the 3D AR navigation arrow (.glb) via an offline local WebView
+  model_viewer_plus: ^1.10.0
+
+  # Step detection for surveyed-segment walking progress (AR nav countdown)
+  pedometer: ^4.2.0
+
+  # Accelerometer motion gate: GPS position drift alone isn't reliable
+  # evidence of walking (a stationary phone's fix can still wander several
+  # meters), so AR nav cross-checks real device motion before crediting any
+  # GPS-derived distance to the route countdown.
+  sensors_plus: ^7.1.0
 
 dev_dependencies:
   flutter_test:
@@ -60,10 +76,12 @@ flutter:
   assets:
     - assets/models/landmark_model.tflite
     - assets/models/minilm.onnx
+    - "assets/models/Arrow by Max Level - 1TUCDmHZKQY.glb"
     - assets/images/
     - assets/embeddings/
     - assets/config/
     - assets/data/
+    - assets/vectors/
   #         style: italic
   #   - family: Trajan Pro
   #     fonts:

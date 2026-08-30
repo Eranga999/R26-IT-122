@@ -30,6 +30,25 @@
 	<string>HeritageAR uses your location to lock the current heritage site and improve navigation accuracy.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>HeritageAR uses your location to lock the current heritage site and improve navigation accuracy.</string>
+	<!-- CMPedometer step counting for AR nav's surveyed-segment walking progress -->
+	<key>NSMotionUsageDescription</key>
+	<string>HeritageAR uses step counting to estimate your walking progress along the surveyed Sigiriya route.</string>
+	<!-- model_viewer_plus serves local .glb assets to its WKWebView through a
+	     small loopback HTTP server (for the AR navigation arrow). This only
+	     permits cleartext HTTP to localhost — no external network access. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSTemporaryExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<false/>
+			</dict>
+		</dict>
+	</dict>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -17,12 +17,19 @@ import '../ar/ar_screen.dart';
 import '../rag/rag_screen.dart';
 import '../navigation/nav_screen.dart';
 import '../home/home_screen.dart';
+import '../../widgets/site_selector_sheet.dart';
 
 /// Verification state of the GPS geofence check.
 enum _VerifyStatus { verifying, locked, outside, failed, manual }
 
 class CameraScreen extends StatefulWidget {
-  const CameraScreen({super.key});
+  /// When provided (e.g. picked on the home screen before opening the
+  /// camera), the GPS geofence check is skipped entirely and this site is
+  /// used straight away — GPS-locked or manual, matching how it was resolved
+  /// upstream.
+  final SiteLockResult? initialSiteLock;
+
+  const CameraScreen({super.key, this.initialSiteLock});
 
   @override
   State<CameraScreen> createState() => _CameraScreenState();
@@ -64,8 +71,12 @@ class _CameraScreenState extends State<CameraScreen>
   static const int _panelHoldMs = 6000;
 
   // ── Frame-rate throttle ───────────────────────────────────────────────────
-  // Limit inference to ~8 fps to prevent a processing backlog (lag).
-  static const int _minFrameIntervalMs = 125;
+  // Upper bound only — the _isProcessing gate below is what actually paces
+  // inference to the device's real speed, so this just stops us from trying
+  // more often than ~16 fps on fast devices. Now that preprocessing writes
+  // straight into a flat tensor buffer instead of nested Lists, inference is
+  // fast enough that this no longer is the bottleneck it used to be.
+  static const int _minFrameIntervalMs = 60;
 
   // ── Stale bounding-box protection ────────────────────────────────────────
   // The bounding box clears quickly (1.2 s or 6 empty frames), but the
@@ -84,8 +95,33 @@ class _CameraScreenState extends State<CameraScreen>
   // GPS-locked: 2 consecutive frames; manual: 3 frames for stability.
   int get _requiredFrames => _isGpsLocked ? 2 : 3;
 
+  // ── Per-class calibration (manual mode only) ─────────────────────────────
+  // GPS-locked mode is unaffected — GPS already confirms the site, so the
+  // flat _cardThreshold/_requiredFrames stay as-is there. In manual mode,
+  // classes that are easier to confuse with an unrelated surface at the site
+  // get a modest card-confidence bump plus more required consecutive frames
+  // before the info panel commits. The live bounding box is untouched by
+  // this — it keeps updating every frame regardless of these overrides.
+  static const Map<String, double> _manualCardThresholdByClass = {
+    'sigiriya_mirror_wall': 0.80,
+    'sigiriya_ticket_counter': 0.88,
+  };
+  static const Map<String, int> _manualRequiredFramesByClass = {
+    'sigiriya_mirror_wall': 5,
+    'sigiriya_ticket_counter': 4,
+  };
+
+  double _cardThresholdFor(String label) => _isGpsLocked
+      ? _cardThreshold
+      : (_manualCardThresholdByClass[label] ?? _cardThreshold);
+
+  int _requiredFramesFor(String label) => _isGpsLocked
+      ? _requiredFrames
+      : (_manualRequiredFramesByClass[label] ?? _requiredFrames);
+
   bool _isStableDetection(DetectionResult bestDetection) {
-    if (bestDetection.confidence < _cardThreshold) {
+    final threshold = _cardThresholdFor(bestDetection.label);
+    if (bestDetection.confidence < threshold) {
       _candidateCount = 0;
       return false;
     }
@@ -97,7 +133,7 @@ class _CameraScreenState extends State<CameraScreen>
       _candidateCount = 1;
     }
 
-    return _candidateCount >= _requiredFrames;
+    return _candidateCount >= _requiredFramesFor(bestDetection.label);
   }
 
   // ── Info-panel state (opened when confident enough) ────────────────────────
@@ -129,104 +165,78 @@ class _CameraScreenState extends State<CameraScreen>
     if (!_isDesktop) {
       _initCamera();
     }
-    // GPS verification runs concurrently in the background.
-    _verifyGpsInBackground();
+    // A site chosen up front on the home screen skips the GPS check
+    // entirely; otherwise verify via GPS in the background as before.
+    final preset = widget.initialSiteLock;
+    if (preset != null && preset.isLocked) {
+      _applySiteLock(preset);
+    } else {
+      _verifyGpsInBackground();
+    }
   }
 
   /// Runs GPS geofencing in the background after the camera is already open.
   Future<void> _verifyGpsInBackground() async {
     final result = await SiteLockService.instance.lockSiteByGps();
     if (!mounted) return;
-    final labels = RecognitionService.labelsForSite(result.site?.landmarkName);
+    if (result.status == SiteLockStatus.locked) {
+      _applySiteLock(result);
+      return;
+    }
+    setState(() {
+      _siteLock = result;
+      _allowedLabels = const [];
+      _verifyStatus = result.status == SiteLockStatus.outOfRange
+          ? _VerifyStatus.outside
+          // permissionDenied, serviceDisabled, timeout, error
+          : _VerifyStatus.failed;
+    });
+  }
+
+  /// Locks the screen onto a confirmed site — whether it came from a live
+  /// GPS fix or a manual pick (on the home screen or in-camera fallback) —
+  /// and kicks off model loading / DB cache warm-up if that site actually
+  /// has a detector (some sites are guide-only, see [RecognitionService.labelsForSite]).
+  void _applySiteLock(SiteLockResult result) {
+    final site = result.site;
+    if (!mounted || site == null) return;
+    final labels = RecognitionService.labelsForSite(site.landmarkName);
     setState(() {
       _siteLock = result;
       _allowedLabels = labels;
-      switch (result.status) {
-        case SiteLockStatus.locked:
-          _verifyStatus = _VerifyStatus.locked;
-        case SiteLockStatus.outOfRange:
-          _verifyStatus = _VerifyStatus.outside;
-        default:
-          // permissionDenied, serviceDisabled, timeout, error
-          _verifyStatus = _VerifyStatus.failed;
+      _verifyStatus =
+          result.source == 'gps' ? _VerifyStatus.locked : _VerifyStatus.manual;
+    });
+    if (labels.isEmpty) return;
+    RecognitionService.instance.loadModel();
+    // Pre-warm DB cache once the site is confirmed.
+    Future.microtask(() async {
+      final all = await DatabaseHelper.instance.getAllLandmarks();
+      for (final lm in all) {
+        if (lm.id == null || !mounted) continue;
+        _landmarkCache[lm.id!] = lm;
+        _subCache[lm.id!] =
+            await DatabaseHelper.instance.getSubLandmarks(lm.id!);
       }
     });
-    if (_canRunDetector) {
-      RecognitionService.instance.loadModel();
-      // Pre-warm DB cache once the site is confirmed.
-      Future.microtask(() async {
-        final all = await DatabaseHelper.instance.getAllLandmarks();
-        for (final lm in all) {
-          if (lm.id == null || !mounted) continue;
-          _landmarkCache[lm.id!] = lm;
-          _subCache[lm.id!] =
-              await DatabaseHelper.instance.getSubLandmarks(lm.id!);
-        }
-      });
-    }
   }
 
-  /// Shows the manual site-selection bottom sheet from within the camera screen.
+  /// Shows the manual site-selection bottom sheet from within the camera screen
+  /// (GPS fallback — the home screen also has its own entry point into the
+  /// same picker that skips this screen's GPS check altogether).
   Future<void> _selectManualSite() async {
     final sites = await SiteLockService.instance.loadSites();
     if (!mounted) return;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF1A0A00),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Center(
-              child: Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                      color: Colors.white30,
-                      borderRadius: BorderRadius.circular(2)))),
-          const Text('Select Your Current Site',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
-          const Text(
-              'GPS is unavailable — choose your heritage site manually.',
-              style: TextStyle(color: Colors.white54, fontSize: 12)),
-          const SizedBox(height: 16),
-          ...sites.map((site) => ListTile(
-                leading: const Icon(Icons.place_rounded,
-                    color: Color(0xFFFFB300)),
-                title: Text(site.landmarkName,
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.w600)),
-                subtitle: Text(site.landmarkId,
-                    style:
-                        const TextStyle(color: Colors.white54, fontSize: 12)),
-                onTap: () async {
-                  Navigator.pop(context);
-                  final labels =
-                      RecognitionService.labelsForSite(site.landmarkName);
-                  setState(() {
-                    _siteLock = SiteLockResult.manual(site: site);
-                    _allowedLabels = labels;
-                    _verifyStatus = _VerifyStatus.manual;
-                  });
-                  RecognitionService.instance.loadModel();
-                  final all = await DatabaseHelper.instance.getAllLandmarks();
-                  for (final lm in all) {
-                    if (lm.id == null || !mounted) continue;
-                    _landmarkCache[lm.id!] = lm;
-                    _subCache[lm.id!] =
-                        await DatabaseHelper.instance.getSubLandmarks(lm.id!);
-                  }
-                },
-              )),
-        ]),
+      builder: (_) => SiteSelectorSheet(
+        sites: sites,
+        subtitle: 'GPS is unavailable — choose your heritage site manually.',
+        onSiteSelected: (site) {
+          Navigator.pop(context);
+          _applySiteLock(SiteLockResult.manual(site: site));
+        },
       ),
     );
   }
@@ -277,10 +287,23 @@ class _CameraScreenState extends State<CameraScreen>
       if (!mounted) return;
 
       // ── Noise filter ────────────────────────────────────────────────────────
+      // maxArea rejects implausibly large "full-screen" boxes independently
+      // of the isolate's own hallucination guard — belt-and-suspenders
+      // against a model with no explicit "background" class defaulting to a
+      // confident-looking full-frame guess on an ambiguous scene. The
+      // size-aware confidence step below is the same defense-in-depth for
+      // the isolate's graduated confidence gate (a real close-up has both a
+      // large box AND very high confidence; a hallucination on an ambiguous
+      // background usually only reaches moderate confidence).
       final minArea = _isGpsLocked ? 0.012 : 0.02;
-      final filtered = results
-          .where((r) => (r.boundingBox.width * r.boundingBox.height) >= minArea)
-          .toList();
+      const maxArea = 0.75;
+      final filtered = results.where((r) {
+        final area = r.boundingBox.width * r.boundingBox.height;
+        if (area < minArea || area > maxArea) return false;
+        if (area > 0.35 && r.confidence < 0.80) return false;
+        if (area > 0.55 && r.confidence < 0.88) return false;
+        return true;
+      }).toList();
 
       final now = DateTime.now().millisecondsSinceEpoch;
 
@@ -472,80 +495,6 @@ class _CameraScreenState extends State<CameraScreen>
     });
   }
 
-  Future<void> _showDemoPicker() async {
-    final landmarks = await DatabaseHelper.instance.getAllLandmarks();
-    final options = _siteLock?.site?.landmarkDbId == null
-        ? landmarks
-        : landmarks
-            .where((lm) => lm.id == _siteLock?.site?.landmarkDbId)
-            .toList();
-
-    if (!mounted) return;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF1A0A00),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-                child: Container(
-                    width: 36,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                        color: Colors.white30,
-                        borderRadius: BorderRadius.circular(2)))),
-            const Text('Simulate Detection',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            Text(
-                _siteLock?.site?.landmarkName == null
-                    ? 'Select a landmark to preview the AR overlay'
-                    : 'Site lock active: ${_siteLock?.site?.landmarkName}',
-                style: const TextStyle(color: Colors.white54, fontSize: 12)),
-            const SizedBox(height: 16),
-            ...options.map((lm) => ListTile(
-                  leading: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                          color: AppTheme.primary.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(10)),
-                      child: const Icon(Icons.account_balance_rounded,
-                          color: Color(0xFFFFB300), size: 20)),
-                  title: Text(lm.name,
-                      style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Tap to simulate',
-                      style: TextStyle(color: Colors.white38, fontSize: 11)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    // Simulate a detection result centered on screen
-                    const simulatedBox = Rect.fromLTWH(0.25, 0.25, 0.5, 0.5);
-                    final detection = DetectionResult(
-                        label: lm.name.toLowerCase(),
-                        confidence: 0.94,
-                        boundingBox: simulatedBox,
-                        classIndex: 0);
-                    _onLandmarkDetected(detection);
-                  },
-                )),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   void dispose() {
     _pulseAnim.dispose();
@@ -627,34 +576,15 @@ class _CameraScreenState extends State<CameraScreen>
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.5,
                           fontFamily: 'Georgia')),
-                  if (_canRunDetector && !_panelVisible && _cameraError == null && _controller?.value.isInitialized == true)
-                    GestureDetector(
-                        onTap: _showDemoPicker,
-                        child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            decoration: BoxDecoration(
-                                color: AppTheme.secondary.withOpacity(0.9),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: AppTheme.secondary, width: 1.0),
-                                boxShadow: [
-                                  BoxShadow(color: AppTheme.secondary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))
-                                ]
-                            ),
-                            child: const Row(
-                                children: [
-                                  Icon(Icons.science_rounded, color: Colors.white, size: 16),
-                                  SizedBox(width: 6),
-                                  Text('Demo', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold))
-                                ]
-                            )
-                        ),
-                    )
-                  else
-                    const SizedBox(width: 48),
+                  const SizedBox(width: 48),
               ]),
             )),
 
-        if (_controller?.value.isInitialized == true && !_panelVisible)
+        // Hide the static center guide frame the moment a live detection box
+        // is on screen — showing both at once is the "two boxes" overlap.
+        if (_controller?.value.isInitialized == true &&
+            !_panelVisible &&
+            !_boxVisible)
           _buildScanFrame(),
 
         if (_panelVisible && _detectedLandmark != null) _buildFloatingDetectionCard(),
@@ -987,8 +917,10 @@ class _CameraScreenState extends State<CameraScreen>
                           onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                  builder: (_) =>
-                                      LandmarkDetailScreen(landmark: lm))),
+                                  builder: (_) => LandmarkDetailScreen(
+                                      landmark: lm,
+                                      highlightSubLandmarkLabel:
+                                          _detectedClassLabel))),
                         ),
                       ),
                       const SizedBox(width: 10),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../core/location/site_geofence.dart';
 import '../../core/location/site_lock_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -10,8 +9,11 @@ import '../../features/database/database_helper.dart';
 import '../../features/database/landmark_model.dart';
 import '../../features/database/sub_landmark_model.dart';
 import '../../widgets/landmark_info_card.dart';
+import '../../widgets/site_selector_sheet.dart';
+import '../camera/ar_translator_screen.dart'; // newly added translate screen
 import '../camera/camera_screen.dart';
 import '../chat/rag_chat_screen.dart';
+import '../map/heritage_map_screen.dart';
 import '../navigation/nav_screen.dart';
 import '../sigiriya_guide/screens/home_screen.dart' as sigiriya_home;
 
@@ -26,7 +28,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   List<LandmarkModel> _landmarks = [];
   bool _loading = true;
-  int _navIndex = 0;
   SiteLockResult? _siteLock;
   bool _siteLockLoading = true;
 
@@ -34,7 +35,20 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadLandmarks();
-    _resolveGpsSiteLock();
+    // Only auto-check GPS if permission was already granted — never popup on launch.
+    _checkSiteLockIfAlreadyPermitted();
+  }
+
+  Future<void> _checkSiteLockIfAlreadyPermitted() async {
+    final permission = await Geolocator.checkPermission();
+    final alreadyGranted = permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always;
+
+    if (alreadyGranted) {
+      await _resolveGpsSiteLock(requestPermission: false, showFeedback: false);
+    } else if (mounted) {
+      setState(() => _siteLockLoading = false);
+    }
   }
 
   Future<void> _loadLandmarks() async {
@@ -47,12 +61,17 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _resolveGpsSiteLock() async {
+  Future<void> _resolveGpsSiteLock({
+    bool requestPermission = true,
+    bool showFeedback = true,
+  }) async {
     if (mounted) {
       setState(() => _siteLockLoading = true);
     }
 
-    final result = await SiteLockService.instance.lockSiteByGps();
+    final result = await SiteLockService.instance.lockSiteByGps(
+      requestPermission: requestPermission,
+    );
     if (!mounted) {
       return;
     }
@@ -61,13 +80,94 @@ class _HomeScreenState extends State<HomeScreen> {
       _siteLock = result;
       _siteLockLoading = false;
     });
+
+    if (showFeedback) {
+      _showSiteLockFeedback(result);
+    }
+  }
+
+  void _showSiteLockFeedback(SiteLockResult result) {
+    if (!mounted) return;
+
+    final String text;
+    final Color bg;
+    final IconData icon;
+
+    switch (result.status) {
+      case SiteLockStatus.locked:
+        text = 'Location verified — ${result.site?.landmarkName ?? 'Heritage site'}';
+        bg = const Color(0xFF2E7D32);
+        icon = Icons.check_circle_rounded;
+      case SiteLockStatus.outOfRange:
+        text = result.message ??
+            'You are not near a supported heritage site. Use Choose Site for manual mode.';
+        bg = const Color(0xFFE65100);
+        icon = Icons.location_off_rounded;
+      case SiteLockStatus.serviceDisabled:
+        text = 'Turn on GPS/Location in your phone settings, then tap Verify Location again.';
+        bg = const Color(0xFF1565C0);
+        icon = Icons.gps_off_rounded;
+      case SiteLockStatus.permissionDenied:
+        text = result.message ??
+            'Location permission denied. Allow location access for this app in Settings.';
+        bg = const Color(0xFFC62828);
+        icon = Icons.block_rounded;
+      case SiteLockStatus.timeout:
+        text = result.message ??
+            'GPS signal weak. Move to an open area and try again.';
+        bg = const Color(0xFFEF6C00);
+        icon = Icons.signal_wifi_off_rounded;
+      case SiteLockStatus.error:
+        text = result.message ?? 'Could not verify location. Please try again.';
+        bg = const Color(0xFFC62828);
+        icon = Icons.error_outline_rounded;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(icon, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(text, style: const TextStyle(fontSize: 13)),
+              ),
+            ],
+          ),
+          backgroundColor: bg,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          action: result.openSettings
+              ? SnackBarAction(
+                  label: 'Settings',
+                  textColor: Colors.white,
+                  onPressed: () async {
+                    if (result.status == SiteLockStatus.serviceDisabled) {
+                      await Geolocator.openLocationSettings();
+                    } else {
+                      await Geolocator.openAppSettings();
+                    }
+                  },
+                )
+              : null,
+        ),
+      );
   }
 
   Future<void> _launchCamera() async {
     if (!mounted) return;
+    final lock = _siteLock;
+    // A site already confirmed here (GPS or manual) is handed straight to
+    // the camera screen so it doesn't re-run the GPS check on open.
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const CameraScreen()),
+      MaterialPageRoute(
+        builder: (_) => CameraScreen(
+          initialSiteLock: (lock != null && lock.isLocked) ? lock : null,
+        ),
+      ),
     );
   }
 
@@ -84,92 +184,84 @@ class _HomeScreenState extends State<HomeScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF1A0A00),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white30,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const Text(
-                'Select Current Site',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Use manual lock when GPS is unavailable.',
-                style: TextStyle(color: Colors.white60, fontSize: 12),
-              ),
-              const SizedBox(height: 16),
-              ...sites.map((site) => ListTile(
-                    leading: const Icon(Icons.place_rounded,
-                        color: Color(0xFFFFB300)),
-                    title: Text(site.landmarkName,
-                        style: const TextStyle(color: Colors.white)),
-                    subtitle: Text(site.landmarkId,
-                        style: const TextStyle(
-                            color: Colors.white54, fontSize: 12)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      if (!mounted) {
-                        return;
-                      }
-                      setState(() {
-                        _siteLock = SiteLockResult.manual(site: site);
-                      });
-                    },
-                  )),
-            ],
-          ),
-        );
-      },
+      builder: (_) => SiteSelectorSheet(
+        sites: sites,
+        subtitle: 'Use manual selection when GPS is unavailable — this '
+            'carries straight into the camera without rechecking GPS.',
+        onSiteSelected: (site) {
+          Navigator.pop(context);
+          if (!mounted) return;
+          setState(() {
+            _siteLock = SiteLockResult.manual(site: site);
+          });
+        },
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final PreferredSizeWidget? topAppBar = _navIndex == 1
-        ? AppBar(
-            backgroundColor: AppTheme.primary,
-            elevation: 2,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_rounded),
-              onPressed: () => setState(() => _navIndex = 0),
-            ),
-            title: const Text('Heritage Map'),
-          )
-        : null;
-
     return Scaffold(
-      appBar: topAppBar,
       backgroundColor: AppTheme.surface,
+      drawer: _buildDrawer(), // Adding the drawer menu
       bottomNavigationBar: _buildBottomNav(),
-      body: _navIndex == 0 ? _buildExploreBody() : _buildHeritageMap(),
-      floatingActionButton: _navIndex == 0 ? _buildScanFab() : null,
+      body: _buildExploreBody(),
+      floatingActionButton: _buildScanFab(),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     );
   }
 
-  // â”€â”€ Bottom NAV â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Sidebar Drawer ────────────────────────────────────────────────────────
+  Widget _buildDrawer() {
+    return Drawer(
+      backgroundColor: AppTheme.surface,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          DrawerHeader(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF3E1D0A), Color(0xFF8D4E1A)],
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.account_balance, color: Colors.white, size: 28),
+                ),
+                const SizedBox(height: 12),
+                const Text('HeritageAR', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, fontFamily: 'Georgia')),
+                const Text('Offline Explorer Mode', style: TextStyle(color: Colors.white70, fontSize: 13)),
+              ],
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.g_translate_rounded, color: AppTheme.primary),
+            title: const Text('Live AR Sign Translator', style: TextStyle(fontWeight: FontWeight.w600, color: AppTheme.textBase)),
+            subtitle: const Text('Offline OCR & Translation', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            onTap: () {
+              Navigator.pop(context); // Close drawer
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ArTranslatorScreen()),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Bottom NAV ─────────────────────────────────────────────────────────────
   Widget _buildBottomNav() {
     return BottomAppBar(
       color: Colors.white,
@@ -191,7 +283,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _navItem(int index, IconData icon, String label) {
-    final active = _navIndex == index;
+    final active = index == 0;
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: () {
@@ -201,7 +293,11 @@ class _HomeScreenState extends State<HomeScreen> {
             MaterialPageRoute(builder: (_) => const sigiriya_home.HomeScreen()),
           );
         } else {
-          setState(() => _navIndex = index);
+          // Map opens as its own full-screen route — no bottom nav / Home chrome.
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const HeritageMapScreen()),
+          );
         }
       },
       child: Padding(
@@ -258,12 +354,14 @@ class _HomeScreenState extends State<HomeScreen> {
       stretch: true,
       backgroundColor: AppTheme.primary,
       leadingWidth: 56,
-      leading: IconButton(
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints.tightFor(width: 40, height: 40),
-        splashRadius: 22,
-        icon: const Icon(Icons.menu, color: Colors.white, size: 24),
-        onPressed: () {},
+      leading: Builder(
+        builder: (context) => IconButton(
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+          splashRadius: 22,
+          icon: const Icon(Icons.menu, color: Colors.white, size: 24),
+          onPressed: () => Scaffold.of(context).openDrawer(), // Open the drawer
+        ),
       ),
       actions: const [],
       flexibleSpace: FlexibleSpaceBar(
@@ -538,7 +636,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   borderRadius: BorderRadius.circular(10)),
               textStyle: const TextStyle(fontSize: 12),
             ),
-            onPressed: _resolveGpsSiteLock,
+            onPressed: _siteLockLoading ? null : () => _resolveGpsSiteLock(requestPermission: true),
             child: const Text('Refresh'),
           ),
         ]),
@@ -546,9 +644,12 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     // ── Failed or Outside state ───────────────────────────────────────────────
+    final statusDetail = lock?.message;
     final message = outside
-        ? 'You\'re not near a heritage site — Choose a site manually to start exploring.'
-        : 'Location not verified — Enable GPS or choose a heritage site to begin exploration.';
+        ? (statusDetail ??
+            'You\'re not near a heritage site — Choose a site manually or verify again if you moved closer.')
+        : (statusDetail ??
+            'Location not verified — Enable GPS or choose a heritage site to begin exploration.');
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -586,23 +687,22 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 10),
           Row(children: [
-            if (!outside)
-              Expanded(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.primary,
-                    side: const BorderSide(color: AppTheme.primary),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                    textStyle: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w600),
-                  ),
-                  onPressed: _resolveGpsSiteLock,
-                  child: const Text('Verify Location'),
+            Expanded(
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.primary,
+                  side: const BorderSide(color: AppTheme.primary),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  textStyle: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600),
                 ),
+                onPressed: _siteLockLoading ? null : () => _resolveGpsSiteLock(requestPermission: true),
+                child: Text(outside ? 'Verify Again' : 'Verify Location'),
               ),
-            if (!outside) const SizedBox(width: 8),
+            ),
+            const SizedBox(width: 8),
             Expanded(
               child: OutlinedButton(
                 style: OutlinedButton.styleFrom(
@@ -624,71 +724,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // -- Heritage Map (flutter_map + OSM) -----------------------------------
-  Widget _buildHeritageMap() {
-    const poisSigiriya = [
-      _PoiMarker(
-          Icons.confirmation_num_rounded, 'Ticket Counter', 7.95470, 80.75549),
-      _PoiMarker(Icons.water_rounded, 'Water Gardens', 7.95670, 80.75655),
-      _PoiMarker(Icons.palette_rounded, 'Fresco Gallery', 7.95700, 80.75970),
-      _PoiMarker(Icons.auto_awesome_rounded, 'Mirror Wall', 7.95725, 80.75988),
-      _PoiMarker(Icons.pets_rounded, 'Lion Paws Gate', 7.95759, 80.75988),
-      _PoiMarker(Icons.castle_rounded, 'Summit Palace', 7.95709, 80.76010),
-    ];
-    return FlutterMap(
-      options: const MapOptions(
-        initialCenter: LatLng(7.9567, 80.7580),
-        initialZoom: 16.0,
-      ),
-      children: [
-        TileLayer(
-          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          userAgentPackageName: 'com.example.r26_it_122',
-        ),
-        MarkerLayer(
-          markers: poisSigiriya
-              .map((poi) => Marker(
-                    point: LatLng(poi.lat, poi.lng),
-                    width: 64,
-                    height: 64,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: AppTheme.primary,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                              child: Icon(poi.icon,
-                                  color: Colors.white, size: 18)),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 4, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primary,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            poi.name,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 7,
-                                fontWeight: FontWeight.w600),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ))
-              .toList(),
-        ),
-      ],
-    );
-  }
 }
 
 // â”€â”€ Featured horizontal card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -784,10 +819,28 @@ class _FeaturedCard extends StatelessWidget {
   }
 }
 
+/// One entry per camera-model class describing how it maps onto the
+/// Points-of-Interest data — see [LandmarkDetailScreenState._detectionInfo].
+class _DetectionInfo {
+  final String? poiKeyword;
+  final String? brief;
+  const _DetectionInfo({required this.poiKeyword, required this.brief});
+}
+
 // â”€â”€ Landmark detail screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class LandmarkDetailScreen extends StatefulWidget {
   final LandmarkModel landmark;
-  const LandmarkDetailScreen({super.key, required this.landmark});
+
+  /// Raw camera-model class label (e.g. 'sigiriya_ticket_counter') when this
+  /// screen was opened right after a live detection — used to auto-highlight
+  /// the matching Point of Interest and offer a Brief/Detail summary of it.
+  final String? highlightSubLandmarkLabel;
+
+  const LandmarkDetailScreen({
+    super.key,
+    required this.landmark,
+    this.highlightSubLandmarkLabel,
+  });
 
   @override
   State<LandmarkDetailScreen> createState() => LandmarkDetailScreenState();
@@ -797,6 +850,113 @@ class LandmarkDetailScreenState extends State<LandmarkDetailScreen> {
   List<SubLandmarkModel> _subLandmarks = [];
   bool _subLoading = true;
   ArStatus? _arStatus;
+  bool _showDetailView = false; // Brief (false) vs Detail (true)
+
+  /// Explicit entry for every one of the 5 camera-model classes — deliberately
+  /// complete, not a fallback/best-effort map, so each detected class gets an
+  /// accurate Brief description regardless of how loosely its name matches
+  /// the underlying Points-of-Interest record.
+  ///
+  /// [poiKeyword] locates the matching row in `SubLandmarkModel.name`
+  /// (substring match — DB names don't equal the model's class names, e.g.
+  /// "Lion Gate (Lion Paws)" vs 'sigiriya_lion_paws'). Null means there is no
+  /// dedicated POI row for this class ('sigiriya_lion_rock' names the whole
+  /// rock fortress — the parent landmark itself, not a specific stop).
+  ///
+  /// [brief] is written specifically for what the model detected, not a
+  /// truncation of the matched POI's description — that matters most for
+  /// 'sigiriya_throne', whose only matching POI ("Summit Palace") describes
+  /// the whole palace ruin, not just the throne platform within it.
+  static const Map<String, _DetectionInfo> _detectionInfo = {
+    'sigiriya_lion_paws': _DetectionInfo(
+      poiKeyword: 'lion paws',
+      brief:
+          "The colossal brick-and-plaster lion paws flanking Sigiriya's summit "
+          'stairway — the only surviving remnant of the original lion gateway '
+          'that gave the rock its name.',
+    ),
+    'sigiriya_lion_rock': _DetectionInfo(
+      poiKeyword: null, // whole site — no dedicated POI row
+      brief: null, // uses landmark.description instead, see _briefFor()
+    ),
+    'sigiriya_mirror_wall': _DetectionInfo(
+      poiKeyword: 'mirror wall',
+      brief:
+          "A plaster wall on the rock's western face, once polished to a "
+          'mirror finish — now etched with 685+ ancient Sinhala poems, the '
+          'oldest such collection in the world.',
+    ),
+    'sigiriya_throne': _DetectionInfo(
+      poiKeyword: 'summit palace',
+      brief:
+          "The throne platform within King Kassapa's summit palace ruins, "
+          '200 metres above the plains — part of the royal residence that '
+          'once crowned the rock.',
+    ),
+    'sigiriya_ticket_counter': _DetectionInfo(
+      poiKeyword: 'ticket',
+      brief:
+          'The official Sigiriya entry point — ticketing, rest facilities, '
+          'and an information centre with maps and audio guides for your visit.',
+    ),
+  };
+
+  String? get _normalizedLabel =>
+      widget.highlightSubLandmarkLabel?.trim().toLowerCase();
+
+  _DetectionInfo? get _detectionForLabel =>
+      _normalizedLabel == null ? null : _detectionInfo[_normalizedLabel];
+
+  SubLandmarkModel? get _highlightedSub {
+    final keyword = _detectionForLabel?.poiKeyword;
+    if (keyword == null) return null;
+    for (final s in _subLandmarks) {
+      if (s.name.toLowerCase().contains(keyword)) return s;
+    }
+    return null;
+  }
+
+  /// Points of Interest with the detected one (if any) moved to the front,
+  /// so it's immediately visible without scrolling past the others.
+  List<SubLandmarkModel> get _orderedSubLandmarks {
+    final highlighted = _highlightedSub;
+    if (highlighted == null) return _subLandmarks;
+    return [
+      highlighted,
+      ..._subLandmarks.where((s) => s.id != highlighted.id),
+    ];
+  }
+
+  String _briefOf(String text) {
+    final cut = text.indexOf('. ');
+    if (cut != -1 && cut <= 160) return text.substring(0, cut + 1);
+    if (text.length <= 160) return text;
+    return '${text.substring(0, 157).trimRight()}...';
+  }
+
+  /// Brief text for the current detection — the curated [_DetectionInfo.brief]
+  /// when one exists, the whole-site description for the Lion Rock case,
+  /// falling back to a truncated POI description only for a label that isn't
+  /// in [_detectionInfo] at all (defensive — shouldn't happen for the 5
+  /// known classes, but keeps a future/unrecognised label from rendering
+  /// blank instead of degrading gracefully).
+  String get _briefText {
+    final info = _detectionForLabel;
+    if (info?.brief != null) return info!.brief!;
+    if (_normalizedLabel == 'sigiriya_lion_rock') {
+      return widget.landmark.description;
+    }
+    final sub = _highlightedSub;
+    return sub != null ? _briefOf(sub.description) : widget.landmark.description;
+  }
+
+  String get _detailText {
+    final sub = _highlightedSub;
+    if (sub != null) return sub.description;
+    return widget.landmark.history.isNotEmpty
+        ? widget.landmark.history
+        : widget.landmark.description;
+  }
 
   static const _gradients = [
     [Color(0xFFB71C1C), Color(0xFFE53935)],
@@ -958,6 +1118,18 @@ class LandmarkDetailScreenState extends State<LandmarkDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ── Just-detected banner (opened straight from the camera) ──
+                  if (widget.highlightSubLandmarkLabel != null && !_subLoading) ...[
+                    _DetectedPoiBanner(
+                      title: _highlightedSub?.name ?? widget.landmark.name,
+                      briefText: _briefText,
+                      detailText: _detailText,
+                      showDetail: _showDetailView,
+                      onToggle: (v) => setState(() => _showDetailView = v),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+
                   // â”€â”€ Quick facts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                   Container(
                     padding: const EdgeInsets.all(16),
@@ -1053,11 +1225,12 @@ class LandmarkDetailScreenState extends State<LandmarkDetailScreen> {
                         style: TextStyle(color: Colors.grey, fontSize: 14))
                   else
                     Column(
-                      children: _subLandmarks
+                      children: _orderedSubLandmarks
                           .map((sub) => _SubLandmarkTile(
                                 sub: sub,
                                 accentColor: Color(colors[0].value),
                                 icon: _typeIcon(sub.type),
+                                highlighted: sub.id == _highlightedSub?.id,
                               ))
                           .toList(),
                     ),
@@ -1170,8 +1343,13 @@ class _SubLandmarkTile extends StatefulWidget {
   final SubLandmarkModel sub;
   final Color accentColor;
   final IconData icon;
-  const _SubLandmarkTile(
-      {required this.sub, required this.accentColor, required this.icon});
+  final bool highlighted;
+  const _SubLandmarkTile({
+    required this.sub,
+    required this.accentColor,
+    required this.icon,
+    this.highlighted = false,
+  });
 
   @override
   State<_SubLandmarkTile> createState() => _SubLandmarkTileState();
@@ -1181,15 +1359,27 @@ class _SubLandmarkTileState extends State<_SubLandmarkTile> {
   bool _expanded = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Auto-expand the tile matching what the camera just detected.
+    _expanded = widget.highlighted;
+  }
+
+  @override
   Widget build(BuildContext context) => Container(
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
+          border: widget.highlighted
+              ? Border.all(color: AppTheme.secondary, width: 1.6)
+              : null,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
+              color: widget.highlighted
+                  ? AppTheme.secondary.withOpacity(0.25)
+                  : Colors.black.withOpacity(0.05),
+              blurRadius: widget.highlighted ? 14 : 8,
               offset: const Offset(0, 2),
             ),
           ],
@@ -1200,6 +1390,7 @@ class _SubLandmarkTileState extends State<_SubLandmarkTile> {
             splashColor: Colors.transparent,
           ),
           child: ExpansionTile(
+            initiallyExpanded: widget.highlighted,
             onExpansionChanged: (v) => setState(() => _expanded = v),
             leading: Container(
               width: 40,
@@ -1210,12 +1401,42 @@ class _SubLandmarkTileState extends State<_SubLandmarkTile> {
               ),
               child: Icon(widget.icon, color: widget.accentColor, size: 22),
             ),
-            title: Text(
-              widget.sub.name,
-              style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                  color: Color(0xFF2D1B0E)),
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.sub.name,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        color: Color(0xFF2D1B0E)),
+                  ),
+                ),
+                if (widget.highlighted)
+                  Container(
+                    margin: const EdgeInsets.only(left: 8),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppTheme.secondary,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.center_focus_strong_rounded,
+                            color: Colors.white, size: 10),
+                        SizedBox(width: 3),
+                        Text('DETECTED',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.4)),
+                      ],
+                    ),
+                  ),
+              ],
             ),
             subtitle: Text(
               widget.sub.type.toUpperCase(),
@@ -1249,6 +1470,155 @@ class _SubLandmarkTileState extends State<_SubLandmarkTile> {
       );
 }
 
+// ── "Just scanned" banner — shown when this screen was opened straight from
+// a camera detection, with a Brief/Detail toggle for what was found ────────
+class _DetectedPoiBanner extends StatelessWidget {
+  final String title;
+  final String briefText;
+  final String detailText;
+  final bool showDetail;
+  final ValueChanged<bool> onToggle;
+
+  const _DetectedPoiBanner({
+    required this.title,
+    required this.briefText,
+    required this.detailText,
+    required this.showDetail,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E1),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+            color: AppTheme.secondary.withOpacity(0.4), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.secondary.withOpacity(0.15),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppTheme.secondary,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.center_focus_strong_rounded,
+                    color: Colors.white, size: 12),
+                SizedBox(width: 4),
+                Text('JUST SCANNED',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.6)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(title,
+              style: const TextStyle(
+                  fontFamily: 'Georgia',
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A0A00))),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _ModeChip(
+                  label: 'Brief',
+                  icon: Icons.short_text_rounded,
+                  selected: !showDetail,
+                  onTap: () => onToggle(false),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _ModeChip(
+                  label: 'Detail',
+                  icon: Icons.notes_rounded,
+                  selected: showDetail,
+                  onTap: () => onToggle(true),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            child: Text(
+              showDetail ? detailText : briefText,
+              key: ValueKey(showDetail),
+              style: const TextStyle(
+                  color: Color(0xFF4E342E), fontSize: 13.5, height: 1.6),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModeChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ModeChip({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? AppTheme.secondary : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+              color: selected
+                  ? AppTheme.secondary
+                  : AppTheme.secondary.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon,
+                size: 15, color: selected ? Colors.white : AppTheme.secondary),
+            const SizedBox(width: 6),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: selected ? Colors.white : AppTheme.primary)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _FactCell extends StatelessWidget {
   final String label, value;
   const _FactCell({required this.label, required this.value});
@@ -1267,10 +1637,3 @@ class _FactCell extends StatelessWidget {
       );
 }
 
-class _PoiMarker {
-  final IconData icon;
-  final String name;
-  final double lat;
-  final double lng;
-  const _PoiMarker(this.icon, this.name, this.lat, this.lng);
-}
