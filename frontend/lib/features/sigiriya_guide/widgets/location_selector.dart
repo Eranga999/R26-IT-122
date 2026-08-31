@@ -1,6 +1,6 @@
 // lib/widgets/location_selector.dart
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_theme.dart';
+import '../explore_theme.dart';
 import '../data/sigiriya_knowledge_base.dart';
 
 class LocationSelector extends StatefulWidget {
@@ -62,10 +62,10 @@ class _LocationSelectorState extends State<LocationSelector> {
 
   @override
   Widget build(BuildContext context) {
-    // Match the Explore-flow colour rule: heritage-gold accent, terracotta
-    // for selected/emphasis, espresso text on the light parchment surface.
-    const gold = AppTheme.secondary;
-    const accentText = AppTheme.primary;
+    // Match the shared Explore-flow colour rule: heritage-gold accent,
+    // terracotta for selected/emphasis, espresso text on the light surface.
+    const gold = ExploreTheme.accent;
+    const accentText = ExploreTheme.accentText;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,7 +77,7 @@ class _LocationSelectorState extends State<LocationSelector> {
               child: TextField(
                 controller: widget.controller,
                 style: const TextStyle(
-                    color: AppTheme.textBase, fontSize: 14),
+                    color: ExploreTheme.text, fontSize: 14),
                 decoration: InputDecoration(
                   hintText: 'Type or pick a location…',
                   prefixIcon:
@@ -167,7 +167,7 @@ class _LocationSelectorState extends State<LocationSelector> {
                             style: TextStyle(
                               color: isSelected
                                   ? accentText
-                                  : AppTheme.textBase,
+                                  : ExploreTheme.text,
                               fontWeight: isSelected
                                   ? FontWeight.bold
                                   : FontWeight.normal,

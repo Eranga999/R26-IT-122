@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../explore_theme.dart';
 import '../data/quest_state.dart';
 import '../data/quiz_translations.dart';
 
@@ -74,57 +75,43 @@ class _GamifiedExploreScreenState extends State<GamifiedExploreScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final gold = Theme.of(context).colorScheme.primary;
-    final surface = Theme.of(context).colorScheme.surface;
-
     return Scaffold(
+      backgroundColor: ExploreTheme.bg,
       appBar: AppBar(
+        backgroundColor: ExploreTheme.bar,
+        foregroundColor: Colors.white,
         title: const Text('Gamified Exploration'),
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Theme.of(context).scaffoldBackgroundColor,
-              surface.withOpacity(0.94),
-            ],
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const _HeaderCard(),
+          const SizedBox(height: 16),
+          const _QuestCard(),
+          const SizedBox(height: 16),
+          _QuizCard(
+            score: _score,
+            currentIndex: _currentIndex,
+            questionCount: _questions.length,
+            question: _isFinished ? null : _currentQuestion,
+            selectedIndex: _selectedIndex,
+            answered: _answered,
+            onSelect: _selectAnswer,
+            onNext: _nextQuestion,
+            onRestart: _restartQuiz,
+            isFinished: _isFinished,
+            selectedLanguage: _language,
+            onLanguageChange: _changeLanguage,
           ),
-        ),
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _HeaderCard(gold: gold),
-            const SizedBox(height: 16),
-            _QuestCard(gold: gold),
-            const SizedBox(height: 16),
-            _QuizCard(
-              gold: gold,
-              score: _score,
-              currentIndex: _currentIndex,
-              questionCount: _questions.length,
-              question: _isFinished ? null : _currentQuestion,
-              selectedIndex: _selectedIndex,
-              answered: _answered,
-              onSelect: _selectAnswer,
-              onNext: _nextQuestion,
-              onRestart: _restartQuiz,
-              isFinished: _isFinished,
-              selectedLanguage: _language,
-              onLanguageChange: _changeLanguage,
-            ),
-            const SizedBox(height: 16),
-            _QuestBoard(),
-          ],
-        ),
+          const SizedBox(height: 16),
+          _QuestBoard(),
+        ],
       ),
     );
   }
 }
 
 class _QuizCard extends StatelessWidget {
-  final Color gold;
   final int score;
   final int currentIndex;
   final int questionCount;
@@ -139,7 +126,6 @@ class _QuizCard extends StatelessWidget {
   final ValueChanged<QuizLanguage> onLanguageChange;
 
   const _QuizCard({
-    required this.gold,
     required this.score,
     required this.currentIndex,
     required this.questionCount,
@@ -154,14 +140,17 @@ class _QuizCard extends StatelessWidget {
     required this.onLanguageChange,
   });
 
+  static const _quiz = ExploreTheme.info;
+  static const _correct = ExploreTheme.success;
+
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
-        color: Theme.of(context).colorScheme.surface,
-        border: Border.all(color: const Color(0xFF87B5FF).withOpacity(0.22)),
+        color: ExploreTheme.card,
+        border: Border.all(color: _quiz.withOpacity(0.28)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -173,9 +162,9 @@ class _QuizCard extends StatelessWidget {
                 height: 46,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFF87B5FF).withOpacity(0.12),
+                  color: _quiz.withOpacity(0.12),
                 ),
-                child: const Icon(Icons.quiz_rounded, color: Color(0xFF87B5FF)),
+                child: const Icon(Icons.quiz_rounded, color: _quiz),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -185,7 +174,7 @@ class _QuizCard extends StatelessWidget {
                     Text(
                       'Heritage Quiz',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Colors.white,
+                            color: ExploreTheme.text,
                             fontWeight: FontWeight.w800,
                           ),
                     ),
@@ -195,7 +184,7 @@ class _QuizCard extends StatelessWidget {
                           ? 'Final score: $score / $questionCount'
                           : 'Question ${currentIndex + 1} of $questionCount',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.white70,
+                            color: ExploreTheme.textSoft,
                           ),
                     ),
                   ],
@@ -205,14 +194,15 @@ class _QuizCard extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: gold.withOpacity(0.12),
+                  color: ExploreTheme.accent.withOpacity(0.14),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: gold.withOpacity(0.2)),
+                  border:
+                      Border.all(color: ExploreTheme.accent.withOpacity(0.4)),
                 ),
                 child: Text(
                   'Score: $score',
-                  style: TextStyle(
-                    color: gold,
+                  style: const TextStyle(
+                    color: ExploreTheme.accentText,
                     fontWeight: FontWeight.w800,
                     fontSize: 12,
                   ),
@@ -239,12 +229,12 @@ class _QuizCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(999),
                         color: isActive
-                            ? const Color(0xFF87B5FF).withOpacity(0.18)
-                            : Colors.white.withOpacity(0.05),
+                            ? _quiz.withOpacity(0.14)
+                            : Colors.black.withOpacity(0.03),
                         border: Border.all(
                           color: isActive
-                              ? const Color(0xFF87B5FF)
-                              : Colors.white.withOpacity(0.14),
+                              ? _quiz
+                              : Colors.black.withOpacity(0.12),
                           width: isActive ? 1.5 : 1,
                         ),
                       ),
@@ -262,8 +252,8 @@ class _QuizCard extends StatelessWidget {
                                   ? FontWeight.w700
                                   : FontWeight.w500,
                               color: isActive
-                                  ? const Color(0xFF87B5FF)
-                                  : Colors.white60,
+                                  ? _quiz
+                                  : ExploreTheme.textSoft,
                             ),
                           ),
                         ],
@@ -276,7 +266,7 @@ class _QuizCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           if (isFinished)
-            _QuizResultSummary(score: score, total: questionCount, gold: gold)
+            _QuizResultSummary(score: score, total: questionCount)
           else ...[
             Directionality(
               textDirection: selectedLanguage.isRtl
@@ -285,7 +275,7 @@ class _QuizCard extends StatelessWidget {
               child: Text(
                 question!.question,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Colors.white,
+                      color: ExploreTheme.text,
                       fontWeight: FontWeight.w700,
                       height: 1.35,
                     ),
@@ -296,16 +286,16 @@ class _QuizCard extends StatelessWidget {
               final option = question!.options[index];
               final isSelected = selectedIndex == index;
               final isCorrect = index == question!.correctIndex;
-              Color borderColor = Colors.white.withOpacity(0.12);
-              Color fillColor = Colors.white.withOpacity(0.03);
+              Color borderColor = Colors.black.withOpacity(0.12);
+              Color fillColor = Colors.black.withOpacity(0.02);
 
               if (answered) {
                 if (isCorrect) {
-                  borderColor = const Color(0xFF7BD389);
-                  fillColor = const Color(0xFF7BD389).withOpacity(0.12);
+                  borderColor = _correct;
+                  fillColor = _correct.withOpacity(0.10);
                 } else if (isSelected) {
                   borderColor = Colors.redAccent;
-                  fillColor = Colors.redAccent.withOpacity(0.12);
+                  fillColor = Colors.redAccent.withOpacity(0.10);
                 }
               }
 
@@ -330,10 +320,10 @@ class _QuizCard extends StatelessWidget {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: answered && isCorrect
-                                ? const Color(0xFF7BD389)
+                                ? _correct
                                 : isSelected
-                                    ? gold
-                                    : Colors.white.withOpacity(0.08),
+                                    ? ExploreTheme.accent
+                                    : Colors.black.withOpacity(0.06),
                           ),
                           child: Icon(
                             answered && isCorrect
@@ -343,10 +333,10 @@ class _QuizCard extends StatelessWidget {
                                     : Icons.circle_outlined,
                             size: 16,
                             color: answered && isCorrect
-                                ? Colors.black87
+                                ? Colors.white
                                 : isSelected
-                                    ? Colors.black87
-                                    : Colors.white54,
+                                    ? Colors.white
+                                    : ExploreTheme.textSoft,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -357,7 +347,7 @@ class _QuizCard extends StatelessWidget {
                                 .textTheme
                                 .bodyMedium
                                 ?.copyWith(
-                                  color: Colors.white,
+                                  color: ExploreTheme.text,
                                   fontWeight: FontWeight.w600,
                                 ),
                           ),
@@ -376,11 +366,11 @@ class _QuizCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   color: question!.correctIndex == selectedIndex
-                      ? const Color(0xFF7BD389).withOpacity(0.12)
-                      : Colors.redAccent.withOpacity(0.12),
+                      ? _correct.withOpacity(0.10)
+                      : Colors.redAccent.withOpacity(0.10),
                   border: Border.all(
                     color: question!.correctIndex == selectedIndex
-                        ? const Color(0xFF7BD389).withOpacity(0.4)
+                        ? _correct.withOpacity(0.4)
                         : Colors.redAccent.withOpacity(0.4),
                   ),
                 ),
@@ -392,7 +382,7 @@ class _QuizCard extends StatelessWidget {
                           ? 'Correct answer. Nice work.'
                           : 'Wrong answer. Here is the correct one:',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.white,
+                            color: ExploreTheme.text,
                             fontWeight: FontWeight.w800,
                           ),
                     ),
@@ -400,7 +390,7 @@ class _QuizCard extends StatelessWidget {
                     Text(
                       question!.options[question!.correctIndex],
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Colors.white,
+                            color: ExploreTheme.text,
                             fontWeight: FontWeight.w700,
                           ),
                     ),
@@ -408,7 +398,7 @@ class _QuizCard extends StatelessWidget {
                     Text(
                       question!.explanation,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.white70,
+                            color: ExploreTheme.body,
                             height: 1.45,
                           ),
                     ),
@@ -431,7 +421,7 @@ class _QuizCard extends StatelessWidget {
               Text(
                 'Select one answer to reveal the right answer and update the score.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.white54,
+                      color: ExploreTheme.textSoft,
                     ),
               ),
           ],
@@ -454,12 +444,10 @@ class _QuizCard extends StatelessWidget {
 class _QuizResultSummary extends StatelessWidget {
   final int score;
   final int total;
-  final Color gold;
 
   const _QuizResultSummary({
     required this.score,
     required this.total,
-    required this.gold,
   });
 
   @override
@@ -478,10 +466,8 @@ class _QuizResultSummary extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
-        gradient: LinearGradient(
-          colors: [gold.withOpacity(0.12), Colors.white.withOpacity(0.04)],
-        ),
-        border: Border.all(color: gold.withOpacity(0.28)),
+        color: ExploreTheme.accent.withOpacity(0.10),
+        border: Border.all(color: ExploreTheme.accent.withOpacity(0.30)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -489,7 +475,7 @@ class _QuizResultSummary extends StatelessWidget {
           Text(
             'Quiz complete',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: gold,
+                  color: ExploreTheme.accentText,
                   fontWeight: FontWeight.w800,
                 ),
           ),
@@ -497,7 +483,7 @@ class _QuizResultSummary extends StatelessWidget {
           Text(
             'Final score: $score / $total',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Colors.white,
+                  color: ExploreTheme.text,
                   fontWeight: FontWeight.w700,
                 ),
           ),
@@ -505,7 +491,7 @@ class _QuizResultSummary extends StatelessWidget {
           Text(
             'Badge unlocked: $badge',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.white70,
+                  color: ExploreTheme.body,
                 ),
           ),
         ],
@@ -515,9 +501,7 @@ class _QuizResultSummary extends StatelessWidget {
 }
 
 class _HeaderCard extends StatelessWidget {
-  final Color gold;
-
-  const _HeaderCard({required this.gold});
+  const _HeaderCard();
 
   @override
   Widget build(BuildContext context) {
@@ -525,13 +509,8 @@ class _HeaderCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          colors: [
-            gold.withOpacity(0.18),
-            Theme.of(context).colorScheme.surface
-          ],
-        ),
-        border: Border.all(color: gold.withOpacity(0.22)),
+        color: ExploreTheme.accent.withOpacity(0.10),
+        border: Border.all(color: ExploreTheme.accent.withOpacity(0.22)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -539,7 +518,7 @@ class _HeaderCard extends StatelessWidget {
           Text(
             'Gamified Exploration Layer',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: gold,
+                  color: ExploreTheme.accentText,
                   fontWeight: FontWeight.w900,
                 ),
           ),
@@ -547,7 +526,7 @@ class _HeaderCard extends StatelessWidget {
           Text(
             'A learning mode designed for heritage discovery through play, with rewards that keep visitors moving and learning.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.white70,
+                  color: ExploreTheme.body,
                   height: 1.55,
                 ),
           ),
@@ -558,9 +537,7 @@ class _HeaderCard extends StatelessWidget {
 }
 
 class _QuestCard extends StatelessWidget {
-  final Color gold;
-
-  const _QuestCard({required this.gold});
+  const _QuestCard();
 
   @override
   Widget build(BuildContext context) {
@@ -568,8 +545,8 @@ class _QuestCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
-        color: Theme.of(context).colorScheme.surface,
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        color: ExploreTheme.card,
+        border: Border.all(color: ExploreTheme.border),
       ),
       child: Row(
         children: [
@@ -578,9 +555,10 @@ class _QuestCard extends StatelessWidget {
             height: 54,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: gold.withOpacity(0.12),
+              color: ExploreTheme.accent.withOpacity(0.12),
             ),
-            child: Icon(Icons.route_rounded, color: gold, size: 30),
+            child: const Icon(Icons.route_rounded,
+                color: ExploreTheme.accentText, size: 30),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -590,7 +568,7 @@ class _QuestCard extends StatelessWidget {
                 Text(
                   'Treasure hunt mission',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
+                        color: ExploreTheme.text,
                         fontWeight: FontWeight.w800,
                       ),
                 ),
@@ -598,7 +576,7 @@ class _QuestCard extends StatelessWidget {
                 Text(
                   'Complete clue trails, answer quiz prompts, and unlock progress badges as you explore.',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white70,
+                        color: ExploreTheme.body,
                         height: 1.45,
                       ),
                 ),
@@ -620,8 +598,6 @@ class _QuestBoard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gold = Theme.of(context).colorScheme.primary;
-
     return AnimatedBuilder(
       animation: QuestProgress.instance,
       builder: (context, _) {
@@ -630,8 +606,8 @@ class _QuestBoard extends StatelessWidget {
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: gold.withOpacity(0.22)),
-            color: gold.withOpacity(0.06),
+            border: Border.all(color: ExploreTheme.accent.withOpacity(0.22)),
+            color: ExploreTheme.accent.withOpacity(0.06),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -642,7 +618,7 @@ class _QuestBoard extends StatelessWidget {
                   Text(
                     'Quest Board',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: gold,
+                          color: ExploreTheme.accentText,
                           fontWeight: FontWeight.w800,
                         ),
                   ),
@@ -652,13 +628,14 @@ class _QuestBoard extends StatelessWidget {
                         horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(999),
-                      color: gold.withOpacity(0.12),
-                      border: Border.all(color: gold.withOpacity(0.25)),
+                      color: ExploreTheme.accent.withOpacity(0.14),
+                      border: Border.all(
+                          color: ExploreTheme.accent.withOpacity(0.25)),
                     ),
                     child: Text(
                       '${q.totalBadges} / 4 badges',
-                      style: TextStyle(
-                        color: gold,
+                      style: const TextStyle(
+                        color: ExploreTheme.accentText,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
@@ -678,7 +655,7 @@ class _QuestBoard extends StatelessWidget {
                 progressLabel:
                     '${q.explorerCount} / ${QuestProgress.explorerTarget} visited',
                 badge: '🥾 Heritage Explorer',
-                accent: const Color(0xFF7BD389),
+                accent: ExploreTheme.success,
                 complete: q.explorerComplete,
               ),
               const SizedBox(height: 12),
@@ -693,7 +670,7 @@ class _QuestBoard extends StatelessWidget {
                 progressLabel:
                     'Best score: ${q.scholarBest} / ${q.scholarTotal}',
                 badge: '📜 Heritage Scholar',
-                accent: const Color(0xFF87B5FF),
+                accent: ExploreTheme.info,
                 complete: q.scholarComplete,
               ),
               const SizedBox(height: 12),
@@ -708,7 +685,7 @@ class _QuestBoard extends StatelessWidget {
                 progressLabel:
                     '${q.polyglotCount} / ${QuestProgress.polyglotTarget} languages tried',
                 badge: '🌐 Polyglot Explorer',
-                accent: const Color(0xFFE8A838),
+                accent: const Color(0xFFC77F00),
                 complete: q.polyglotComplete,
               ),
               const SizedBox(height: 12),
@@ -722,7 +699,7 @@ class _QuestBoard extends StatelessWidget {
                 progressLabel:
                     '${q.masterDone} / 3 quests complete',
                 badge: '👑 Heritage Master',
-                accent: gold,
+                accent: ExploreTheme.accentText,
                 complete: q.masterComplete,
                 locked: !q.masterComplete && q.masterDone == 0,
               ),
@@ -759,7 +736,8 @@ class _QuestTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveAccent = locked ? Colors.white24 : accent;
+    final effectiveAccent =
+        locked ? ExploreTheme.textSoft.withOpacity(0.45) : accent;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -768,11 +746,11 @@ class _QuestTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         color: complete
             ? effectiveAccent.withOpacity(0.12)
-            : Colors.white.withOpacity(0.03),
+            : ExploreTheme.card,
         border: Border.all(
           color: complete
               ? effectiveAccent.withOpacity(0.5)
-              : effectiveAccent.withOpacity(0.2),
+              : effectiveAccent.withOpacity(0.25),
         ),
       ),
       child: Column(
@@ -787,7 +765,9 @@ class _QuestTile extends StatelessWidget {
                 child: Text(
                   title,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: locked ? Colors.white38 : Colors.white,
+                        color: locked
+                            ? ExploreTheme.textSoft.withOpacity(0.6)
+                            : ExploreTheme.text,
                         fontWeight: FontWeight.w700,
                       ),
                 ),
@@ -810,15 +790,17 @@ class _QuestTile extends StatelessWidget {
                   ),
                 )
               else if (locked)
-                const Icon(Icons.lock_outline,
-                    color: Colors.white24, size: 18),
+                Icon(Icons.lock_outline,
+                    color: ExploreTheme.textSoft.withOpacity(0.5), size: 18),
             ],
           ),
           const SizedBox(height: 6),
           Text(
             subtitle,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: locked ? Colors.white24 : Colors.white60,
+                  color: locked
+                      ? ExploreTheme.textSoft.withOpacity(0.5)
+                      : ExploreTheme.textSoft,
                   height: 1.4,
                 ),
           ),
@@ -829,7 +811,7 @@ class _QuestTile extends StatelessWidget {
             child: LinearProgressIndicator(
               value: locked ? 0 : progress,
               minHeight: 7,
-              backgroundColor: Colors.white.withOpacity(0.07),
+              backgroundColor: Colors.black.withOpacity(0.06),
               valueColor: AlwaysStoppedAnimation<Color>(effectiveAccent),
             ),
           ),
@@ -841,7 +823,9 @@ class _QuestTile extends StatelessWidget {
                   locked ? 'Complete other quests first' : progressLabel,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: locked ? Colors.white24 : Colors.white54,
+                        color: locked
+                            ? ExploreTheme.textSoft.withOpacity(0.5)
+                            : ExploreTheme.textSoft,
                         fontSize: 11,
                       ),
                 ),
@@ -854,8 +838,8 @@ class _QuestTile extends StatelessWidget {
                   textAlign: TextAlign.end,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: locked
-                            ? Colors.white24
-                            : effectiveAccent.withOpacity(0.8),
+                            ? ExploreTheme.textSoft.withOpacity(0.5)
+                            : effectiveAccent.withOpacity(0.9),
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),

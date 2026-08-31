@@ -1,5 +1,6 @@
 // lib/screens/location_detail_screen.dart
 import 'package:flutter/material.dart';
+import '../explore_theme.dart';
 import '../models/location_model.dart';
 import '../services/rag_service.dart';
 
@@ -94,22 +95,24 @@ class _LocationDetailScreenState extends State<LocationDetailScreen>
 
   @override
   Widget build(BuildContext context) {
-    final gold = Theme.of(context).colorScheme.primary;
     final loc = widget.location;
 
     return Scaffold(
+      backgroundColor: ExploreTheme.bg,
       body: NestedScrollView(
         headerSliverBuilder: (_, __) => [
           SliverAppBar(
             expandedHeight: 180,
             floating: false,
             pinned: true,
-            backgroundColor: Theme.of(context).colorScheme.surface,
+            backgroundColor: ExploreTheme.bar,
+            foregroundColor: Colors.white,
+            iconTheme: const IconThemeData(color: Colors.white),
             flexibleSpace: FlexibleSpaceBar(
               title: Text(
                 loc.name,
-                style: TextStyle(
-                  color: gold,
+                style: const TextStyle(
+                  color: Colors.white,
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
                 ),
@@ -144,9 +147,9 @@ class _LocationDetailScreenState extends State<LocationDetailScreen>
             ),
             bottom: TabBar(
               controller: _tabController,
-              indicatorColor: gold,
-              labelColor: gold,
-              unselectedLabelColor: Colors.white54,
+              indicatorColor: ExploreTheme.accent,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white70,
               tabs: const [
                 Tab(text: 'Summary'),
                 Tab(text: 'Details'),
@@ -194,7 +197,7 @@ class _SummaryTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gold = Theme.of(context).colorScheme.primary;
+    const gold = ExploreTheme.accentText;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -315,7 +318,7 @@ class _DetailsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gold = Theme.of(context).colorScheme.primary;
+    const gold = ExploreTheme.accentText;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -374,7 +377,7 @@ class _GalleryTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gold = Theme.of(context).colorScheme.primary;
+    const gold = ExploreTheme.accentText;
 
     if (location.imageAssets.isEmpty) {
       return Center(
@@ -386,7 +389,7 @@ class _GalleryTab extends StatelessWidget {
             const Text(
               'No images yet.\n\nAdd images to:\nassets/images/locations/',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white38, height: 1.6),
+              style: TextStyle(color: ExploreTheme.textSoft, height: 1.6),
             ),
           ],
         ),
@@ -449,7 +452,10 @@ class _FullImageViewer extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(backgroundColor: Colors.black),
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+      ),
       body: Center(
         child: InteractiveViewer(
           child: Image.asset(
@@ -476,7 +482,7 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gold = Theme.of(context).colorScheme.primary;
+    const gold = ExploreTheme.accentText;
     return Row(
       children: [
         Icon(icon, color: gold, size: 18),
@@ -535,7 +541,7 @@ class _MarkdownRenderer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gold = Theme.of(context).colorScheme.primary;
+    const gold = ExploreTheme.accentText;
     final lines = text.split('\n');
     final widgets = <Widget>[];
 
@@ -579,7 +585,7 @@ class _MarkdownRenderer extends StatelessWidget {
             child: Text(
               line.replaceAll('**', ''),
               style: const TextStyle(
-                color: Colors.white,
+                color: ExploreTheme.text,
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
               ),
@@ -593,7 +599,8 @@ class _MarkdownRenderer extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('• ', style: TextStyle(color: gold, fontSize: 14)),
+                Text('• ',
+                    style: TextStyle(color: gold, fontSize: 14)),
                 Expanded(child: _InlineText(line.substring(2))),
               ],
             ),
@@ -630,7 +637,7 @@ class _InlineText extends StatelessWidget {
       return Text(
         text,
         style: const TextStyle(
-          color: Colors.white70,
+          color: ExploreTheme.body,
           fontSize: 14,
           height: 1.6,
         ),
@@ -644,7 +651,7 @@ class _InlineText extends StatelessWidget {
           text: parts[i],
           style: TextStyle(
             fontWeight: i.isOdd ? FontWeight.bold : FontWeight.normal,
-            color: i.isOdd ? Colors.white : Colors.white70,
+            color: i.isOdd ? ExploreTheme.text : ExploreTheme.body,
           ),
         ),
       );

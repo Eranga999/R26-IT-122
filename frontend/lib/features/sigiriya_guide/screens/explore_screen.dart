@@ -1,6 +1,6 @@
 // lib/screens/explore_screen.dart
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_theme.dart';
+import '../explore_theme.dart';
 import '../data/quest_state.dart';
 import '../data/sigiriya_knowledge_base.dart';
 import '../models/location_model.dart';
@@ -30,13 +30,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Explore-flow colour rule — heritage-gold accent on the app-wide
-    // light parchment / terracotta theme.
-    const gold = AppTheme.secondary;
-
     return Scaffold(
+      backgroundColor: ExploreTheme.bg,
       appBar: AppBar(
-        backgroundColor: AppTheme.primary,
+        backgroundColor: ExploreTheme.bar,
         foregroundColor: Colors.white,
         title: const Text('Explore Sigiriya'),
         bottom: PreferredSize(
@@ -69,12 +66,13 @@ class _ExploreScreenState extends State<ExploreScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.search_off, size: 48, color: gold.withOpacity(0.4)),
+                  Icon(Icons.search_off,
+                      size: 48, color: ExploreTheme.accent.withOpacity(0.5)),
                   const SizedBox(height: 12),
                   Text(
                     'No locations found for "$_search"',
                     style: TextStyle(
-                        color: AppTheme.textBase.withOpacity(0.6)),
+                        color: ExploreTheme.text.withOpacity(0.6)),
                   ),
                 ],
               ),
@@ -113,9 +111,8 @@ class _LocationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const gold = AppTheme.secondary;
-
     return Card(
+      color: ExploreTheme.card,
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -133,20 +130,20 @@ class _LocationCard extends StatelessWidget {
                     child: Text(
                       location.name,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: AppTheme.primary,
+                            color: ExploreTheme.accentText,
                             fontWeight: FontWeight.bold,
                           ),
                     ),
                   ),
                   Icon(Icons.chevron_right,
-                      color: AppTheme.primary.withOpacity(0.5)),
+                      color: ExploreTheme.accentText.withOpacity(0.5)),
                 ],
               ),
               const SizedBox(height: 10),
               Text(
                 location.briefSummary,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF4E342E),
+                      color: ExploreTheme.body,
                     ),
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
@@ -161,9 +158,10 @@ class _LocationCard extends StatelessWidget {
                     padding: EdgeInsets.zero,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     labelStyle: const TextStyle(
-                        fontSize: 11, color: AppTheme.primary),
-                    backgroundColor: gold.withOpacity(0.12),
-                    side: BorderSide(color: gold.withOpacity(0.35)),
+                        fontSize: 11, color: ExploreTheme.accentText),
+                    backgroundColor: ExploreTheme.accent.withOpacity(0.12),
+                    side: BorderSide(
+                        color: ExploreTheme.accent.withOpacity(0.35)),
                   );
                 }).toList(),
               ),
