@@ -15,9 +15,15 @@ class RagChatScreen extends StatefulWidget {
 class _RagChatScreenState extends State<RagChatScreen>
     with TickerProviderStateMixin {
   final TextEditingController _controller = TextEditingController();
+  final ScrollController _scroll = ScrollController();
   late final List<Map<String, String>> _messages;
   bool _isLoading = false;
   String _selectedLanguageCode = 'en';
+
+  /// Minimum time the "typing…" indicator stays on screen before a reply is
+  /// shown, so answers never snap in instantly. The real lookup usually
+  /// finishes well inside this window.
+  static const Duration _minThinkTime = Duration(milliseconds: 3500);
 
   // ── Voice state ─────────────────────────────────────────────────────────
   final VoiceChatService _voice = VoiceChatService.instance;
@@ -25,6 +31,11 @@ class _RagChatScreenState extends State<RagChatScreen>
   bool _isListening = false;
   bool _autoSpeak = false; // read bot replies aloud
   String _partialStt = '';
+  // One-shot latch: the STT engine (esp. on Android) can deliver a final
+  // result — and the 'done' status — more than once per session. This makes
+  // sure the captured phrase is dispatched to the chat exactly once, until
+  // the next startListening() call resets it.
+  bool _voiceDispatched = false;
   late AnimationController _pulseController;
 
   static const Map<String, String> _languageLabels = {
@@ -76,9 +87,22 @@ class _RagChatScreenState extends State<RagChatScreen>
   @override
   void dispose() {
     _controller.dispose();
+    _scroll.dispose();
     _pulseController.dispose();
     _voice.dispose();
     super.dispose();
+  }
+
+  /// Smoothly scrolls the transcript to the newest message / typing bubble.
+  void _scrollToEnd() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scroll.hasClients) return;
+      _scroll.animateTo(
+        _scroll.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   // ── Translation helper ──────────────────────────────────────────────────
@@ -154,42 +178,50 @@ class _RagChatScreenState extends State<RagChatScreen>
   }
 
   Future<void> _sendMessage() async {
-    if (_controller.text.trim().isEmpty) return;
+    final userMessage = _controller.text.trim();
+    if (userMessage.isEmpty || _isLoading) return;
     setState(() {
-      _messages.add({'user': _controller.text.trim()});
+      _messages.add({'user': userMessage});
       _isLoading = true;
     });
-    final userMessage = _controller.text.trim();
     _controller.clear();
+    _scrollToEnd();
+
+    // Hold the typing indicator for at least _minThinkTime, running in
+    // parallel with the actual lookup so the total wait is the longer of
+    // the two (almost always just the timer).
+    final minThink = Future<void>.delayed(_minThinkTime);
+
+    String reply;
     try {
-      final answer = await OfflineChatbotService.instance.answer(
+      reply = await OfflineChatbotService.instance.answer(
         question: userMessage,
         landmarkId: _currentLandmarkId,
         language: _selectedLanguageCode,
       );
-      if (!mounted) return;
-      setState(() => _messages.add({'bot': answer}));
-
-      // Auto-speak the bot reply if voice mode is on
-      if (_autoSpeak) {
-        _voice.speak(answer, languageCode: _selectedLanguageCode);
-      }
     } catch (_) {
-      setState(() {
-        _messages.add({
-          'bot': _tr(
-            en: 'Error: Could not load the offline guide data.',
-            hi: 'त्रुटि: ऑफ़लाइन गाइड डेटा लोड नहीं हो सका।',
-            zh: '错误：无法加载离线导览数据。',
-            ru: 'Ошибка: не удалось загрузить офлайн-данные гида.',
-            de: 'Fehler: Die Offline-Guidedaten konnten nicht geladen werden.',
-            si: 'දෝෂයක්: offline guide data load කරන්න බැරි වුණා.',
-            ta: 'பிழை: offline guide தரவை ஏற்ற முடியவில்லை.',
-          ),
-        });
-      });
-    } finally {
-      setState(() => _isLoading = false);
+      reply = _tr(
+        en: 'Error: Could not load the offline guide data.',
+        hi: 'त्रुटि: ऑफ़लाइन गाइड डेटा लोड नहीं हो सका।',
+        zh: '错误：无法加载离线导览数据。',
+        ru: 'Ошибка: не удалось загрузить офлайн-данные гида.',
+        de: 'Fehler: Die Offline-Guidedaten konnten nicht geladen werden.',
+        si: 'දෝෂයක්: offline guide data load කරන්න බැරි වුණා.',
+        ta: 'பிழை: offline guide தரவை ஏற்ற முடியவில்லை.',
+      );
+    }
+
+    await minThink;
+    if (!mounted) return;
+    setState(() {
+      _messages.add({'bot': reply});
+      _isLoading = false;
+    });
+    _scrollToEnd();
+
+    // Auto-speak the bot reply if voice mode is on
+    if (_autoSpeak) {
+      _voice.speak(reply, languageCode: _selectedLanguageCode);
     }
   }
 
@@ -197,35 +229,128 @@ class _RagChatScreenState extends State<RagChatScreen>
 
   Future<void> _toggleListening() async {
     if (_isListening) {
+      // Manual stop — flush whatever was captured.
       await _voice.stopListening();
-      setState(() => _isListening = false);
-      // Send whatever was captured
-      if (_partialStt.trim().isNotEmpty) {
-        _controller.text = _partialStt.trim();
-        _partialStt = '';
-        _sendMessage();
-      }
-    } else {
-      // Stop any ongoing TTS first
-      if (_voice.isSpeaking) await _voice.stopSpeaking();
-      setState(() {
-        _isListening = true;
-        _partialStt = '';
-      });
-      await _voice.startListening(
-        languageCode: _selectedLanguageCode,
-        onResult: (result) {
-          if (!mounted) return;
-          setState(() => _partialStt = result.recognizedWords);
-          if (result.finalResult && _partialStt.trim().isNotEmpty) {
-            _controller.text = _partialStt.trim();
-            _partialStt = '';
-            setState(() => _isListening = false);
-            _sendMessage();
-          }
-        },
-      );
+      _consumeVoiceInput();
+      return;
     }
+
+    // (Re)check voice availability so a first-time permission grant works
+    // without having to reopen the screen.
+    if (!_voiceReady) {
+      await _initVoice();
+      if (!_voiceReady) {
+        _showVoiceUnavailable();
+        return;
+      }
+    }
+
+    // Stop any ongoing TTS first
+    if (_voice.isSpeaking) await _voice.stopSpeaking();
+    _voiceDispatched = false;
+    setState(() {
+      _isListening = true;
+      _partialStt = '';
+    });
+
+    await _voice.startListening(
+      languageCode: _selectedLanguageCode,
+      onResult: (result) {
+        if (!mounted) return;
+        if (result.recognizedWords.isNotEmpty) {
+          setState(() => _partialStt = result.recognizedWords);
+        }
+        if (result.finalResult) _consumeVoiceInput();
+      },
+      onStatus: (status) {
+        if (!mounted) return;
+        if (status == 'done') {
+          _consumeVoiceInput();
+        } else if (status == 'notListening' && _isListening) {
+          // The engine stopped capturing. If no final result lands shortly
+          // (on-device timeout, or partial results only) flush the partial so
+          // the mic can never stay stuck in the "listening" state.
+          Future.delayed(const Duration(milliseconds: 1200), () {
+            if (mounted && _isListening) _consumeVoiceInput();
+          });
+        }
+      },
+      onError: (msg) {
+        if (!mounted) return;
+        setState(() {
+          _isListening = false;
+          _partialStt = '';
+        });
+        _showVoiceError(msg);
+      },
+    );
+  }
+
+  /// Pushes captured speech into the input field and sends it, then leaves the
+  /// listening state. Safe to call from several engine callbacks — it clears
+  /// [_partialStt] on the first run so it can't double-send, and
+  /// [_sendMessage] ignores an empty field.
+  void _consumeVoiceInput() {
+    if (!mounted || _voiceDispatched) return;
+    final text = _partialStt.trim();
+    if (text.isEmpty) {
+      // Nothing captured yet — just leave the listening state; don't latch,
+      // so a real result arriving later in this session still gets sent.
+      if (_isListening) setState(() => _isListening = false);
+      return;
+    }
+    _voiceDispatched = true;
+    _partialStt = '';
+    if (_isListening) setState(() => _isListening = false);
+    _controller.text = text;
+    _sendMessage();
+  }
+
+  void _showVoiceUnavailable() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(_tr(
+          en: 'Microphone unavailable. Allow mic access in Settings to use voice input.',
+          hi: 'माइक्रोफ़ोन उपलब्ध नहीं है। वॉइस इनपुट के लिए Settings में माइक की अनुमति दें।',
+          zh: '麦克风不可用。请在设置中允许麦克风权限以使用语音输入。',
+          ru: 'Микрофон недоступен. Разрешите доступ к микрофону в настройках для голосового ввода.',
+          de: 'Mikrofon nicht verfügbar. Erlauben Sie den Mikrofonzugriff in den Einstellungen fuer die Spracheingabe.',
+          si: 'මයික්‍රොෆෝනය නොමැත. හඬ ආදානය සඳහා Settings තුළ මයික් අවසරය දෙන්න.',
+          ta: 'மைக்ரோஃபோன் கிடைக்கவில்லை. குரல் உள்ளீட்டைப் பயன்படுத்த Settings இல் மைக் அனுமதியை வழங்கவும்.',
+        )),
+        behavior: SnackBarBehavior.floating,
+      ));
+  }
+
+  void _showVoiceError(String code) {
+    if (!mounted) return;
+    final unavailable = code == 'unavailable' || code == 'listen_failed';
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(unavailable
+            ? _tr(
+                en: 'Voice input is unavailable on this device.',
+                hi: 'इस डिवाइस पर वॉइस इनपुट उपलब्ध नहीं है।',
+                zh: '此设备无法使用语音输入。',
+                ru: 'Голосовой ввод недоступен на этом устройстве.',
+                de: 'Spracheingabe ist auf diesem Geraet nicht verfuegbar.',
+                si: 'මෙම උපාංගයේ හඬ ආදානය නොමැත.',
+                ta: 'இந்த சாதனத்தில் குரல் உள்ளீடு கிடைக்கவில்லை.',
+              )
+            : _tr(
+                en: "Didn't catch that — please try again or type your question.",
+                hi: 'समझ नहीं आया — कृपया दोबारा बोलें या अपना प्रश्न टाइप करें।',
+                zh: '没有听清 — 请重试或输入您的问题。',
+                ru: 'Не расслышал — повторите или введите вопрос текстом.',
+                de: 'Nicht verstanden — bitte erneut versuchen oder Frage eingeben.',
+                si: 'තේරුම් ගත නොහැකි විය — නැවත උත්සාහ කරන්න හෝ ප්‍රශ්නය type කරන්න.',
+                ta: 'கேட்கவில்லை — மீண்டும் முயற்சிக்கவும் அல்லது கேள்வியைத் தட்டச்சு செய்யவும்.',
+              )),
+        behavior: SnackBarBehavior.floating,
+      ));
   }
 
   void _speakMessage(String text) {
@@ -297,42 +422,17 @@ class _RagChatScreenState extends State<RagChatScreen>
           children: [
             Expanded(
               child: ListView.builder(
+                controller: _scroll,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                itemCount: _messages.length,
+                itemCount: _messages.length + (_isLoading ? 1 : 0),
                 itemBuilder: (context, index) {
+                  if (index >= _messages.length) return _buildTypingBubble();
                   final entry = _messages[index];
                   final isUser = entry.containsKey('user');
                   return _buildMessageBubble(entry.values.first, isUser);
                 },
               ),
             ),
-            if (_isLoading)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  children: [
-                    const SizedBox(
-                      width: 18, height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2, color: AppTheme.secondary,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      _tr(
-                        en: 'Guide is preparing an answer...',
-                        hi: 'Guide आपका उत्तर तैयार कर रहा है...',
-                        zh: 'Guide 正在准备回答...',
-                        ru: 'Guide готовит ответ...',
-                        de: 'Guide bereitet eine Antwort vor...',
-                        si: 'Guide පිළිතුර සකසමින් සිටී...',
-                        ta: 'Guide பதிலை தயாரித்து வருகிறது...',
-                      ),
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF6D4C41)),
-                    ),
-                  ],
-                ),
-              ),
             // Listening indicator
             if (_isListening) _buildListeningOverlay(),
             _buildSuggestions(),
@@ -515,6 +615,41 @@ class _RagChatScreenState extends State<RagChatScreen>
     );
   }
 
+  /// The "guide is typing" bubble — a bot-side bubble with three animated
+  /// dots, shown while a reply is being prepared.
+  Widget _buildTypingBubble() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12, top: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          _buildBotAvatar(),
+          Container(
+            margin: const EdgeInsets.only(left: 8, right: 50),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+                bottomLeft: Radius.circular(4),
+                bottomRight: Radius.circular(20),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: const _TypingDots(),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBotAvatar() {
     return Container(
       width: 36, height: 36,
@@ -554,30 +689,34 @@ class _RagChatScreenState extends State<RagChatScreen>
       ),
       child: Row(
         children: [
-          // Mic button
-          if (_voiceReady)
-            GestureDetector(
-              onTap: _isLoading ? null : _toggleListening,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                width: 44, height: 44,
-                decoration: BoxDecoration(
-                  color: _isListening ? Colors.redAccent : AppTheme.surface,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: _isListening
-                        ? Colors.redAccent
-                        : AppTheme.primary.withOpacity(0.25),
-                  ),
-                ),
-                child: Icon(
-                  _isListening ? Icons.stop_rounded : Icons.mic_rounded,
-                  color: _isListening ? Colors.white : AppTheme.primary,
-                  size: 22,
+          // Mic button — always shown; a tap re-inits voice / re-requests the
+          // mic permission when it isn't ready yet.
+          GestureDetector(
+            onTap: _isLoading ? null : _toggleListening,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: _isListening ? Colors.redAccent : AppTheme.surface,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: _isListening
+                      ? Colors.redAccent
+                      : AppTheme.primary.withOpacity(0.25),
                 ),
               ),
+              child: Icon(
+                _isListening
+                    ? Icons.stop_rounded
+                    : (_voiceReady ? Icons.mic_rounded : Icons.mic_off_rounded),
+                color: _isListening
+                    ? Colors.white
+                    : (_voiceReady ? AppTheme.primary : Colors.grey),
+                size: 22,
+              ),
             ),
-          if (_voiceReady) const SizedBox(width: 8),
+          ),
+          const SizedBox(width: 8),
           // Text input
           Expanded(
             child: Container(
@@ -629,6 +768,68 @@ class _RagChatScreenState extends State<RagChatScreen>
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Three dots that bounce and fade in a staggered wave — the classic
+/// "someone is typing" affordance.
+class _TypingDots extends StatefulWidget {
+  const _TypingDots();
+
+  @override
+  State<_TypingDots> createState() => _TypingDotsState();
+}
+
+class _TypingDotsState extends State<_TypingDots>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (_, __) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (i) {
+            // Each dot is 0.18 of the cycle behind the previous one.
+            final phase = (_c.value + i * 0.18) % 1.0;
+            // Triangle wave 0 → 1 → 0 across the cycle, then eased.
+            final tri = (1 - (2 * phase - 1).abs()).clamp(0.0, 1.0);
+            final hump = Curves.easeInOut.transform(tri);
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2.5),
+              child: Transform.translate(
+                offset: Offset(0, -4.0 * hump),
+                child: Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withOpacity(0.35 + 0.55 * hump),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            );
+          }),
+        );
+      },
     );
   }
 }
