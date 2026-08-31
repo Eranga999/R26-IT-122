@@ -287,9 +287,13 @@ class _ArTranslatorScreenState extends State<ArTranslatorScreen>
       _overlayOpacity = 0.0;
     });
 
-    // Watchdog: force-reset if the whole process takes too long
+    // Watchdog: last-resort recovery if some step hangs past every inner
+    // timeout. Kept comfortably longer than the sum of the per-step
+    // timeouts below so it can't cut a legitimately slow capture short,
+    // and it no-ops if this run has already been superseded.
     _captureWatchdog?.cancel();
-    _captureWatchdog = Timer(const Duration(seconds: 20), () {
+    _captureWatchdog = Timer(const Duration(seconds: 25), () {
+      if (!mounted || myToken != _captureToken) return;
       debugPrint('Capture watchdog fired — forcing reset');
       _resumeLiveScan();
     });
@@ -308,20 +312,32 @@ class _ArTranslatorScreenState extends State<ArTranslatorScreen>
         _frozenImagePath = photo.path;
         _sensorOrientation = 0;
       });
-      await _controller!.pausePreview().catchError((e) {
+      await _controller!
+          .pausePreview()
+          .timeout(const Duration(seconds: 3))
+          .catchError((e) {
         debugPrint('pausePreview notice: $e');
       });
 
-      final bytes = await File(photo.path).readAsBytes();
-      Size? imageSize = _jpegDimensions(bytes);
-      if (imageSize == null) {
-        try {
-          final decoded = await decodeImageFromList(bytes);
+      // Best-effort: recover the real captured-image dimensions so the
+      // overlay maps onto the photo correctly. Every step here is guarded
+      // and time-boxed — a slow disk read or a decoder that stalls must
+      // degrade to a slightly-misaligned overlay, never hang the capture.
+      try {
+        final bytes = await File(photo.path)
+            .readAsBytes()
+            .timeout(const Duration(seconds: 4));
+        Size? imageSize = _jpegDimensions(bytes);
+        if (imageSize == null) {
+          final decoded = await decodeImageFromList(bytes)
+              .timeout(const Duration(seconds: 3));
           imageSize = Size(decoded.width.toDouble(), decoded.height.toDouble());
-        } catch (_) {}
-      }
-      if (imageSize != null && imageSize != Size.zero) {
-        _cameraImageSize = imageSize;
+        }
+        if (imageSize != Size.zero) {
+          _cameraImageSize = imageSize;
+        }
+      } catch (e) {
+        debugPrint('Image-size detection skipped: $e');
       }
 
       final inputImage = InputImage.fromFilePath(photo.path);
@@ -376,11 +392,15 @@ class _ArTranslatorScreenState extends State<ArTranslatorScreen>
       }
       if (myToken == _captureToken) await _resumeLiveScan();
     } finally {
-      _captureWatchdog?.cancel();
-      _captureWatchdog = null;
-      // Only clear the busy flags if this is still the active run — a
-      // cancelled run's finally block must not stomp on a newer one.
+      // Only tear down if this is still the active run. A superseded run
+      // (Cancel, then a fresh capture) must not cancel the newer run's
+      // watchdog or clear its busy flags — doing so left the new capture
+      // with no recovery timer, which is how a later stall got stuck for
+      // good. Whoever advanced _captureToken already cancelled this run's
+      // own watchdog.
       if (myToken == _captureToken) {
+        _captureWatchdog?.cancel();
+        _captureWatchdog = null;
         if (mounted) {
           setState(() {
             _isCapturing = false;
@@ -511,7 +531,7 @@ class _ArTranslatorScreenState extends State<ArTranslatorScreen>
     });
     _scanAnim.repeat();
     try {
-      await _controller?.resumePreview();
+      await _controller?.resumePreview().timeout(const Duration(seconds: 3));
     } catch (e) {
       debugPrint('Resume preview error: $e');
     }

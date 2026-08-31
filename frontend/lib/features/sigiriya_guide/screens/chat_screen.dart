@@ -2,29 +2,22 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_theme.dart';
+import '../explore_theme.dart';
 import '../services/rag_service.dart';
 import '../data/sigiriya_knowledge_base.dart';
 import '../widgets/location_selector.dart';
 import 'explore_hub_screen.dart';
 
-// ═══════════════════════════════════════════════════════
-//  COLOUR RULE — Explore flow
-//  Every screen reachable from the "Explore" button is mapped onto the
-//  same heritage palette (AppTheme) the rest of the app uses, so tapping
-//  Explore no longer drops the user into a dark-themed island:
-//    • warm parchment surface        • deep-espresso text
-//    • terracotta app bars (white fg)• heritage-gold accent
-// ═══════════════════════════════════════════════════════
-const Color _kAccent = AppTheme.secondary; // heritage gold — fills, pills, active state
-const Color _kAccentText = AppTheme.primary; // terracotta — accent text/links on light
-const Color _kBg = AppTheme.surface; // warm parchment — page background
-const Color _kCard = Colors.white; // cards, inputs, sheets
-const Color _kBorder = Color(0xFFEADFCE); // soft parchment hairline border
-const Color _kText = AppTheme.textBase; // deep espresso — headings / primary text
-const Color _kTextSoft = Color(0xFF6D4C41); // muted brown — secondary text
-const Color _kBody = Color(0xFF4E342E); // body copy (matches AppTheme bodyMedium)
-const Color _kBar = AppTheme.primary; // terracotta — app bars (white foreground)
+// Local aliases onto the shared Explore colour rule — see ExploreTheme.
+const Color _kAccent = ExploreTheme.accent;
+const Color _kAccentText = ExploreTheme.accentText;
+const Color _kBg = ExploreTheme.bg;
+const Color _kCard = ExploreTheme.card;
+const Color _kBorder = ExploreTheme.border;
+const Color _kText = ExploreTheme.text;
+const Color _kTextSoft = ExploreTheme.textSoft;
+const Color _kBody = ExploreTheme.body;
+const Color _kBar = ExploreTheme.bar;
 
 // ═══════════════════════════════════════════════════════
 //  ENTRY POINT
@@ -1621,13 +1614,13 @@ class _ShimmerState extends State<_Shimmer>
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
             colors: [
-              const Color(0xFFEDE3D3),
+              ExploreTheme.shimmerBase,
               Color.lerp(
-                const Color(0xFFEDE3D3),
-                const Color(0xFFF8F1E6),
+                ExploreTheme.shimmerBase,
+                ExploreTheme.shimmerHi,
                 _ctrl.value,
               )!,
-              const Color(0xFFEDE3D3),
+              ExploreTheme.shimmerBase,
             ],
             stops: [0.0, _ctrl.value.clamp(0.01, 0.99), 1.0],
           ),
