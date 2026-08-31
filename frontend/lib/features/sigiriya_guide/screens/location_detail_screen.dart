@@ -102,40 +102,49 @@ class _LocationDetailScreenState extends State<LocationDetailScreen>
       body: NestedScrollView(
         headerSliverBuilder: (_, __) => [
           SliverAppBar(
-            expandedHeight: 180,
+            expandedHeight: 200,
             floating: false,
             pinned: true,
             backgroundColor: ExploreTheme.bar,
             foregroundColor: Colors.white,
             iconTheme: const IconThemeData(color: Colors.white),
-            flexibleSpace: FlexibleSpaceBar(
-              title: Text(
-                loc.name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                ),
+            // Title lives in the toolbar row (not FlexibleSpaceBar.title, which
+            // Flutter pins ~16px from the header's absolute bottom — i.e. behind
+            // the tab bar — and would show through it).
+            title: Text(
+              loc.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
               ),
+            ),
+            flexibleSpace: FlexibleSpaceBar(
               background: Stack(
                 fit: StackFit.expand,
                 children: [
                   // Hero image or gradient placeholder
                   _HeroImage(location: loc),
+                  // Scrim: darker top (behind the title) and bottom (behind the
+                  // emoji) so white text stays readable over any image.
                   DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
+                          Colors.black.withOpacity(0.45),
                           Colors.transparent,
-                          Colors.black.withOpacity(0.7),
+                          Colors.black.withOpacity(0.45),
                         ],
+                        stops: const [0.0, 0.5, 1.0],
                       ),
                     ),
                   ),
                   Positioned(
-                    bottom: 48,
+                    bottom: 16,
                     left: 16,
                     child: Text(
                       loc.emoji,
@@ -145,16 +154,22 @@ class _LocationDetailScreenState extends State<LocationDetailScreen>
                 ],
               ),
             ),
-            bottom: TabBar(
-              controller: _tabController,
-              indicatorColor: ExploreTheme.accent,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white70,
-              tabs: const [
-                Tab(text: 'Summary'),
-                Tab(text: 'Details'),
-                Tab(text: 'Gallery'),
-              ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(48),
+              child: ColoredBox(
+                color: ExploreTheme.bar,
+                child: TabBar(
+                  controller: _tabController,
+                  indicatorColor: ExploreTheme.accent,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.white70,
+                  tabs: const [
+                    Tab(text: 'Summary'),
+                    Tab(text: 'Details'),
+                    Tab(text: 'Gallery'),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
