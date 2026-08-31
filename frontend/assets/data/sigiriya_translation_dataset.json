@@ -3881,5 +3881,1696 @@
     "confidence": 1.0,
     "source": "On-site park signage, Sigiriya grounds",
     "review_status": "verified"
+  },
+  {
+    "id": "LK_SAC_001",
+    "category": "sacred_site",
+    "canonical": {
+      "en": "This is a Sacred Area",
+      "si": "මෙය පූජනීය ස්ථානයකි",
+      "ta": "இது ஒரு புனிதத் தலமாகும்"
+    },
+    "aliases": [
+      "this is a sacred area",
+      "sacred area",
+      "SACRED AREA",
+      "holy area",
+      "sacred place"
+    ],
+    "translations": {
+      "en": "This is a Sacred Area",
+      "si": "මෙය පූජනීය ස්ථානයකි",
+      "ta": "இது ஒரு புனிதத் தலமாகும்",
+      "hi": "यह एक पवित्र स्थान है",
+      "zh": "这是一处神圣场所",
+      "es": "Esta es un Área Sagrada",
+      "fr": "Ceci est un Lieu Sacré",
+      "de": "Dies ist ein heiliger Bereich"
+    },
+    "confidence": 1.0,
+    "source": "Sacred-site conduct signage (Dambulla, Kandy, Anuradhapura, Mihintale)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_SAC_002",
+    "category": "sacred_site",
+    "canonical": {
+      "en": "Please Remove Your Shoes and Hats",
+      "si": "කරුණාකර පාවහන් සහ තොප්පි ගලවන්න",
+      "ta": "தயவுசெய்து காலணிகளையும் தொப்பிகளையும் கழற்றவும்"
+    },
+    "aliases": [
+      "please remove your shoes and hats",
+      "remove shoes and hats",
+      "remove your footwear and headwear",
+      "shoes and hats not allowed",
+      "REMOVE SHOES AND HATS",
+      "take off your shoes and hats"
+    ],
+    "translations": {
+      "en": "Please Remove Your Shoes and Hats",
+      "si": "කරුණාකර පාවහන් සහ තොප්පි ගලවන්න",
+      "ta": "தயவுசெய்து காலணிகளையும் தொப்பிகளையும் கழற்றவும்",
+      "hi": "कृपया अपने जूते और टोपी उतारें",
+      "zh": "请脱下鞋子和帽子",
+      "es": "Por Favor Quítese los Zapatos y el Sombrero",
+      "fr": "Veuillez Retirer Vos Chaussures et Chapeaux",
+      "de": "Bitte Schuhe und Kopfbedeckung Ablegen"
+    },
+    "confidence": 1.0,
+    "source": "Sacred-site conduct signage (Dambulla, Kandy, Anuradhapura, Mihintale)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_SAC_003",
+    "category": "sacred_site",
+    "canonical": {
+      "en": "Cover Your Shoulders and Knees",
+      "si": "උරහිස් සහ දණහිස් ආවරණය කරන්න",
+      "ta": "தோள்களையும் முழங்கால்களையும் மறைக்கவும்"
+    },
+    "aliases": [
+      "cover your shoulders and knees",
+      "cover shoulders and knees",
+      "shoulders and knees must be covered",
+      "COVER SHOULDERS AND KNEES"
+    ],
+    "translations": {
+      "en": "Cover Your Shoulders and Knees",
+      "si": "උරහිස් සහ දණහිස් ආවරණය කරන්න",
+      "ta": "தோள்களையும் முழங்கால்களையும் மறைக்கவும்",
+      "hi": "अपने कंधे और घुटने ढकें",
+      "zh": "请遮盖肩膀和膝盖",
+      "es": "Cúbrase los Hombros y las Rodillas",
+      "fr": "Couvrez Vos Épaules et Vos Genoux",
+      "de": "Schultern und Knie Bedecken"
+    },
+    "confidence": 1.0,
+    "source": "Sacred-site conduct signage (Dambulla, Kandy, Anuradhapura, Mihintale)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_SAC_004",
+    "category": "sacred_site",
+    "canonical": {
+      "en": "Modest Dress Required",
+      "si": "විනීත ඇඳුමින් සැරසී පැමිණෙන්න",
+      "ta": "அடக்கமான உடை அணிந்து வருக"
+    },
+    "aliases": [
+      "modest dress required",
+      "dress code",
+      "decent attire required",
+      "please dress modestly",
+      "MODEST DRESS"
+    ],
+    "translations": {
+      "en": "Modest Dress Required",
+      "si": "විනීත ඇඳුමින් සැරසී පැමිණෙන්න",
+      "ta": "அடக்கமான உடை அணிந்து வருக",
+      "hi": "शालीन वस्त्र आवश्यक हैं",
+      "zh": "请着装得体",
+      "es": "Se Requiere Vestimenta Recatada",
+      "fr": "Tenue Vestimentaire Correcte Exigée",
+      "de": "Angemessene Kleidung Erforderlich"
+    },
+    "confidence": 1.0,
+    "source": "Sacred-site conduct signage (Dambulla, Kandy, Anuradhapura, Mihintale)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_SAC_005",
+    "category": "sacred_site",
+    "canonical": {
+      "en": "Footwear Deposit Counter",
+      "si": "පාවහන් තැන්පත් කරන ස්ථානය",
+      "ta": "காலணி வைப்பு நிலையம்"
+    },
+    "aliases": [
+      "footwear deposit counter",
+      "shoe keeping counter",
+      "shoe deposit",
+      "leave your footwear here",
+      "FOOTWEAR DEPOSIT",
+      "shoe rack"
+    ],
+    "translations": {
+      "en": "Footwear Deposit Counter",
+      "si": "පාවහන් තැන්පත් කරන ස්ථානය",
+      "ta": "காலணி வைப்பு நிலையம்",
+      "hi": "जूता जमा काउंटर",
+      "zh": "鞋子寄存处",
+      "es": "Mostrador de Depósito de Calzado",
+      "fr": "Comptoir de Dépôt des Chaussures",
+      "de": "Schuhaufbewahrung"
+    },
+    "confidence": 1.0,
+    "source": "Sacred-site conduct signage (Dambulla, Kandy, Anuradhapura, Mihintale)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_SAC_006",
+    "category": "sacred_site",
+    "canonical": {
+      "en": "Do Not Photograph With Your Back to the Buddha Statue",
+      "si": "බුදු පිළිමයට පිටුපා ඡායාරූප ගැනීමෙන් වළකින්න",
+      "ta": "புத்தர் சிலைக்கு முதுகைக் காட்டி புகைப்படம் எடுக்க வேண்டாம்"
+    },
+    "aliases": [
+      "do not photograph with your back to the buddha statue",
+      "no photos when turning your back to buddha",
+      "do not turn your back to the buddha statue",
+      "no photos with back to buddha",
+      "face the buddha when photographed"
+    ],
+    "translations": {
+      "en": "Do Not Photograph With Your Back to the Buddha Statue",
+      "si": "බුදු පිළිමයට පිටුපා ඡායාරූප ගැනීමෙන් වළකින්න",
+      "ta": "புத்தர் சிலைக்கு முதுகைக் காட்டி புகைப்படம் எடுக்க வேண்டாம்",
+      "hi": "बुद्ध प्रतिमा की ओर पीठ करके फ़ोटो न लें",
+      "zh": "请勿背对佛像拍照",
+      "es": "No se Fotografíe de Espaldas a la Estatua de Buda",
+      "fr": "Ne Photographiez Pas en Tournant le Dos à la Statue de Bouddha",
+      "de": "Nicht Mit Dem Rücken Zur Buddha-Statue Fotografieren"
+    },
+    "confidence": 1.0,
+    "source": "Sacred-site conduct signage (Dambulla, Kandy, Anuradhapura, Mihintale)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_SAC_007",
+    "category": "sacred_site",
+    "canonical": {
+      "en": "Posing With Buddha Statues Is Prohibited",
+      "si": "බුදු පිළිම සමඟ ඉරියව් දැක්වීම තහනම්",
+      "ta": "புத்தர் சிலைகளுடன் நடித்து நிற்பது தடைசெய்யப்பட்டுள்ளது"
+    },
+    "aliases": [
+      "posing with buddha statues is prohibited",
+      "do not pose with buddha statues",
+      "no posing with statues",
+      "POSING WITH STATUES PROHIBITED"
+    ],
+    "translations": {
+      "en": "Posing With Buddha Statues Is Prohibited",
+      "si": "බුදු පිළිම සමඟ ඉරියව් දැක්වීම තහනම්",
+      "ta": "புத்தர் சிலைகளுடன் நடித்து நிற்பது தடைசெய்யப்பட்டுள்ளது",
+      "hi": "बुद्ध प्रतिमाओं के साथ पोज़ देना वर्जित है",
+      "zh": "禁止与佛像摆姿势合影",
+      "es": "Prohibido Posar con las Estatuas de Buda",
+      "fr": "Il Est Interdit de Poser avec les Statues de Bouddha",
+      "de": "Posieren mit Buddha-Statuen Verboten"
+    },
+    "confidence": 1.0,
+    "source": "Sacred-site conduct signage (Dambulla, Kandy, Anuradhapura, Mihintale)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_SAC_008",
+    "category": "sacred_site",
+    "canonical": {
+      "en": "Photographing or Filming While Turning Your Back to Statues Is a Punishable Offence",
+      "si": "පිළිමවලට පිටුපා ඡායාරූප හෝ වීඩියෝ ගැනීම දඬුවම් ලැබිය හැකි වරදකි",
+      "ta": "சிலைகளுக்கு முதுகைக் காட்டி புகைப்படம் அல்லது வீடியோ எடுப்பது தண்டனைக்குரிய குற்றமாகும்"
+    },
+    "aliases": [
+      "photographing or filming while turning your back to statues is a punishable offence",
+      "turning your back to statues while photographing is a punishable offence",
+      "it is an offence to photograph with your back to the statues",
+      "punishable offence to photograph with back to buddha"
+    ],
+    "translations": {
+      "en": "Photographing or Filming While Turning Your Back to Statues Is a Punishable Offence",
+      "si": "පිළිමවලට පිටුපා ඡායාරූප හෝ වීඩියෝ ගැනීම දඬුවම් ලැබිය හැකි වරදකි",
+      "ta": "சிலைகளுக்கு முதுகைக் காட்டி புகைப்படம் அல்லது வீடியோ எடுப்பது தண்டனைக்குரிய குற்றமாகும்",
+      "hi": "प्रतिमाओं की ओर पीठ करके फ़ोटो या वीडियो लेना दंडनीय अपराध है",
+      "zh": "背对佛像拍照或摄像属于可处罚的违法行为",
+      "es": "Fotografiar o Filmar de Espaldas a las Estatuas Es un Delito Sancionable",
+      "fr": "Photographier ou Filmer en Tournant le Dos aux Statues Est un Délit Punissable",
+      "de": "Fotografieren oder Filmen mit dem Rücken zu den Statuen Ist Strafbar"
+    },
+    "confidence": 1.0,
+    "source": "Sacred-site conduct signage (Dambulla, Kandy, Anuradhapura, Mihintale)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_SAC_009",
+    "category": "sacred_site",
+    "canonical": {
+      "en": "Silence. Place of Worship.",
+      "si": "නිශ්ශබ්දතාව රකින්න. පූජනීය ස්ථානයකි.",
+      "ta": "அமைதி காக்கவும். வழிபாட்டுத் தலம்."
+    },
+    "aliases": [
+      "silence place of worship",
+      "silence. place of worship.",
+      "quiet please place of worship",
+      "SILENCE PLACE OF WORSHIP",
+      "worship in silence"
+    ],
+    "translations": {
+      "en": "Silence. Place of Worship.",
+      "si": "නිශ්ශබ්දතාව රකින්න. පූජනීය ස්ථානයකි.",
+      "ta": "அமைதி காக்கவும். வழிபாட்டுத் தலம்.",
+      "hi": "शांति रखें। पूजा स्थल।",
+      "zh": "请保持安静。礼拜场所。",
+      "es": "Silencio. Lugar de Culto.",
+      "fr": "Silence. Lieu de Culte.",
+      "de": "Ruhe. Ort der Andacht."
+    },
+    "confidence": 1.0,
+    "source": "Sacred-site conduct signage (Dambulla, Kandy, Anuradhapura, Mihintale)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_SAC_010",
+    "category": "sacred_site",
+    "canonical": {
+      "en": "No Smoking Within the Sacred Premises",
+      "si": "පූජනීය භූමිය තුළ දුම්පානය තහනම්",
+      "ta": "புனித வளாகத்திற்குள் புகைபிடித்தல் தடைசெய்யப்பட்டுள்ளது"
+    },
+    "aliases": [
+      "no smoking within the sacred premises",
+      "no smoking in the sacred area",
+      "smoking prohibited sacred premises",
+      "NO SMOKING SACRED AREA"
+    ],
+    "translations": {
+      "en": "No Smoking Within the Sacred Premises",
+      "si": "පූජනීය භූමිය තුළ දුම්පානය තහනම්",
+      "ta": "புனித வளாகத்திற்குள் புகைபிடித்தல் தடைசெய்யப்பட்டுள்ளது",
+      "hi": "पवित्र परिसर में धूम्रपान वर्जित है",
+      "zh": "神圣场所内禁止吸烟",
+      "es": "Prohibido Fumar en el Recinto Sagrado",
+      "fr": "Défense de Fumer dans l'Enceinte Sacrée",
+      "de": "Rauchen im Heiligen Bereich Verboten"
+    },
+    "confidence": 1.0,
+    "source": "Sacred-site conduct signage (Dambulla, Kandy, Anuradhapura, Mihintale)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_SAC_011",
+    "category": "sacred_site",
+    "canonical": {
+      "en": "Please Behave in a Manner Befitting a Sacred Place",
+      "si": "පූජනීය ස්ථානයකට ගැළපෙන ලෙස හැසිරෙන්න",
+      "ta": "புனிதத் தலத்திற்கு ஏற்ற வகையில் நடந்து கொள்ளுங்கள்"
+    },
+    "aliases": [
+      "please behave in a manner befitting a sacred place",
+      "behave respectfully in this sacred place",
+      "conduct yourself with respect",
+      "maintain discipline in the sacred area"
+    ],
+    "translations": {
+      "en": "Please Behave in a Manner Befitting a Sacred Place",
+      "si": "පූජනීය ස්ථානයකට ගැළපෙන ලෙස හැසිරෙන්න",
+      "ta": "புனிதத் தலத்திற்கு ஏற்ற வகையில் நடந்து கொள்ளுங்கள்",
+      "hi": "कृपया पवित्र स्थल के अनुरूप आचरण करें",
+      "zh": "请举止得体，尊重圣地",
+      "es": "Compórtese de Manera Apropiada para un Lugar Sagrado",
+      "fr": "Veuillez Vous Comporter d'une Manière Digne d'un Lieu Sacré",
+      "de": "Bitte Verhalten Sie Sich Einem Heiligen Ort Angemessen"
+    },
+    "confidence": 1.0,
+    "source": "Sacred-site conduct signage (Dambulla, Kandy, Anuradhapura, Mihintale)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_SAC_012",
+    "category": "sacred_site",
+    "canonical": {
+      "en": "Do Not Wear Footwear Beyond This Point",
+      "si": "මෙතැනින් ඉදිරියට පාවහන් පැළඳ නොයන්න",
+      "ta": "இந்த இடத்தைத் தாண்டி காலணி அணிந்து செல்ல வேண்டாம்"
+    },
+    "aliases": [
+      "do not wear footwear beyond this point",
+      "no footwear beyond this point",
+      "remove footwear here",
+      "barefoot beyond this point",
+      "NO SHOES BEYOND THIS POINT"
+    ],
+    "translations": {
+      "en": "Do Not Wear Footwear Beyond This Point",
+      "si": "මෙතැනින් ඉදිරියට පාවහන් පැළඳ නොයන්න",
+      "ta": "இந்த இடத்தைத் தாண்டி காலணி அணிந்து செல்ல வேண்டாம்",
+      "hi": "इस बिंदु से आगे जूते पहनकर न जाएं",
+      "zh": "请勿穿鞋越过此处",
+      "es": "No Use Calzado Más Allá de Este Punto",
+      "fr": "Ne Portez Pas de Chaussures au-delà de Ce Point",
+      "de": "Ab Hier Kein Schuhwerk Tragen"
+    },
+    "confidence": 1.0,
+    "source": "Sacred-site conduct signage (Dambulla, Kandy, Anuradhapura, Mihintale)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_SAC_013",
+    "category": "sacred_site",
+    "canonical": {
+      "en": "Please Respect Local Customs and Traditions",
+      "si": "ප්‍රාදේශීය සිරිත් විරිත් සහ සම්ප්‍රදායන්ට ගරු කරන්න",
+      "ta": "உள்ளூர் பழக்கவழக்கங்களையும் மரபுகளையும் மதிக்கவும்"
+    },
+    "aliases": [
+      "please respect local customs and traditions",
+      "respect local customs",
+      "respect our customs and traditions",
+      "RESPECT LOCAL CUSTOMS"
+    ],
+    "translations": {
+      "en": "Please Respect Local Customs and Traditions",
+      "si": "ප්‍රාදේශීය සිරිත් විරිත් සහ සම්ප්‍රදායන්ට ගරු කරන්න",
+      "ta": "உள்ளூர் பழக்கவழக்கங்களையும் மரபுகளையும் மதிக்கவும்",
+      "hi": "कृपया स्थानीय रीति-रिवाजों और परंपराओं का सम्मान करें",
+      "zh": "请尊重当地风俗与传统",
+      "es": "Por Favor Respete las Costumbres y Tradiciones Locales",
+      "fr": "Veuillez Respecter les Coutumes et Traditions Locales",
+      "de": "Bitte Respektieren Sie Örtliche Sitten und Traditionen"
+    },
+    "confidence": 1.0,
+    "source": "Sacred-site conduct signage (Dambulla, Kandy, Anuradhapura, Mihintale)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_SAC_014",
+    "category": "sacred_site",
+    "canonical": {
+      "en": "A Permit Is Required for Video Filming",
+      "si": "වීඩියෝ රූගත කිරීම සඳහා අවසර පත්‍රයක් අවශ්‍ය වේ",
+      "ta": "வீடியோ படமெடுப்பதற்கு அனுமதிச் சீட்டு தேவை"
+    },
+    "aliases": [
+      "a permit is required for video filming",
+      "video permit required",
+      "video filming requires a permit",
+      "VIDEO PERMIT REQUIRED"
+    ],
+    "translations": {
+      "en": "A Permit Is Required for Video Filming",
+      "si": "වීඩියෝ රූගත කිරීම සඳහා අවසර පත්‍රයක් අවශ්‍ය වේ",
+      "ta": "வீடியோ படமெடுப்பதற்கு அனுமதிச் சீட்டு தேவை",
+      "hi": "वीडियो फ़िल्मांकन के लिए अनुमति पत्र आवश्यक है",
+      "zh": "摄像需申请许可证",
+      "es": "Se Requiere un Permiso para Grabar Vídeo",
+      "fr": "Un Permis Est Requis pour le Tournage Vidéo",
+      "de": "Für Videoaufnahmen Ist Eine Genehmigung Erforderlich"
+    },
+    "confidence": 1.0,
+    "source": "Sacred-site conduct signage (Dambulla, Kandy, Anuradhapura, Mihintale)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_ARC_001",
+    "category": "heritage_notice",
+    "canonical": {
+      "en": "Archaeological Reserve",
+      "si": "පුරාවිද්‍යා රක්‍ෂිතය",
+      "ta": "தொல்பொருள் காப்பகம்"
+    },
+    "aliases": [
+      "archaeological reserve",
+      "this is an archaeological reserve",
+      "ARCHAEOLOGICAL RESERVE",
+      "archeological reserve"
+    ],
+    "translations": {
+      "en": "Archaeological Reserve",
+      "si": "පුරාවිද්‍යා රක්‍ෂිතය",
+      "ta": "தொல்பொருள் காப்பகம்",
+      "hi": "पुरातत्व संरक्षित क्षेत्र",
+      "zh": "考古保护区",
+      "es": "Reserva Arqueológica",
+      "fr": "Réserve Archéologique",
+      "de": "Archäologisches Schutzgebiet"
+    },
+    "confidence": 1.0,
+    "source": "Department of Archaeology, Sri Lanka — protected-monument signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_ARC_002",
+    "category": "heritage_notice",
+    "canonical": {
+      "en": "Ancient Monument Protected Under the Antiquities Ordinance",
+      "si": "පුරාවස්තු ආඥාපනත යටතේ ආරක්‍ෂිත පුරාණ ස්මාරකයකි",
+      "ta": "பழம்பொருள் கட்டளைச் சட்டத்தின் கீழ் பாதுகாக்கப்பட்ட பண்டைய நினைவுச்சின்னம்"
+    },
+    "aliases": [
+      "ancient monument protected under the antiquities ordinance",
+      "protected under the antiquities ordinance",
+      "this monument is protected under the antiquities ordinance",
+      "protected ancient monument"
+    ],
+    "translations": {
+      "en": "Ancient Monument Protected Under the Antiquities Ordinance",
+      "si": "පුරාවස්තු ආඥාපනත යටතේ ආරක්‍ෂිත පුරාණ ස්මාරකයකි",
+      "ta": "பழம்பொருள் கட்டளைச் சட்டத்தின் கீழ் பாதுகாக்கப்பட்ட பண்டைய நினைவுச்சின்னம்",
+      "hi": "पुरावशेष अध्यादेश के अंतर्गत संरक्षित प्राचीन स्मारक",
+      "zh": "受《文物条例》保护的古代遗迹",
+      "es": "Monumento Antiguo Protegido por la Ordenanza de Antigüedades",
+      "fr": "Monument Ancien Protégé par l'Ordonnance sur les Antiquités",
+      "de": "Antikes Denkmal, Geschützt Nach Dem Antiquitätengesetz"
+    },
+    "confidence": 1.0,
+    "source": "Department of Archaeology, Sri Lanka — protected-monument signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_ARC_003",
+    "category": "heritage_notice",
+    "canonical": {
+      "en": "Department of Archaeology",
+      "si": "පුරාවිද්‍යා දෙපාර්තමේන්තුව",
+      "ta": "தொல்பொருள் ஆய்வுத் திணைக்களம்"
+    },
+    "aliases": [
+      "department of archaeology",
+      "archaeological survey department",
+      "DEPARTMENT OF ARCHAEOLOGY",
+      "dept of archaeology"
+    ],
+    "translations": {
+      "en": "Department of Archaeology",
+      "si": "පුරාවිද්‍යා දෙපාර්තමේන්තුව",
+      "ta": "தொல்பொருள் ஆய்வுத் திணைக்களம்",
+      "hi": "पुरातत्व विभाग",
+      "zh": "考古局",
+      "es": "Departamento de Arqueología",
+      "fr": "Département d'Archéologie",
+      "de": "Abteilung für Archäologie"
+    },
+    "confidence": 1.0,
+    "source": "Department of Archaeology, Sri Lanka — protected-monument signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_ARC_004",
+    "category": "heritage_notice",
+    "canonical": {
+      "en": "Damaging Antiquities Is a Punishable Offence",
+      "si": "පුරාවස්තුවලට හානි කිරීම දඬුවම් ලැබිය හැකි වරදකි",
+      "ta": "பழம்பொருட்களுக்குச் சேதம் விளைவிப்பது தண்டனைக்குரிய குற்றமாகும்"
+    },
+    "aliases": [
+      "damaging antiquities is a punishable offence",
+      "damaging antiquities is an offence",
+      "it is an offence to damage antiquities",
+      "DAMAGING ANTIQUITIES IS PROHIBITED"
+    ],
+    "translations": {
+      "en": "Damaging Antiquities Is a Punishable Offence",
+      "si": "පුරාවස්තුවලට හානි කිරීම දඬුවම් ලැබිය හැකි වරදකි",
+      "ta": "பழம்பொருட்களுக்குச் சேதம் விளைவிப்பது தண்டனைக்குரிய குற்றமாகும்",
+      "hi": "पुरावशेषों को क्षति पहुँचाना दंडनीय अपराध है",
+      "zh": "损坏文物属于可处罚的违法行为",
+      "es": "Dañar las Antigüedades Es un Delito Sancionable",
+      "fr": "Endommager les Antiquités Est un Délit Punissable",
+      "de": "Die Beschädigung von Altertümern Ist Strafbar"
+    },
+    "confidence": 1.0,
+    "source": "Department of Archaeology, Sri Lanka — protected-monument signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_ARC_005",
+    "category": "heritage_notice",
+    "canonical": {
+      "en": "Do Not Remove Stones, Bricks or Artefacts",
+      "si": "ගල්, ගඩොල් හෝ පුරාවස්තු ඉවත් නොකරන්න",
+      "ta": "கற்களையோ செங்கற்களையோ தொல்பொருட்களையோ அகற்ற வேண்டாம்"
+    },
+    "aliases": [
+      "do not remove stones bricks or artefacts",
+      "do not remove stones or bricks",
+      "removing artefacts is prohibited",
+      "DO NOT REMOVE ARTEFACTS"
+    ],
+    "translations": {
+      "en": "Do Not Remove Stones, Bricks or Artefacts",
+      "si": "ගල්, ගඩොල් හෝ පුරාවස්තු ඉවත් නොකරන්න",
+      "ta": "கற்களையோ செங்கற்களையோ தொல்பொருட்களையோ அகற்ற வேண்டாம்",
+      "hi": "पत्थर, ईंट या कलाकृतियाँ न हटाएँ",
+      "zh": "请勿移走石块、砖块或文物",
+      "es": "No Retire Piedras, Ladrillos ni Artefactos",
+      "fr": "Ne Retirez Pas de Pierres, de Briques ou d'Objets",
+      "de": "Keine Steine, Ziegel oder Fundstücke Entfernen"
+    },
+    "confidence": 1.0,
+    "source": "Department of Archaeology, Sri Lanka — protected-monument signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_ARC_006",
+    "category": "heritage_notice",
+    "canonical": {
+      "en": "Do Not Write or Carve on the Walls",
+      "si": "බිත්තිවල ලිවීම හෝ කැපීම නොකරන්න",
+      "ta": "சுவர்களில் எழுதவோ செதுக்கவோ வேண்டாம்"
+    },
+    "aliases": [
+      "do not write or carve on the walls",
+      "do not write on the walls",
+      "no graffiti",
+      "NO WRITING ON WALLS",
+      "do not scratch the walls"
+    ],
+    "translations": {
+      "en": "Do Not Write or Carve on the Walls",
+      "si": "බිත්තිවල ලිවීම හෝ කැපීම නොකරන්න",
+      "ta": "சுவர்களில் எழுதவோ செதுக்கவோ வேண்டாம்",
+      "hi": "दीवारों पर न लिखें और न ही कुरेदें",
+      "zh": "请勿在墙上刻写涂画",
+      "es": "No Escriba ni Talle en los Muros",
+      "fr": "Ne Pas Écrire ni Graver sur les Murs",
+      "de": "Nicht auf die Wände Schreiben oder Ritzen"
+    },
+    "confidence": 1.0,
+    "source": "Department of Archaeology, Sri Lanka — protected-monument signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_ARC_007",
+    "category": "heritage_notice",
+    "canonical": {
+      "en": "UNESCO World Heritage Site",
+      "si": "යුනෙස්කෝ ලෝක උරුම භූමියකි",
+      "ta": "யுனெஸ்கோ உலகப் பாரம்பரியத் தலம்"
+    },
+    "aliases": [
+      "unesco world heritage site",
+      "world heritage site",
+      "UNESCO WORLD HERITAGE SITE",
+      "world heritage property"
+    ],
+    "translations": {
+      "en": "UNESCO World Heritage Site",
+      "si": "යුනෙස්කෝ ලෝක උරුම භූමියකි",
+      "ta": "யுனெஸ்கோ உலகப் பாரம்பரியத் தலம்",
+      "hi": "यूनेस्को विश्व धरोहर स्थल",
+      "zh": "联合国教科文组织世界遗产",
+      "es": "Sitio del Patrimonio Mundial de la UNESCO",
+      "fr": "Site du Patrimoine Mondial de l'UNESCO",
+      "de": "UNESCO-Welterbestätte"
+    },
+    "confidence": 1.0,
+    "source": "UNESCO / Central Cultural Fund",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_TKT_001",
+    "category": "visitor_information",
+    "canonical": {
+      "en": "Foreign Visitors",
+      "si": "විදේශීය සංචාරකයෝ",
+      "ta": "வெளிநாட்டு பார்வையாளர்கள்"
+    },
+    "aliases": [
+      "foreign visitors",
+      "foreigners",
+      "foreign tourists",
+      "FOREIGN VISITORS",
+      "overseas visitors"
+    ],
+    "translations": {
+      "en": "Foreign Visitors",
+      "si": "විදේශීය සංචාරකයෝ",
+      "ta": "வெளிநாட்டு பார்வையாளர்கள்",
+      "hi": "विदेशी आगंतुक",
+      "zh": "外国游客",
+      "es": "Visitantes Extranjeros",
+      "fr": "Visiteurs Étrangers",
+      "de": "Ausländische Besucher"
+    },
+    "confidence": 1.0,
+    "source": "Central Cultural Fund ticketing signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_TKT_002",
+    "category": "visitor_information",
+    "canonical": {
+      "en": "Local Visitors",
+      "si": "දේශීය සංචාරකයෝ",
+      "ta": "உள்நாட்டு பார்வையாளர்கள்"
+    },
+    "aliases": [
+      "local visitors",
+      "sri lankan visitors",
+      "citizens",
+      "LOCAL VISITORS",
+      "resident visitors"
+    ],
+    "translations": {
+      "en": "Local Visitors",
+      "si": "දේශීය සංචාරකයෝ",
+      "ta": "உள்நாட்டு பார்வையாளர்கள்",
+      "hi": "स्थानीय आगंतुक",
+      "zh": "本地游客",
+      "es": "Visitantes Locales",
+      "fr": "Visiteurs Locaux",
+      "de": "Einheimische Besucher"
+    },
+    "confidence": 1.0,
+    "source": "Central Cultural Fund ticketing signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_TKT_003",
+    "category": "visitor_information",
+    "canonical": {
+      "en": "Please Keep Your Ticket Until You Leave",
+      "si": "පිටව යන තෙක් ඔබේ ප්‍රවේශ පත්‍රය ළඟ තබාගන්න",
+      "ta": "வெளியேறும் வரை உங்கள் நுழைவுச் சீட்டை வைத்திருக்கவும்"
+    },
+    "aliases": [
+      "please keep your ticket until you leave",
+      "keep your ticket until you exit",
+      "retain your ticket",
+      "KEEP YOUR TICKET"
+    ],
+    "translations": {
+      "en": "Please Keep Your Ticket Until You Leave",
+      "si": "පිටව යන තෙක් ඔබේ ප්‍රවේශ පත්‍රය ළඟ තබාගන්න",
+      "ta": "வெளியேறும் வரை உங்கள் நுழைவுச் சீட்டை வைத்திருக்கவும்",
+      "hi": "बाहर निकलने तक अपना टिकट संभालकर रखें",
+      "zh": "请保留门票直至离场",
+      "es": "Conserve Su Entrada Hasta la Salida",
+      "fr": "Conservez Votre Billet Jusqu'à la Sortie",
+      "de": "Bitte Bewahren Sie Ihr Ticket Bis Zum Ausgang Auf"
+    },
+    "confidence": 1.0,
+    "source": "Central Cultural Fund ticketing signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_TKT_004",
+    "category": "visitor_information",
+    "canonical": {
+      "en": "Ticket Checking Point",
+      "si": "ප්‍රවේශ පත්‍ර පරීක්‍ෂා කරන ස්ථානය",
+      "ta": "நுழைவுச் சீட்டு சோதனை நிலையம்"
+    },
+    "aliases": [
+      "ticket checking point",
+      "ticket check",
+      "check point",
+      "TICKET CHECKING POINT",
+      "produce your ticket here"
+    ],
+    "translations": {
+      "en": "Ticket Checking Point",
+      "si": "ප්‍රවේශ පත්‍ර පරීක්‍ෂා කරන ස්ථානය",
+      "ta": "நுழைவுச் சீட்டு சோதனை நிலையம்",
+      "hi": "टिकट जाँच केंद्र",
+      "zh": "验票处",
+      "es": "Punto de Control de Entradas",
+      "fr": "Point de Contrôle des Billets",
+      "de": "Ticketkontrolle"
+    },
+    "confidence": 1.0,
+    "source": "Central Cultural Fund ticketing signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_TKT_005",
+    "category": "visitor_information",
+    "canonical": {
+      "en": "Entrance Tickets Available Here",
+      "si": "ප්‍රවේශ පත්‍ර මෙතැනින් ලබාගත හැක",
+      "ta": "நுழைவுச் சீட்டுகள் இங்கு கிடைக்கும்"
+    },
+    "aliases": [
+      "entrance tickets available here",
+      "tickets sold here",
+      "buy tickets here",
+      "TICKETS AVAILABLE HERE"
+    ],
+    "translations": {
+      "en": "Entrance Tickets Available Here",
+      "si": "ප්‍රවේශ පත්‍ර මෙතැනින් ලබාගත හැක",
+      "ta": "நுழைவுச் சீட்டுகள் இங்கு கிடைக்கும்",
+      "hi": "प्रवेश टिकट यहाँ उपलब्ध हैं",
+      "zh": "此处发售门票",
+      "es": "Entradas Disponibles Aquí",
+      "fr": "Billets d'Entrée Disponibles Ici",
+      "de": "Eintrittskarten Hier Erhältlich"
+    },
+    "confidence": 1.0,
+    "source": "Central Cultural Fund ticketing signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_TKT_006",
+    "category": "visitor_information",
+    "canonical": {
+      "en": "Cultural Triangle Round Ticket",
+      "si": "සංස්කෘතික ත්‍රිකෝණ සංයුක්ත ප්‍රවේශ පත්‍රය",
+      "ta": "பண்பாட்டு முக்கோண இணைப்பு நுழைவுச் சீட்டு"
+    },
+    "aliases": [
+      "cultural triangle round ticket",
+      "cultural triangle ticket",
+      "round ticket",
+      "combined ticket",
+      "CULTURAL TRIANGLE TICKET"
+    ],
+    "translations": {
+      "en": "Cultural Triangle Round Ticket",
+      "si": "සංස්කෘතික ත්‍රිකෝණ සංයුක්ත ප්‍රවේශ පත්‍රය",
+      "ta": "பண்பாட்டு முக்கோண இணைப்பு நுழைவுச் சீட்டு",
+      "hi": "सांस्कृतिक त्रिकोण संयुक्त टिकट",
+      "zh": "文化三角联票",
+      "es": "Boleto Combinado del Triángulo Cultural",
+      "fr": "Billet Combiné du Triangle Culturel",
+      "de": "Kombiticket des Kulturdreiecks"
+    },
+    "confidence": 1.0,
+    "source": "Central Cultural Fund ticketing signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_MON_001",
+    "category": "heritage_feature",
+    "canonical": {
+      "en": "Gal Vihara Rock Temple",
+      "si": "ගල් විහාරය",
+      "ta": "கல் விகாரை"
+    },
+    "aliases": [
+      "gal vihara",
+      "gal viharaya",
+      "gal vihara rock temple",
+      "GAL VIHARA",
+      "rock temple polonnaruwa"
+    ],
+    "translations": {
+      "en": "Gal Vihara Rock Temple",
+      "si": "ගල් විහාරය",
+      "ta": "கல் விகாரை",
+      "hi": "गल विहार (शैल मंदिर)",
+      "zh": "加尔寺石窟佛像",
+      "es": "Templo Rupestre de Gal Vihara",
+      "fr": "Temple Rupestre de Gal Vihara",
+      "de": "Gal-Vihara-Felsentempel"
+    },
+    "confidence": 1.0,
+    "source": "On-site signage, Polonnaruwa Ancient City (CCF)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_MON_002",
+    "category": "heritage_feature",
+    "canonical": {
+      "en": "The Sacred Quadrangle",
+      "si": "දළදා මළුව",
+      "ta": "புனித நாற்கோண வளாகம்"
+    },
+    "aliases": [
+      "the sacred quadrangle",
+      "sacred quadrangle",
+      "dalada maluwa",
+      "quadrangle",
+      "THE QUADRANGLE"
+    ],
+    "translations": {
+      "en": "The Sacred Quadrangle",
+      "si": "දළදා මළුව",
+      "ta": "புனித நாற்கோண வளாகம்",
+      "hi": "पवित्र चतुष्कोण",
+      "zh": "神圣四方院",
+      "es": "El Cuadrángulo Sagrado",
+      "fr": "Le Quadrilatère Sacré",
+      "de": "Das Sakrale Geviert"
+    },
+    "confidence": 1.0,
+    "source": "On-site signage, Polonnaruwa Ancient City (CCF)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_MON_003",
+    "category": "heritage_feature",
+    "canonical": {
+      "en": "Royal Palace of King Parakramabahu",
+      "si": "පරාක්‍රමබාහු රජුගේ රාජ මාළිගය",
+      "ta": "மன்னன் பராக்கிரமபாகுவின் அரண்மனை"
+    },
+    "aliases": [
+      "royal palace of king parakramabahu",
+      "parakramabahu palace",
+      "king's palace polonnaruwa",
+      "ROYAL PALACE"
+    ],
+    "translations": {
+      "en": "Royal Palace of King Parakramabahu",
+      "si": "පරාක්‍රමබාහු රජුගේ රාජ මාළිගය",
+      "ta": "மன்னன் பராக்கிரமபாகுவின் அரண்மனை",
+      "hi": "राजा पराक्रमबाहु का राजमहल",
+      "zh": "波罗迦罗摩巴忽王的王宫",
+      "es": "Palacio Real del Rey Parakramabahu",
+      "fr": "Palais Royal du Roi Parakramabahu",
+      "de": "Königspalast von König Parakramabahu"
+    },
+    "confidence": 1.0,
+    "source": "On-site signage, Polonnaruwa Ancient City (CCF)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_MON_004",
+    "category": "heritage_feature",
+    "canonical": {
+      "en": "Lankatilaka Image House",
+      "si": "ලංකාතිලක පිළිම ගෙය",
+      "ta": "லங்காதிலக புத்தர் ஆலயம்"
+    },
+    "aliases": [
+      "lankatilaka image house",
+      "lankatilaka",
+      "lankathilaka",
+      "LANKATILAKA"
+    ],
+    "translations": {
+      "en": "Lankatilaka Image House",
+      "si": "ලංකාතිලක පිළිම ගෙය",
+      "ta": "லங்காதிலக புத்தர் ஆலயம்",
+      "hi": "लंकातिलक प्रतिमा गृह",
+      "zh": "兰卡蒂拉卡佛殿",
+      "es": "Casa de Imágenes de Lankatilaka",
+      "fr": "Maison des Images de Lankatilaka",
+      "de": "Lankatilaka-Bildhaus"
+    },
+    "confidence": 1.0,
+    "source": "On-site signage, Polonnaruwa Ancient City (CCF)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_MON_005",
+    "category": "heritage_feature",
+    "canonical": {
+      "en": "Sri Maha Bodhi Sacred Bo Tree",
+      "si": "ශ්‍රී මහා බෝධිය",
+      "ta": "ஸ்ரீ மகா போதி (புனித அரசமரம்)"
+    },
+    "aliases": [
+      "sri maha bodhi",
+      "jaya sri maha bodhi",
+      "sacred bo tree",
+      "sacred bodhi tree",
+      "SRI MAHA BODHI",
+      "bo tree"
+    ],
+    "translations": {
+      "en": "Sri Maha Bodhi Sacred Bo Tree",
+      "si": "ශ්‍රී මහා බෝධිය",
+      "ta": "ஸ்ரீ மகா போதி (புனித அரசமரம்)",
+      "hi": "श्री महा बोधि (पवित्र बोधि वृक्ष)",
+      "zh": "圣菩提树（斯里摩诃菩提）",
+      "es": "Sri Maha Bodhi (Árbol Sagrado de la Bodhi)",
+      "fr": "Sri Maha Bodhi (Arbre Sacré de la Bodhi)",
+      "de": "Sri Maha Bodhi (Heiliger Bodhi-Baum)"
+    },
+    "confidence": 1.0,
+    "source": "On-site signage, Anuradhapura Sacred City (CCF)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_MON_006",
+    "category": "heritage_feature",
+    "canonical": {
+      "en": "Ruwanwelisaya Great Stupa",
+      "si": "රුවන්වැලි මහ සෑය",
+      "ta": "ருவன்வெலி பெரும் தூபி"
+    },
+    "aliases": [
+      "ruwanwelisaya",
+      "ruwanweli seya",
+      "ruwanwelisaya great stupa",
+      "ruwanweli maha seya",
+      "RUWANWELISAYA",
+      "great stupa"
+    ],
+    "translations": {
+      "en": "Ruwanwelisaya Great Stupa",
+      "si": "රුවන්වැලි මහ සෑය",
+      "ta": "ருவன்வெலி பெரும் தூபி",
+      "hi": "रुवनवेलिसाया महा स्तूप",
+      "zh": "鲁万维利大塔",
+      "es": "Gran Estupa de Ruwanwelisaya",
+      "fr": "Grand Stûpa de Ruwanwelisaya",
+      "de": "Große Stupa Ruwanwelisaya"
+    },
+    "confidence": 1.0,
+    "source": "On-site signage, Anuradhapura Sacred City (CCF)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_MON_007",
+    "category": "heritage_feature",
+    "canonical": {
+      "en": "Thuparamaya Stupa",
+      "si": "ථූපාරාමය",
+      "ta": "தூபாராமய தூபி"
+    },
+    "aliases": [
+      "thuparamaya",
+      "thuparama",
+      "thuparamaya stupa",
+      "THUPARAMA"
+    ],
+    "translations": {
+      "en": "Thuparamaya Stupa",
+      "si": "ථූපාරාමය",
+      "ta": "தூபாராமய தூபி",
+      "hi": "थुपारामय स्तूप",
+      "zh": "图帕拉玛塔",
+      "es": "Estupa de Thuparamaya",
+      "fr": "Stûpa de Thuparamaya",
+      "de": "Thuparamaya-Stupa"
+    },
+    "confidence": 1.0,
+    "source": "On-site signage, Anuradhapura Sacred City (CCF)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_MON_008",
+    "category": "heritage_feature",
+    "canonical": {
+      "en": "Abhayagiri Monastery",
+      "si": "අභයගිරි විහාරය",
+      "ta": "அபயகிரி விகாரை"
+    },
+    "aliases": [
+      "abhayagiri monastery",
+      "abhayagiri",
+      "abhayagiriya",
+      "ABHAYAGIRI",
+      "abhayagiri vihara"
+    ],
+    "translations": {
+      "en": "Abhayagiri Monastery",
+      "si": "අභයගිරි විහාරය",
+      "ta": "அபயகிரி விகாரை",
+      "hi": "अभयगिरि विहार",
+      "zh": "无畏山寺",
+      "es": "Monasterio de Abhayagiri",
+      "fr": "Monastère d'Abhayagiri",
+      "de": "Abhayagiri-Kloster"
+    },
+    "confidence": 1.0,
+    "source": "On-site signage, Anuradhapura Sacred City (CCF)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_MON_009",
+    "category": "heritage_feature",
+    "canonical": {
+      "en": "Isurumuniya Temple",
+      "si": "ඉසුරුමුණිය විහාරය",
+      "ta": "இசுருமுனிய விகாரை"
+    },
+    "aliases": [
+      "isurumuniya temple",
+      "isurumuniya",
+      "isurumuni viharaya",
+      "ISURUMUNIYA"
+    ],
+    "translations": {
+      "en": "Isurumuniya Temple",
+      "si": "ඉසුරුමුණිය විහාරය",
+      "ta": "இசுருமுனிய விகாரை",
+      "hi": "इसुरुमुनिया मंदिर",
+      "zh": "伊苏鲁姆尼亚寺",
+      "es": "Templo de Isurumuniya",
+      "fr": "Temple d'Isurumuniya",
+      "de": "Isurumuniya-Tempel"
+    },
+    "confidence": 1.0,
+    "source": "On-site signage, Anuradhapura Sacred City (CCF)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_MON_010",
+    "category": "heritage_feature",
+    "canonical": {
+      "en": "Twin Ponds (Kuttam Pokuna)",
+      "si": "කුට්ටම් පොකුණ",
+      "ta": "இரட்டைக் குளங்கள் (கூட்டம் பொகுணை)"
+    },
+    "aliases": [
+      "twin ponds",
+      "kuttam pokuna",
+      "kuttampokuna",
+      "TWIN PONDS",
+      "twin baths"
+    ],
+    "translations": {
+      "en": "Twin Ponds (Kuttam Pokuna)",
+      "si": "කුට්ටම් පොකුණ",
+      "ta": "இரட்டைக் குளங்கள் (கூட்டம் பொகுணை)",
+      "hi": "जुड़वां तालाब (कुट्टम पोकुना)",
+      "zh": "孪生浴池（库塔姆莲池）",
+      "es": "Estanques Gemelos (Kuttam Pokuna)",
+      "fr": "Bassins Jumeaux (Kuttam Pokuna)",
+      "de": "Zwillingsteiche (Kuttam Pokuna)"
+    },
+    "confidence": 1.0,
+    "source": "On-site signage, Anuradhapura Sacred City (CCF)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_MON_011",
+    "category": "heritage_feature",
+    "canonical": {
+      "en": "Moonstone (Sandakada Pahana)",
+      "si": "සඳකඩ පහන",
+      "ta": "நிலாக்கல் (சந்தகட பஹன)"
+    },
+    "aliases": [
+      "moonstone",
+      "sandakada pahana",
+      "sandakadapahana",
+      "MOONSTONE",
+      "moon stone carving"
+    ],
+    "translations": {
+      "en": "Moonstone (Sandakada Pahana)",
+      "si": "සඳකඩ පහන",
+      "ta": "நிலாக்கல் (சந்தகட பஹன)",
+      "hi": "चंद्रशिला (संदकड पहन)",
+      "zh": "月亮石阶",
+      "es": "Piedra Lunar (Sandakada Pahana)",
+      "fr": "Pierre de Lune (Sandakada Pahana)",
+      "de": "Mondstein (Sandakada Pahana)"
+    },
+    "confidence": 1.0,
+    "source": "Department of Archaeology, Sri Lanka — protected-monument signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_MON_012",
+    "category": "heritage_feature",
+    "canonical": {
+      "en": "Guardstone (Muragala)",
+      "si": "මුරගල",
+      "ta": "காவற்கல் (முரகல)"
+    },
+    "aliases": [
+      "guardstone",
+      "guard stone",
+      "muragala",
+      "MURAGALA",
+      "guardian stone"
+    ],
+    "translations": {
+      "en": "Guardstone (Muragala)",
+      "si": "මුරගල",
+      "ta": "காவற்கல் (முரகல)",
+      "hi": "द्वारपाल शिला (मुरगल)",
+      "zh": "守护石",
+      "es": "Piedra de Guardián (Muragala)",
+      "fr": "Pierre de Garde (Muragala)",
+      "de": "Wächterstein (Muragala)"
+    },
+    "confidence": 1.0,
+    "source": "Department of Archaeology, Sri Lanka — protected-monument signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_MON_013",
+    "category": "heritage_feature",
+    "canonical": {
+      "en": "Temple of the Sacred Tooth Relic",
+      "si": "ශ්‍රී දළදා මාළිගාව",
+      "ta": "புனித தந்ததாது மாளிகை"
+    },
+    "aliases": [
+      "temple of the sacred tooth relic",
+      "temple of the tooth",
+      "sri dalada maligawa",
+      "dalada maligawa",
+      "TEMPLE OF THE TOOTH"
+    ],
+    "translations": {
+      "en": "Temple of the Sacred Tooth Relic",
+      "si": "ශ්‍රී දළදා මාළිගාව",
+      "ta": "புனித தந்ததாது மாளிகை",
+      "hi": "पवित्र दंत अवशेष मंदिर",
+      "zh": "佛牙寺",
+      "es": "Templo de la Reliquia del Diente Sagrado",
+      "fr": "Temple de la Relique de la Dent Sacrée",
+      "de": "Tempel des Heiligen Zahns"
+    },
+    "confidence": 1.0,
+    "source": "On-site signage, Sacred City of Kandy (CCF)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_MON_014",
+    "category": "heritage_feature",
+    "canonical": {
+      "en": "Golden Temple of Dambulla",
+      "si": "දඹුලු රන් විහාරය",
+      "ta": "தம்புள்ள பொன் விகாரை"
+    },
+    "aliases": [
+      "golden temple of dambulla",
+      "dambulla golden temple",
+      "rangiri dambulla",
+      "GOLDEN TEMPLE",
+      "dambulla cave temple"
+    ],
+    "translations": {
+      "en": "Golden Temple of Dambulla",
+      "si": "දඹුලු රන් විහාරය",
+      "ta": "தம்புள்ள பொன் விகாரை",
+      "hi": "दांबुला स्वर्ण मंदिर",
+      "zh": "丹布勒金寺",
+      "es": "Templo Dorado de Dambulla",
+      "fr": "Temple d'Or de Dambulla",
+      "de": "Goldener Tempel von Dambulla"
+    },
+    "confidence": 1.0,
+    "source": "On-site signage, Golden Temple of Dambulla (CCF)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_MON_015",
+    "category": "heritage_feature",
+    "canonical": {
+      "en": "Cave Temple",
+      "si": "ලෙන් විහාරය",
+      "ta": "குகை விகாரை"
+    },
+    "aliases": [
+      "cave temple",
+      "cave shrine",
+      "rock cave temple",
+      "CAVE TEMPLE",
+      "len viharaya"
+    ],
+    "translations": {
+      "en": "Cave Temple",
+      "si": "ලෙන් විහාරය",
+      "ta": "குகை விகாரை",
+      "hi": "गुफा मंदिर",
+      "zh": "石窟寺",
+      "es": "Templo de la Cueva",
+      "fr": "Temple de la Grotte",
+      "de": "Höhlentempel"
+    },
+    "confidence": 1.0,
+    "source": "On-site signage, Golden Temple of Dambulla (CCF)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_MON_016",
+    "category": "heritage_feature",
+    "canonical": {
+      "en": "Old Town of Galle and Its Fortifications",
+      "si": "ගාල්ල පුරාණ නගරය සහ බලකොටුව",
+      "ta": "காலியின் பழைய நகரமும் அதன் கோட்டைகளும்"
+    },
+    "aliases": [
+      "old town of galle and its fortifications",
+      "galle fort",
+      "galle dutch fort",
+      "old town of galle",
+      "GALLE FORT"
+    ],
+    "translations": {
+      "en": "Old Town of Galle and Its Fortifications",
+      "si": "ගාල්ල පුරාණ නගරය සහ බලකොටුව",
+      "ta": "காலியின் பழைய நகரமும் அதன் கோட்டைகளும்",
+      "hi": "गॉल का पुराना नगर और उसकी किलेबंदी",
+      "zh": "加勒老城及其城防工事",
+      "es": "Ciudad Vieja de Galle y sus Fortificaciones",
+      "fr": "Vieille Ville de Galle et ses Fortifications",
+      "de": "Altstadt von Galle und Ihre Befestigungen"
+    },
+    "confidence": 1.0,
+    "source": "On-site signage, Old Town of Galle (Dept. of Archaeology)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_MON_017",
+    "category": "heritage_feature",
+    "canonical": {
+      "en": "Fort Ramparts",
+      "si": "බලකොටු පවුර",
+      "ta": "கோட்டை மதில்கள்"
+    },
+    "aliases": [
+      "fort ramparts",
+      "ramparts",
+      "rampart walk",
+      "fort walls",
+      "FORT RAMPARTS"
+    ],
+    "translations": {
+      "en": "Fort Ramparts",
+      "si": "බලකොටු පවුර",
+      "ta": "கோட்டை மதில்கள்",
+      "hi": "किले की प्राचीरें",
+      "zh": "城堡城墙",
+      "es": "Murallas del Fuerte",
+      "fr": "Remparts du Fort",
+      "de": "Festungswälle"
+    },
+    "confidence": 1.0,
+    "source": "On-site signage, Old Town of Galle (Dept. of Archaeology)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_MON_018",
+    "category": "heritage_feature",
+    "canonical": {
+      "en": "Galle Lighthouse",
+      "si": "ගාල්ල ප්‍රදීපාගාරය",
+      "ta": "காலி கலங்கரை விளக்கம்"
+    },
+    "aliases": [
+      "galle lighthouse",
+      "lighthouse",
+      "point utrecht bastion lighthouse",
+      "GALLE LIGHTHOUSE"
+    ],
+    "translations": {
+      "en": "Galle Lighthouse",
+      "si": "ගාල්ල ප්‍රදීපාගාරය",
+      "ta": "காலி கலங்கரை விளக்கம்",
+      "hi": "गॉल प्रकाश स्तंभ",
+      "zh": "加勒灯塔",
+      "es": "Faro de Galle",
+      "fr": "Phare de Galle",
+      "de": "Leuchtturm von Galle"
+    },
+    "confidence": 1.0,
+    "source": "On-site signage, Old Town of Galle",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_MON_019",
+    "category": "heritage_feature",
+    "canonical": {
+      "en": "Mihintale Sacred Mountain",
+      "si": "මිහින්තලය",
+      "ta": "மிகிந்தலை புனித மலை"
+    },
+    "aliases": [
+      "mihintale",
+      "mihinthale",
+      "mihintale sacred mountain",
+      "MIHINTALE",
+      "cradle of buddhism"
+    ],
+    "translations": {
+      "en": "Mihintale Sacred Mountain",
+      "si": "මිහින්තලය",
+      "ta": "மிகிந்தலை புனித மலை",
+      "hi": "मिहिंतले पवित्र पर्वत",
+      "zh": "米欣塔莱圣山",
+      "es": "Montaña Sagrada de Mihintale",
+      "fr": "Montagne Sacrée de Mihintale",
+      "de": "Heiliger Berg Mihintale"
+    },
+    "confidence": 1.0,
+    "source": "On-site signage, Mihintale (CCF)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_MON_020",
+    "category": "heritage_feature",
+    "canonical": {
+      "en": "Parakrama Samudra Reservoir",
+      "si": "පරාක්‍රම සමුද්‍රය",
+      "ta": "பராக்கிரம சமுத்திர நீர்த்தேக்கம்"
+    },
+    "aliases": [
+      "parakrama samudra",
+      "parakrama samudraya",
+      "sea of parakrama",
+      "parakrama samudra reservoir",
+      "PARAKRAMA SAMUDRA"
+    ],
+    "translations": {
+      "en": "Parakrama Samudra Reservoir",
+      "si": "පරාක්‍රම සමුද්‍රය",
+      "ta": "பராக்கிரம சமுத்திர நீர்த்தேக்கம்",
+      "hi": "पराक्रम समुद्र जलाशय",
+      "zh": "波罗迦罗摩海水库",
+      "es": "Embalse de Parakrama Samudra",
+      "fr": "Réservoir de Parakrama Samudra",
+      "de": "Parakrama-Samudra-Stausee"
+    },
+    "confidence": 1.0,
+    "source": "On-site signage, Polonnaruwa Ancient City (CCF)",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_RUL_004",
+    "category": "rules",
+    "canonical": {
+      "en": "No Plastic or Polythene Beyond This Point",
+      "si": "මෙතැනින් ඉදිරියට ප්ලාස්ටික් හෝ පොලිතීන් රැගෙන යාම තහනම්",
+      "ta": "இந்த இடத்தைத் தாண்டி பிளாஸ்டிக் அல்லது பொலித்தீன் எடுத்துச் செல்ல தடை"
+    },
+    "aliases": [
+      "no plastic or polythene beyond this point",
+      "no polythene beyond this point",
+      "plastic and polythene prohibited",
+      "NO PLASTIC BEYOND THIS POINT",
+      "do not bring polythene"
+    ],
+    "translations": {
+      "en": "No Plastic or Polythene Beyond This Point",
+      "si": "මෙතැනින් ඉදිරියට ප්ලාස්ටික් හෝ පොලිතීන් රැගෙන යාම තහනම්",
+      "ta": "இந்த இடத்தைத் தாண்டி பிளாஸ்டிக் அல்லது பொலித்தீன் எடுத்துச் செல்ல தடை",
+      "hi": "इस बिंदु से आगे प्लास्टिक या पॉलिथीन ले जाना वर्जित है",
+      "zh": "此处以后禁止携带塑料或聚乙烯制品",
+      "es": "Prohibido el Plástico o Polietileno Más Allá de Este Punto",
+      "fr": "Plastique et Polyéthylène Interdits au-delà de Ce Point",
+      "de": "Kein Plastik oder Polyethylen Hinter Diesem Punkt"
+    },
+    "confidence": 1.0,
+    "source": "Central Cultural Fund / Cultural Triangle visitor signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_RUL_005",
+    "category": "rules",
+    "canonical": {
+      "en": "Keep the Sacred City Clean",
+      "si": "පූජා නගරය පිරිසිදුව තබාගන්න",
+      "ta": "புனித நகரைத் தூய்மையாக வைத்திருங்கள்"
+    },
+    "aliases": [
+      "keep the sacred city clean",
+      "keep the sacred area clean",
+      "keep this place clean",
+      "KEEP THE SACRED CITY CLEAN"
+    ],
+    "translations": {
+      "en": "Keep the Sacred City Clean",
+      "si": "පූජා නගරය පිරිසිදුව තබාගන්න",
+      "ta": "புனித நகரைத் தூய்மையாக வைத்திருங்கள்",
+      "hi": "पवित्र नगर को स्वच्छ रखें",
+      "zh": "请保持圣城清洁",
+      "es": "Mantenga Limpia la Ciudad Sagrada",
+      "fr": "Gardez la Cité Sacrée Propre",
+      "de": "Halten Sie die Heilige Stadt Sauber"
+    },
+    "confidence": 1.0,
+    "source": "Central Cultural Fund / Cultural Triangle visitor signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_RUL_006",
+    "category": "rules",
+    "canonical": {
+      "en": "Do Not Climb on the Ruins",
+      "si": "නටබුන් මත නොනගින්න",
+      "ta": "இடிபாடுகளின் மீது ஏற வேண்டாம்"
+    },
+    "aliases": [
+      "do not climb on the ruins",
+      "do not climb the ruins",
+      "no climbing on ruins",
+      "DO NOT CLIMB THE RUINS",
+      "keep off the ruins"
+    ],
+    "translations": {
+      "en": "Do Not Climb on the Ruins",
+      "si": "නටබුන් මත නොනගින්න",
+      "ta": "இடிபாடுகளின் மீது ஏற வேண்டாம்",
+      "hi": "खंडहरों पर न चढ़ें",
+      "zh": "请勿攀爬遗迹",
+      "es": "No Suba a las Ruinas",
+      "fr": "Ne Grimpez Pas sur les Ruines",
+      "de": "Nicht auf die Ruinen Klettern"
+    },
+    "confidence": 1.0,
+    "source": "Department of Archaeology, Sri Lanka — protected-monument signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_RUL_007",
+    "category": "rules",
+    "canonical": {
+      "en": "Do Not Pluck Flowers or Damage Plants",
+      "si": "මල් නෙළීම හෝ ශාක වලට හානි කිරීම නොකරන්න",
+      "ta": "மலர்களைப் பறிக்கவோ செடிகளுக்குச் சேதம் விளைவிக்கவோ வேண்டாம்"
+    },
+    "aliases": [
+      "do not pluck flowers or damage plants",
+      "do not pluck flowers",
+      "do not damage plants",
+      "DO NOT PICK FLOWERS"
+    ],
+    "translations": {
+      "en": "Do Not Pluck Flowers or Damage Plants",
+      "si": "මල් නෙළීම හෝ ශාක වලට හානි කිරීම නොකරන්න",
+      "ta": "மலர்களைப் பறிக்கவோ செடிகளுக்குச் சேதம் விளைவிக்கவோ வேண்டாம்",
+      "hi": "फूल न तोड़ें और न ही पौधों को नुकसान पहुँचाएँ",
+      "zh": "请勿采摘花朵或损坏植物",
+      "es": "No Arranque Flores ni Dañe las Plantas",
+      "fr": "Ne Cueillez Pas les Fleurs et N'endommagez Pas les Plantes",
+      "de": "Keine Blumen Pflücken oder Pflanzen Beschädigen"
+    },
+    "confidence": 1.0,
+    "source": "Central Cultural Fund / Cultural Triangle visitor signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_RUL_008",
+    "category": "rules",
+    "canonical": {
+      "en": "Licensed Guides Available at the Entrance",
+      "si": "බලපත්‍රලාභී මාර්ගෝපදේශකයෝ පිවිසුම අසල සිටිති",
+      "ta": "அனுமதிபெற்ற வழிகாட்டிகள் நுழைவாயிலில் உள்ளனர்"
+    },
+    "aliases": [
+      "licensed guides available at the entrance",
+      "guides available at the entrance",
+      "official guides available",
+      "LICENSED GUIDES AVAILABLE"
+    ],
+    "translations": {
+      "en": "Licensed Guides Available at the Entrance",
+      "si": "බලපත්‍රලාභී මාර්ගෝපදේශකයෝ පිවිසුම අසල සිටිති",
+      "ta": "அனுமதிபெற்ற வழிகாட்டிகள் நுழைவாயிலில் உள்ளனர்",
+      "hi": "प्रवेश द्वार पर लाइसेंस प्राप्त गाइड उपलब्ध हैं",
+      "zh": "入口处有持证导游",
+      "es": "Guías Autorizados Disponibles en la Entrada",
+      "fr": "Guides Agréés Disponibles à l'Entrée",
+      "de": "Lizenzierte Führer am Eingang Verfügbar"
+    },
+    "confidence": 1.0,
+    "source": "Central Cultural Fund / Cultural Triangle visitor signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_FAC_001",
+    "category": "facilities",
+    "canonical": {
+      "en": "Drinking Water",
+      "si": "පානීය ජලය",
+      "ta": "குடிநீர்"
+    },
+    "aliases": [
+      "drinking water",
+      "potable water",
+      "DRINKING WATER",
+      "safe drinking water"
+    ],
+    "translations": {
+      "en": "Drinking Water",
+      "si": "පානීය ජලය",
+      "ta": "குடிநீர்",
+      "hi": "पेयजल",
+      "zh": "饮用水",
+      "es": "Agua Potable",
+      "fr": "Eau Potable",
+      "de": "Trinkwasser"
+    },
+    "confidence": 1.0,
+    "source": "Central Cultural Fund / Cultural Triangle visitor signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_FAC_002",
+    "category": "facilities",
+    "canonical": {
+      "en": "First Aid",
+      "si": "ප්‍රථමාධාර",
+      "ta": "முதலுதவி"
+    },
+    "aliases": [
+      "first aid",
+      "first aid post",
+      "first aid station",
+      "FIRST AID",
+      "medical aid"
+    ],
+    "translations": {
+      "en": "First Aid",
+      "si": "ප්‍රථමාධාර",
+      "ta": "முதலுதவி",
+      "hi": "प्राथमिक चिकित्सा",
+      "zh": "急救",
+      "es": "Primeros Auxilios",
+      "fr": "Premiers Secours",
+      "de": "Erste Hilfe"
+    },
+    "confidence": 1.0,
+    "source": "Central Cultural Fund / Cultural Triangle visitor signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_FAC_003",
+    "category": "facilities",
+    "canonical": {
+      "en": "Parking Area",
+      "si": "වාහන නැවැත්වීමේ ස්ථානය",
+      "ta": "வாகன நிறுத்துமிடம்"
+    },
+    "aliases": [
+      "parking area",
+      "car park",
+      "parking",
+      "vehicle parking",
+      "PARKING"
+    ],
+    "translations": {
+      "en": "Parking Area",
+      "si": "වාහන නැවැත්වීමේ ස්ථානය",
+      "ta": "வாகன நிறுத்துமிடம்",
+      "hi": "वाहन पार्किंग क्षेत्र",
+      "zh": "停车场",
+      "es": "Zona de Estacionamiento",
+      "fr": "Aire de Stationnement",
+      "de": "Parkplatz"
+    },
+    "confidence": 1.0,
+    "source": "Central Cultural Fund / Cultural Triangle visitor signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_FAC_004",
+    "category": "facilities",
+    "canonical": {
+      "en": "Cloak Room",
+      "si": "බෑග් තැන්පත් කිරීමේ කාමරය",
+      "ta": "பொருள் வைப்பறை"
+    },
+    "aliases": [
+      "cloak room",
+      "cloakroom",
+      "baggage counter",
+      "left luggage",
+      "CLOAK ROOM"
+    ],
+    "translations": {
+      "en": "Cloak Room",
+      "si": "බෑග් තැන්පත් කිරීමේ කාමරය",
+      "ta": "பொருள் வைப்பறை",
+      "hi": "सामान कक्ष",
+      "zh": "寄物处",
+      "es": "Guardarropa",
+      "fr": "Vestiaire",
+      "de": "Garderobe"
+    },
+    "confidence": 1.0,
+    "source": "Central Cultural Fund / Cultural Triangle visitor signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_FAC_005",
+    "category": "facilities",
+    "canonical": {
+      "en": "Visitor Information Centre",
+      "si": "සංචාරක තොරතුරු මධ්‍යස්ථානය",
+      "ta": "பார்வையாளர் தகவல் மையம்"
+    },
+    "aliases": [
+      "visitor information centre",
+      "information centre",
+      "information center",
+      "tourist information",
+      "INFORMATION CENTRE"
+    ],
+    "translations": {
+      "en": "Visitor Information Centre",
+      "si": "සංචාරක තොරතුරු මධ්‍යස්ථානය",
+      "ta": "பார்வையாளர் தகவல் மையம்",
+      "hi": "आगंतुक सूचना केंद्र",
+      "zh": "游客信息中心",
+      "es": "Centro de Información al Visitante",
+      "fr": "Centre d'Information des Visiteurs",
+      "de": "Besucherinformationszentrum"
+    },
+    "confidence": 1.0,
+    "source": "Central Cultural Fund / Cultural Triangle visitor signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_FAC_006",
+    "category": "facilities",
+    "canonical": {
+      "en": "This Way to the Temple",
+      "si": "විහාරයට යන මාර්ගය",
+      "ta": "ஆலயத்திற்கு இந்த வழி"
+    },
+    "aliases": [
+      "this way to the temple",
+      "to the temple",
+      "way to the temple",
+      "temple this way",
+      "TO THE TEMPLE"
+    ],
+    "translations": {
+      "en": "This Way to the Temple",
+      "si": "විහාරයට යන මාර්ගය",
+      "ta": "ஆலயத்திற்கு இந்த வழி",
+      "hi": "मंदिर की ओर मार्ग",
+      "zh": "寺庙由此前往",
+      "es": "Camino al Templo",
+      "fr": "Direction du Temple",
+      "de": "Weg zum Tempel"
+    },
+    "confidence": 1.0,
+    "source": "Central Cultural Fund / Cultural Triangle visitor signage",
+    "review_status": "verified"
+  },
+  {
+    "id": "LK_SAF_001",
+    "category": "safety",
+    "canonical": {
+      "en": "Beware of Wild Elephants",
+      "si": "වන අලින්ගෙන් ප්‍රවේශම් වන්න",
+      "ta": "காட்டு யானைகள் குறித்து எச்சரிக்கை"
+    },
+    "aliases": [
+      "beware of wild elephants",
+      "beware of elephants",
+      "wild elephants",
+      "BEWARE OF WILD ELEPHANTS",
+      "elephant area"
+    ],
+    "translations": {
+      "en": "Beware of Wild Elephants",
+      "si": "වන අලින්ගෙන් ප්‍රවේශම් වන්න",
+      "ta": "காட்டு யானைகள் குறித்து எச்சரிக்கை",
+      "hi": "जंगली हाथियों से सावधान रहें",
+      "zh": "小心野象",
+      "es": "Cuidado con los Elefantes Salvajes",
+      "fr": "Attention aux Éléphants Sauvages",
+      "de": "Vorsicht vor Wildelefanten"
+    },
+    "confidence": 1.0,
+    "source": "Department of Wildlife Conservation road signage",
+    "review_status": "verified"
   }
 ]

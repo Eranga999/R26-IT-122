@@ -206,6 +206,15 @@
     "fr": "réponse",
     "de": "Antwort"
   },
+  "antiquities": {
+    "si": "පුරාවස්තු",
+    "ta": "பழம்பொருட்கள்",
+    "hi": "पुरावशेष",
+    "zh": "文物",
+    "es": "antigüedades",
+    "fr": "antiquités",
+    "de": "Altertümer"
+  },
   "any": {
     "si": "ඕනෑම",
     "ta": "எந்த",
@@ -277,6 +286,24 @@
     "es": "arte",
     "fr": "art",
     "de": "Kunst"
+  },
+  "artefact": {
+    "si": "පුරාවස්තුව",
+    "ta": "தொல்பொருள்",
+    "hi": "कलाकृति",
+    "zh": "文物",
+    "es": "artefacto",
+    "fr": "objet",
+    "de": "Artefakt"
+  },
+  "artefacts": {
+    "si": "පුරාවස්තු",
+    "ta": "தொல்பொருட்கள்",
+    "hi": "कलाकृतियाँ",
+    "zh": "文物",
+    "es": "artefactos",
+    "fr": "objets",
+    "de": "Artefakte"
   },
   "ascend": {
     "si": "ඉහළට යන්න",
@@ -557,6 +584,24 @@
     "fr": "rochers",
     "de": "Felsen"
   },
+  "brick": {
+    "si": "ගඩොල",
+    "ta": "செங்கல்",
+    "hi": "ईंट",
+    "zh": "砖",
+    "es": "ladrillo",
+    "fr": "brique",
+    "de": "Ziegel"
+  },
+  "bricks": {
+    "si": "ගඩොල්",
+    "ta": "செங்கற்கள்",
+    "hi": "ईंटें",
+    "zh": "砖块",
+    "es": "ladrillos",
+    "fr": "briques",
+    "de": "Ziegel"
+  },
   "bridge": {
     "si": "පාලම",
     "ta": "பாலம்",
@@ -655,6 +700,15 @@
     "es": "cuidadoso",
     "fr": "prudent",
     "de": "vorsichtig"
+  },
+  "carve": {
+    "si": "කැටයම් කරනවා",
+    "ta": "செதுக்கு",
+    "hi": "तराशना",
+    "zh": "雕刻",
+    "es": "tallar",
+    "fr": "graver",
+    "de": "schnitzen"
   },
   "cash": {
     "si": "මුදල්",
@@ -899,6 +953,15 @@
     "fr": "coutume",
     "de": "Brauch"
   },
+  "customs": {
+    "si": "සිරිත් විරිත්",
+    "ta": "பழக்கவழக்கங்கள்",
+    "hi": "रीति-रिवाज",
+    "zh": "风俗",
+    "es": "costumbres",
+    "fr": "coutumes",
+    "de": "Sitten"
+  },
   "daily": {
     "si": "දිනපතා",
     "ta": "தினசரி",
@@ -1015,6 +1078,15 @@
     "es": "discapacitado",
     "fr": "handicapé",
     "de": "behindert"
+  },
+  "discipline": {
+    "si": "විනය",
+    "ta": "ஒழுக்கம்",
+    "hi": "अनुशासन",
+    "zh": "纪律",
+    "es": "disciplina",
+    "fr": "discipline",
+    "de": "Disziplin"
   },
   "discount": {
     "si": "වට්ටම",
@@ -1367,6 +1439,15 @@
     "fr": "nourriture",
     "de": "Essen"
   },
+  "footwear": {
+    "si": "පාවහන්",
+    "ta": "காலணி",
+    "hi": "जूते",
+    "zh": "鞋类",
+    "es": "calzado",
+    "fr": "chaussures",
+    "de": "Schuhwerk"
+  },
   "for": {
     "si": "සඳහා",
     "ta": "க்காக",
@@ -1402,6 +1483,15 @@
     "es": "bosque",
     "fr": "forêt",
     "de": "Wald"
+  },
+  "fortifications": {
+    "si": "බලකොටු",
+    "ta": "கோட்டைகள்",
+    "hi": "किलेबंदी",
+    "zh": "防御工事",
+    "es": "fortificaciones",
+    "fr": "fortifications",
+    "de": "Befestigungen"
   },
   "fortress": {
     "si": "බලකොටුව",
@@ -1609,6 +1699,24 @@
     "es": "salón",
     "fr": "salle",
     "de": "Halle"
+  },
+  "hat": {
+    "si": "තොප්පිය",
+    "ta": "தொப்பி",
+    "hi": "टोपी",
+    "zh": "帽子",
+    "es": "sombrero",
+    "fr": "chapeau",
+    "de": "Hut"
+  },
+  "hats": {
+    "si": "තොප්පි",
+    "ta": "தொப்பிகள்",
+    "hi": "टोपियाँ",
+    "zh": "帽子",
+    "es": "sombreros",
+    "fr": "chapeaux",
+    "de": "Hüte"
   },
   "hazard": {
     "si": "අනතුර",
@@ -1844,6 +1952,24 @@
     "fr": "roi",
     "de": "König"
   },
+  "knee": {
+    "si": "දණහිස",
+    "ta": "முழங்கால்",
+    "hi": "घुटना",
+    "zh": "膝盖",
+    "es": "rodilla",
+    "fr": "genou",
+    "de": "Knie"
+  },
+  "knees": {
+    "si": "දණහිස්",
+    "ta": "முழங்கால்கள்",
+    "hi": "घुटने",
+    "zh": "膝盖",
+    "es": "rodillas",
+    "fr": "genoux",
+    "de": "Knie"
+  },
   "lake": {
     "si": "විල",
     "ta": "ஏரி",
@@ -1879,6 +2005,15 @@
     "es": "nivel",
     "fr": "niveau",
     "de": "Ebene"
+  },
+  "lighthouse": {
+    "si": "ප්‍රදීපාගාරය",
+    "ta": "கலங்கரை விளக்கம்",
+    "hi": "प्रकाश स्तंभ",
+    "zh": "灯塔",
+    "es": "faro",
+    "fr": "phare",
+    "de": "Leuchtturm"
   },
   "lion": {
     "si": "සිංහ",
@@ -2032,6 +2167,15 @@
     "es": "monumento",
     "fr": "monument",
     "de": "Denkmal"
+  },
+  "moonstone": {
+    "si": "සඳකඩ පහන",
+    "ta": "நிலாக்கல்",
+    "hi": "चंद्रशिला",
+    "zh": "月亮石",
+    "es": "piedra lunar",
+    "fr": "pierre de lune",
+    "de": "Mondstein"
   },
   "more": {
     "si": "වැඩි",
@@ -2194,6 +2338,15 @@
     "es": "apagado",
     "fr": "éteint",
     "de": "aus"
+  },
+  "offence": {
+    "si": "වරද",
+    "ta": "குற்றம்",
+    "hi": "अपराध",
+    "zh": "违法行为",
+    "es": "delito",
+    "fr": "délit",
+    "de": "Straftat"
   },
   "office": {
     "si": "කාර්යාලය",
@@ -2366,6 +2519,15 @@
     "fr": "payer",
     "de": "bezahlen"
   },
+  "permit": {
+    "si": "අවසර පත්‍රය",
+    "ta": "அனுமதிச் சீட்டு",
+    "hi": "अनुमति पत्र",
+    "zh": "许可证",
+    "es": "permiso",
+    "fr": "permis",
+    "de": "Genehmigung"
+  },
   "personnel": {
     "si": "කාර්ය මණ්ඩලය",
     "ta": "பணியாளர்கள்",
@@ -2420,6 +2582,15 @@
     "fr": "endroit",
     "de": "Ort"
   },
+  "plastic": {
+    "si": "ප්ලාස්ටික්",
+    "ta": "பிளாஸ்டிக்",
+    "hi": "प्लास्टिक",
+    "zh": "塑料",
+    "es": "plástico",
+    "fr": "plastique",
+    "de": "Plastik"
+  },
   "please": {
     "si": "කරුණාකර",
     "ta": "தயவுசெய்து",
@@ -2429,6 +2600,15 @@
     "fr": "s'il vous plaît",
     "de": "bitte"
   },
+  "pluck": {
+    "si": "නෙළනවා",
+    "ta": "பறி",
+    "hi": "तोड़ना",
+    "zh": "采摘",
+    "es": "arrancar",
+    "fr": "cueillir",
+    "de": "pflücken"
+  },
   "police": {
     "si": "පොලිස්",
     "ta": "காவல்துறை",
@@ -2437,6 +2617,15 @@
     "es": "policía",
     "fr": "police",
     "de": "Polizei"
+  },
+  "polythene": {
+    "si": "පොලිතීන්",
+    "ta": "பொலித்தீன்",
+    "hi": "पॉलिथीन",
+    "zh": "聚乙烯",
+    "es": "polietileno",
+    "fr": "polyéthylène",
+    "de": "Polyethylen"
   },
   "pool": {
     "si": "පොකුණ",
@@ -2501,6 +2690,15 @@
     "fr": "public",
     "de": "öffentlich"
   },
+  "punishable": {
+    "si": "දඬුවම් ලැබිය හැකි",
+    "ta": "தண்டனைக்குரிய",
+    "hi": "दंडनीय",
+    "zh": "可处罚的",
+    "es": "sancionable",
+    "fr": "punissable",
+    "de": "strafbar"
+  },
   "queue": {
     "si": "පෝළිම",
     "ta": "வரிசை",
@@ -2528,6 +2726,24 @@
     "fr": "pluie",
     "de": "Regen"
   },
+  "rampart": {
+    "si": "පවුර",
+    "ta": "மதில்",
+    "hi": "प्राचीर",
+    "zh": "城墙",
+    "es": "muralla",
+    "fr": "rempart",
+    "de": "Wall"
+  },
+  "ramparts": {
+    "si": "පවුරු",
+    "ta": "மதில்கள்",
+    "hi": "प्राचीरें",
+    "zh": "城墙",
+    "es": "murallas",
+    "fr": "remparts",
+    "de": "Wälle"
+  },
   "receipt": {
     "si": "රිසිට්",
     "ta": "ரசீது",
@@ -2545,6 +2761,24 @@
     "es": "abstenerse",
     "fr": "s'abstenir",
     "de": "unterlassen"
+  },
+  "relic": {
+    "si": "ධාතුව",
+    "ta": "தாது",
+    "hi": "अवशेष",
+    "zh": "圣物",
+    "es": "reliquia",
+    "fr": "relique",
+    "de": "Reliquie"
+  },
+  "reserve": {
+    "si": "රක්‍ෂිතය",
+    "ta": "காப்பகம்",
+    "hi": "संरक्षित क्षेत्र",
+    "zh": "保护区",
+    "es": "reserva",
+    "fr": "réserve",
+    "de": "Schutzgebiet"
   },
   "reserved": {
     "si": "රෝදතන්ත",
@@ -2708,6 +2942,15 @@
     "fr": "ruines",
     "de": "Ruinen"
   },
+  "sacred": {
+    "si": "පූජනීය",
+    "ta": "புனித",
+    "hi": "पवित्र",
+    "zh": "神圣",
+    "es": "sagrado",
+    "fr": "sacré",
+    "de": "heilig"
+  },
   "safe": {
     "si": "ආරක්ෂිත",
     "ta": "பாதுகாப்பான",
@@ -2744,6 +2987,24 @@
     "fr": "école",
     "de": "Schule"
   },
+  "sculpture": {
+    "si": "මූර්තිය",
+    "ta": "சிற்பம்",
+    "hi": "मूर्तिकला",
+    "zh": "雕塑",
+    "es": "escultura",
+    "fr": "sculpture",
+    "de": "Skulptur"
+  },
+  "sculptures": {
+    "si": "මූර්ති",
+    "ta": "சிற்பங்கள்",
+    "hi": "मूर्तियाँ",
+    "zh": "雕塑",
+    "es": "esculturas",
+    "fr": "sculptures",
+    "de": "Skulpturen"
+  },
   "sea": {
     "si": "මුහුද",
     "ta": "கடல்",
@@ -2762,6 +3023,24 @@
     "fr": "sécurité",
     "de": "Sicherheit"
   },
+  "shoe": {
+    "si": "පාවහන",
+    "ta": "காலணி",
+    "hi": "जूता",
+    "zh": "鞋",
+    "es": "zapato",
+    "fr": "chaussure",
+    "de": "Schuh"
+  },
+  "shoes": {
+    "si": "පාවහන්",
+    "ta": "காலணிகள்",
+    "hi": "जूते",
+    "zh": "鞋子",
+    "es": "zapatos",
+    "fr": "chaussures",
+    "de": "Schuhe"
+  },
   "shop": {
     "si": "කඩය",
     "ta": "கடை",
@@ -2770,6 +3049,24 @@
     "es": "tienda",
     "fr": "boutique",
     "de": "Geschäft"
+  },
+  "shoulder": {
+    "si": "උරහිස",
+    "ta": "தோள்",
+    "hi": "कंधा",
+    "zh": "肩膀",
+    "es": "hombro",
+    "fr": "épaule",
+    "de": "Schulter"
+  },
+  "shoulders": {
+    "si": "උරහිස්",
+    "ta": "தோள்கள்",
+    "hi": "कंधे",
+    "zh": "肩膀",
+    "es": "hombros",
+    "fr": "épaules",
+    "de": "Schultern"
   },
   "silence": {
     "si": "නිශ්ශබ්දතාව",
@@ -2915,6 +3212,24 @@
     "fr": "gare",
     "de": "Bahnhof"
   },
+  "statue": {
+    "si": "පිළිමය",
+    "ta": "சிலை",
+    "hi": "प्रतिमा",
+    "zh": "雕像",
+    "es": "estatua",
+    "fr": "statue",
+    "de": "Statue"
+  },
+  "statues": {
+    "si": "පිළිම",
+    "ta": "சிலைகள்",
+    "hi": "प्रतिमाएं",
+    "zh": "雕像",
+    "es": "estatuas",
+    "fr": "statues",
+    "de": "Statuen"
+  },
   "stay": {
     "si": "රැඳෙන්න",
     "ta": "தங்கு",
@@ -2977,6 +3292,15 @@
     "es": "estrictamente",
     "fr": "strictement",
     "de": "streng"
+  },
+  "stupa": {
+    "si": "දාගැබ",
+    "ta": "தூபி",
+    "hi": "स्तूप",
+    "zh": "佛塔",
+    "es": "estupa",
+    "fr": "stûpa",
+    "de": "Stupa"
   },
   "such": {
     "si": "එවැනි",
@@ -3266,6 +3590,24 @@
     "fr": "tour",
     "de": "Turm"
   },
+  "tradition": {
+    "si": "සම්ප්‍රදාය",
+    "ta": "மரபு",
+    "hi": "परंपरा",
+    "zh": "传统",
+    "es": "tradición",
+    "fr": "tradition",
+    "de": "Tradition"
+  },
+  "traditions": {
+    "si": "සම්ප්‍රදායන්",
+    "ta": "மரபுகள்",
+    "hi": "परंपराएं",
+    "zh": "传统",
+    "es": "tradiciones",
+    "fr": "traditions",
+    "de": "Traditionen"
+  },
   "train": {
     "si": "දුම්රිය",
     "ta": "ரயில்",
@@ -3337,6 +3679,15 @@
     "es": "muy",
     "fr": "très",
     "de": "sehr"
+  },
+  "video": {
+    "si": "වීඩියෝ",
+    "ta": "வீடியோ",
+    "hi": "वीडियो",
+    "zh": "视频",
+    "es": "vídeo",
+    "fr": "vidéo",
+    "de": "Video"
   },
   "view": {
     "si": "දර්ශනය",
@@ -3562,6 +3913,15 @@
     "es": "mujeres",
     "fr": "femmes",
     "de": "Frauen"
+  },
+  "worship": {
+    "si": "වන්දනාව",
+    "ta": "வழிபாடு",
+    "hi": "पूजा",
+    "zh": "礼拜",
+    "es": "culto",
+    "fr": "culte",
+    "de": "Andacht"
   },
   "yes": {
     "si": "ඔව්",
