@@ -1,6 +1,7 @@
 // Replacing the content of this file with the logic from the provided gallery_screen.dart file.
 // ...existing code...
 import 'package:flutter/material.dart';
+import '../explore_theme.dart';
 import '../data/sigiriya_knowledge_base.dart';
 import '../models/location_model.dart';
 
@@ -15,8 +16,6 @@ class _GalleryScreenState extends State<GalleryScreen>
     with SingleTickerProviderStateMixin {
   SigiriyaLocation? _selectedLocation;
   late final AnimationController _filterAnimCtrl;
-
-  static const _gold = Color(0xFFE8B84B);
 
   @override
   void initState() {
@@ -55,7 +54,7 @@ class _GalleryScreenState extends State<GalleryScreen>
     final crossAxisCount = size.width > 900 ? 4 : (isTablet ? 3 : 2);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0800),
+      backgroundColor: ExploreTheme.bg,
       appBar: _buildAppBar(isTablet),
       body: Column(
         children: [
@@ -78,7 +77,8 @@ class _GalleryScreenState extends State<GalleryScreen>
 
   PreferredSizeWidget _buildAppBar(bool isTablet) {
     return AppBar(
-      backgroundColor: const Color(0xFF100900),
+      backgroundColor: ExploreTheme.bar,
+      foregroundColor: Colors.white,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       title: Row(
@@ -88,7 +88,7 @@ class _GalleryScreenState extends State<GalleryScreen>
           Text(
             'Gallery',
             style: TextStyle(
-              color: _gold,
+              color: Colors.white,
               fontWeight: FontWeight.w700,
               fontSize: isTablet ? 18 : 16,
             ),
@@ -98,13 +98,13 @@ class _GalleryScreenState extends State<GalleryScreen>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: _gold.withOpacity(0.12),
+                color: Colors.white.withOpacity(0.16),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
                 '${_currentImages.length}',
                 style: const TextStyle(
-                  color: _gold,
+                  color: Colors.white,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -117,9 +117,9 @@ class _GalleryScreenState extends State<GalleryScreen>
 
   Widget _buildFilterRow() {
     return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF100900),
-        border: Border(bottom: BorderSide(color: _gold.withOpacity(0.1))),
+      decoration: const BoxDecoration(
+        color: ExploreTheme.card,
+        border: Border(bottom: BorderSide(color: ExploreTheme.border)),
       ),
       child: SizedBox(
         height: 52,
@@ -161,15 +161,15 @@ class _GalleryScreenState extends State<GalleryScreen>
                 Text(
                   _selectedLocation!.name,
                   style: TextStyle(
-                    color: _gold,
+                    color: ExploreTheme.accentText,
                     fontWeight: FontWeight.w700,
                     fontSize: isTablet ? 17 : 15,
                   ),
                 ),
                 Text(
                   '${_currentImages.length} image${_currentImages.length == 1 ? '' : 's'}',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.4),
+                  style: const TextStyle(
+                    color: ExploreTheme.textSoft,
                     fontSize: 12,
                   ),
                 ),
@@ -209,30 +209,30 @@ class _GalleryScreenState extends State<GalleryScreen>
             height: 80,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: _gold.withOpacity(0.06),
-              border: Border.all(color: _gold.withOpacity(0.15)),
+              color: ExploreTheme.accent.withOpacity(0.10),
+              border: Border.all(color: ExploreTheme.accent.withOpacity(0.25)),
             ),
             child: Icon(
               Icons.image_outlined,
               size: 36,
-              color: _gold.withOpacity(0.3),
+              color: ExploreTheme.accent.withOpacity(0.5),
             ),
           ),
           const SizedBox(height: 16),
-          Text(
+          const Text(
             'No Images Yet',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.5),
+              color: ExploreTheme.text,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 8),
-          Text(
+          const Text(
             'Add images to assets/images/locations/\nto see them here.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.25),
+              color: ExploreTheme.textSoft,
               fontSize: 13,
               height: 1.6,
             ),
@@ -257,7 +257,7 @@ class _FilterPill extends StatelessWidget {
     required this.onTap,
   });
 
-  static const _gold = Color(0xFFE8B84B);
+  static const _gold = ExploreTheme.accent;
 
   @override
   Widget build(BuildContext context) {
@@ -269,10 +269,10 @@ class _FilterPill extends StatelessWidget {
         margin: const EdgeInsets.only(right: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? _gold : _gold.withOpacity(0.07),
+          color: selected ? _gold : _gold.withOpacity(0.10),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? _gold : _gold.withOpacity(0.2),
+            color: selected ? _gold : _gold.withOpacity(0.30),
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -284,7 +284,7 @@ class _FilterPill extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: selected ? const Color(0xFF1A0E00) : Colors.white60,
+                color: selected ? Colors.white : ExploreTheme.textSoft,
                 fontSize: 12,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.normal,
               ),
@@ -411,18 +411,12 @@ class _AssetPlaceholder extends StatelessWidget {
   final SigiriyaLocation? location;
   const _AssetPlaceholder({this.location});
 
-  static const _gold = Color(0xFFE8B84B);
-
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1E1200), Color(0xFF2C1A0A)],
-        ),
-        border: Border.all(color: _gold.withOpacity(0.15)),
+        color: ExploreTheme.accent.withOpacity(0.08),
+        border: Border.all(color: ExploreTheme.accent.withOpacity(0.20)),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -430,14 +424,16 @@ class _AssetPlaceholder extends StatelessWidget {
           if (location != null)
             Text(location!.emoji, style: const TextStyle(fontSize: 36)),
           const SizedBox(height: 8),
-          Icon(Icons.image_outlined, color: _gold.withOpacity(0.25), size: 24),
+          Icon(Icons.image_outlined,
+              color: ExploreTheme.accent.withOpacity(0.45), size: 24),
           const SizedBox(height: 6),
           if (location != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Text(
                 location!.name,
-                style: TextStyle(color: _gold.withOpacity(0.4), fontSize: 10),
+                style: const TextStyle(
+                    color: ExploreTheme.textSoft, fontSize: 10),
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
