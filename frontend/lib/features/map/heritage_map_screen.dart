@@ -114,6 +114,22 @@ const Map<String, IconData> _pinnedLandmarkIconOverride = {
 /// tight.
 const int kAlwaysShowPriority = 10;
 
+/// The handful of names a visitor calls the whole site by. Ranked above the
+/// other must-see landmarks so that when a dense knot of them folds into a
+/// single pin (see [_VectorMapState._buildClusters]) this is the name that
+/// pin carries — the tangle of trail stops on the rock folds under
+/// "Sigiriya", not under "Terraced Gardens" — and so their own labels win
+/// the space contest first.
+const Set<String> _headlinerLandmarks = {
+  'Sigiriya',
+  'Pidurangala Rock',
+  'Sigiriya Museum',
+  'Sigiriya Entrance Bus Station',
+};
+
+/// Priority for [_headlinerLandmarks] — above [kAlwaysShowPriority].
+const int kHeadlinerPriority = 12;
+
 class _CuratedStop {
   final String name;
   final double lon;
@@ -251,6 +267,20 @@ class _MapMarker {
     required this.category,
     this.categoryLabel,
   });
+}
+
+/// One on-screen pin after the zoom-aware declutter: a representative marker
+/// ([lead] — the strongest POI at that spot) plus every lower-priority marker
+/// close enough that a second pin would just overlap it ([members], which
+/// always holds [lead] first). [members] length > 1 ⇒ the pin is drawn with a
+/// "stacked" hint and a tap opens the list of everything it stands for,
+/// instead of the single-place sheet. The fold distance is a screen-pixel
+/// value divided by the live zoom, so pinching in dissolves the stacks.
+class _PinCluster {
+  final _MapMarker lead;
+  final List<_MapMarker> members;
+  const _PinCluster(this.lead, this.members);
+  bool get isStack => members.length > 1;
 }
 
 /// An [ElephantWarningZone] pre-projected to canvas coordinates, with its
@@ -616,7 +646,74 @@ class _VectorMapState extends State<_VectorMap> {
     setState(() {
       _selectedCategory = c;
       _recomputeVisibleMarkers();
+      _clusterKey = double.nan; // force a re-fold for the new marker set
     });
+  }
+
+  // ── Zoom-aware pin declutter ─────────────────────────────────────────────
+  // Overlapping *pins* are the other half of the clutter problem (labels are
+  // handled inside the painter). Instead of a numbered "23" cluster badge —
+  // which the user rejected — nearby weaker pins are folded into the strongest
+  // pin at that spot; that pin is drawn with a small stacked-disc hint and, on
+  // tap, lists everything it covers. The fold radius is screen px ÷ zoom, so
+  // zooming in separates the pins again. Result is memoised on the quantised
+  // scale so a pan (scale unchanged) neither re-folds nor repaints.
+  double _clusterKey = double.nan;
+  List<_PinCluster> _clusters = const [];
+
+  static double _quantiseScale(double raw) =>
+      raw <= 0 ? 1.0 : (raw * 100).roundToDouble() / 100;
+
+  List<_PinCluster> _clustersFor(double quantisedScale) {
+    if (quantisedScale != _clusterKey) {
+      _clusterKey = quantisedScale;
+      _clusters = _buildClusters(_visibleMarkers, quantisedScale);
+    }
+    return _clusters;
+  }
+
+  /// Greedy, priority-ordered fold: walk markers strongest-first and either
+  /// start a new pin or, for a weaker marker within the fold radius of one
+  /// already placed, tuck it underneath. A must-see landmark never folds into
+  /// a weaker pin, but a headliner ([_headlinerLandmarks], sorted first) does
+  /// absorb the ordinary must-see landmarks around it — so the whole knot of
+  /// trail stops on the rock collapses to one "Sigiriya" pin at the site
+  /// overview and fans back out as you zoom in.
+  static List<_PinCluster> _buildClusters(
+      List<_MapMarker> markers, double scale) {
+    final invS = 1.0 / scale;
+    final foldPx = 38.0 * invS;
+    final foldPxFeatured = 44.0 * invS;
+
+    final leads = <_MapMarker>[];
+    final memberLists = <List<_MapMarker>>[];
+
+    for (final m in markers) {
+      final mFeatured = m.priority >= kAlwaysShowPriority;
+      var hostIdx = -1;
+      var hostDist = double.infinity;
+      for (var i = 0; i < leads.length; i++) {
+        final leadFeatured = leads[i].priority >= kAlwaysShowPriority;
+        if (mFeatured && !leadFeatured) continue;
+        final fold = (mFeatured && leadFeatured) ? foldPxFeatured : foldPx;
+        final d = (leads[i].screen - m.screen).distance;
+        if (d < fold && d < hostDist) {
+          hostDist = d;
+          hostIdx = i;
+        }
+      }
+      if (hostIdx == -1) {
+        leads.add(m);
+        memberLists.add(<_MapMarker>[m]);
+      } else {
+        memberLists[hostIdx].add(m);
+      }
+    }
+
+    return [
+      for (var i = 0; i < leads.length; i++)
+        _PinCluster(leads[i], memberLists[i]),
+    ];
   }
 
   @override
@@ -684,43 +781,51 @@ class _VectorMapState extends State<_VectorMap> {
   /// label contest over an ordinary guest house.
   static List<_MapMarker> _buildMarkers(SigiriyaMapData data, Size canvasSize) {
     final markers = <_MapMarker>[];
+    // OSM often carries the same anchor name on more than one feature (a
+    // polygon *and* a node for "Sigiriya", say). Keep only the first so the
+    // site doesn't sprout two identical pins/labels.
+    final seenAnchors = <String>{};
+
+    _MapMarker? anchorMarker(String name, Offset screen, _MarkerStyle style) {
+      final headliner = _headlinerLandmarks.contains(name);
+      final pinned = _pinnedLandmarks.contains(name);
+      if ((headliner || pinned) && !seenAnchors.add(name)) return null;
+      return _MapMarker(
+        screen: screen,
+        name: name,
+        icon: _pinnedLandmarkIconOverride[name] ?? style.icon,
+        color: style.color,
+        priority: headliner
+            ? kHeadlinerPriority
+            : (pinned ? kAlwaysShowPriority : style.priority),
+        pinRadius: (headliner || pinned)
+            ? max(style.pinRadius, headliner ? 10 : 9)
+            : style.pinRadius,
+        // A named anchor is always a "Landmarks" chip result, regardless of
+        // what OSM tag happened to classify it under.
+        category: (headliner || pinned) ? MapCategory.landmark : style.category,
+        categoryLabel: style.categoryLabel,
+      );
+    }
 
     for (final poly in data.polygons) {
       final name = poly.name;
       if (name == null || poly.rings.isEmpty) continue;
       if (_absorbedIntoCuratedStops.contains(name)) continue;
-      final style = _polygonMarkerStyle(poly);
-      final pinned = _pinnedLandmarks.contains(name);
-      markers.add(_MapMarker(
-        screen: _project(_ringCentroid(poly.rings.first), canvasSize),
-        name: name,
-        icon: _pinnedLandmarkIconOverride[name] ?? style.icon,
-        color: style.color,
-        priority: pinned ? kAlwaysShowPriority : style.priority,
-        pinRadius: pinned ? max(style.pinRadius, 9) : style.pinRadius,
-        // A pinned base-map landmark is always a "Landmarks" chip result,
-        // regardless of what OSM tag happened to classify it under.
-        category: pinned ? MapCategory.landmark : style.category,
-        categoryLabel: style.categoryLabel,
-      ));
+      final m = anchorMarker(
+        name,
+        _project(_ringCentroid(poly.rings.first), canvasSize),
+        _polygonMarkerStyle(poly),
+      );
+      if (m != null) markers.add(m);
     }
 
     for (final pt in data.points) {
       final name = pt.name;
       if (name == null) continue;
       if (_absorbedIntoCuratedStops.contains(name)) continue;
-      final style = _pointMarkerStyle(pt);
-      final pinned = _pinnedLandmarks.contains(name);
-      markers.add(_MapMarker(
-        screen: _project(pt.pos, canvasSize),
-        name: name,
-        icon: _pinnedLandmarkIconOverride[name] ?? style.icon,
-        color: style.color,
-        priority: pinned ? kAlwaysShowPriority : style.priority,
-        pinRadius: pinned ? max(style.pinRadius, 9) : style.pinRadius,
-        category: pinned ? MapCategory.landmark : style.category,
-        categoryLabel: style.categoryLabel,
-      ));
+      final m = anchorMarker(name, _project(pt.pos, canvasSize), _pointMarkerStyle(pt));
+      if (m != null) markers.add(m);
     }
 
     for (final stop in _curatedTrailStops) {
@@ -736,8 +841,12 @@ class _VectorMapState extends State<_VectorMap> {
       ));
     }
 
-    // Highest priority first so it wins the greedy label-collision pass.
-    markers.sort((a, b) => b.priority.compareTo(a.priority));
+    // Highest priority first so it wins the greedy fold + label passes; a
+    // name tiebreak keeps the fold representative deterministic across runs.
+    markers.sort((a, b) {
+      final byPriority = b.priority.compareTo(a.priority);
+      return byPriority != 0 ? byPriority : a.name.compareTo(b.name);
+    });
     return markers;
   }
 
@@ -753,20 +862,104 @@ class _VectorMapState extends State<_VectorMap> {
 
     // Tap target is a constant ~20 screen px: divide by the live zoom so a
     // zoomed-out map (tiny pins) is still comfortably tappable.
-    final scale = _transformController.value.getMaxScaleOnAxis();
-    final hitRadius = (20.0 / (scale <= 0 ? 1.0 : scale)).clamp(6.0, 60.0);
-    _MapMarker? nearest;
-    double nearestDist = double.infinity;
-    for (final m in _visibleMarkers) {
-      final d = (m.screen - details.localPosition).distance;
+    final rawScale = _transformController.value.getMaxScaleOnAxis();
+    final scale = rawScale <= 0 ? 1.0 : rawScale;
+    final hitRadius = (20.0 / scale).clamp(6.0, 60.0);
+
+    // Hit-test the folded pins actually on screen, not every raw marker, so a
+    // tap in a dense spot lands on the stack that's drawn there.
+    _PinCluster? nearest;
+    var nearestDist = double.infinity;
+    for (final c in _clustersFor(_quantiseScale(rawScale))) {
+      final d = (c.lead.screen - details.localPosition).distance;
       if (d < hitRadius && d < nearestDist) {
-        nearest = m;
+        nearest = c;
         nearestDist = d;
       }
     }
-    if (nearest != null) {
-      _showPoiSheet(nearest);
+    if (nearest == null) return;
+    if (nearest.isStack) {
+      _showClusterSheet(nearest);
+    } else {
+      _showPoiSheet(nearest.lead);
     }
+  }
+
+  /// Tapped a pin that stands in for several overlapping places — list them so
+  /// nothing folded away is unreachable. Ordered strongest-first (as on the
+  /// map); each row opens that place's own sheet.
+  void _showClusterSheet(_PinCluster cluster) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 4),
+              child: Text(
+                '${cluster.members.length} places here',
+                style: const TextStyle(
+                  fontFamily: 'Georgia',
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textBase,
+                ),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 6),
+              child: Text(
+                'Too close together to show separately — zoom in on the map to '
+                'spread them out.',
+                style: TextStyle(fontSize: 12, height: 1.4, color: Colors.grey),
+              ),
+            ),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(ctx).size.height * 0.5,
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                padding: const EdgeInsets.only(bottom: 12),
+                itemCount: cluster.members.length,
+                separatorBuilder: (_, __) =>
+                    const Divider(height: 1, indent: 56),
+                itemBuilder: (_, i) {
+                  final m = cluster.members[i];
+                  return ListTile(
+                    leading: Icon(m.icon, color: m.color),
+                    title: Text(
+                      m.name,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, color: AppTheme.textBase),
+                    ),
+                    subtitle: m.categoryLabel == null
+                        ? null
+                        : Text(
+                            m.categoryLabel!,
+                            style: const TextStyle(
+                                fontSize: 10.5,
+                                letterSpacing: 0.5,
+                                color: AppTheme.secondary),
+                          ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showPoiSheet(m);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showElephantWarningSheet(ElephantWarningZone zone) {
@@ -977,18 +1170,17 @@ class _VectorMapState extends State<_VectorMap> {
                           child: AnimatedBuilder(
                             animation: _transformController,
                             builder: (context, _) {
-                              final rawScale = _transformController.value
-                                  .getMaxScaleOnAxis();
-                              final scale =
-                                  (rawScale * 100).roundToDouble() / 100;
+                              final scale = _quantiseScale(_transformController
+                                  .value
+                                  .getMaxScaleOnAxis());
                               return CustomPaint(
                                 size: _canvasSize,
                                 painter: _VectorMapPainter(
                                   data: widget.data,
                                   canvasSize: _canvasSize,
-                                  markers: _visibleMarkers,
+                                  clusters: _clustersFor(scale),
                                   elephantZones: _elephantZones,
-                                  viewScale: scale <= 0 ? 1.0 : scale,
+                                  viewScale: scale,
                                 ),
                               );
                             },
@@ -996,12 +1188,6 @@ class _VectorMapState extends State<_VectorMap> {
                         ),
                       ),
                     ),
-                  ),
-                  const Positioned(
-                    top: 10,
-                    left: 10,
-                    right: 10,
-                    child: _OfflineInfoChip(),
                   ),
                   if (_elephantZones.isNotEmpty)
                     const Positioned(bottom: 12, left: 12, child: _ElephantLegendChip()),
@@ -1091,40 +1277,6 @@ class _CategoryChip extends StatelessWidget {
   }
 }
 
-/// Fixed (non-pannable) offline-source note — was previously a full-width
-/// banner pushing the whole map down; moved into the map's own overlay so
-/// the map fills the screen instead of losing a chunk of height to a
-/// permanent bar.
-class _OfflineInfoChip extends StatelessWidget {
-  const _OfflineInfoChip();
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.topLeft,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.95),
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 6, offset: const Offset(0, 2)),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.offline_pin_rounded, size: 14, color: Color(0xFF8D6E63)),
-            const SizedBox(width: 5),
-            Text('Offline map — OpenStreetMap extract',
-                style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Colors.grey[800])),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// Fixed (non-pannable) legend explaining the red warning pins — added so
 /// the per-pin floating label could be removed (it collided/overlapped when
 /// zones sat close together) without losing the explanation.
@@ -1159,19 +1311,22 @@ class _ElephantLegendChip extends StatelessWidget {
 class _VectorMapPainter extends CustomPainter {
   final SigiriyaMapData data;
   final Size canvasSize;
-  final List<_MapMarker> markers;
+
+  /// Pins to draw — already folded (see [_VectorMapState._buildClusters]) so
+  /// there is exactly one entry per on-screen pin, not one per raw POI.
+  final List<_PinCluster> clusters;
   final List<_ProjectedElephantZone> elephantZones;
 
-  /// Current pinch-zoom scale of the enclosing [InteractiveViewer]. The label
-  /// pass divides its screen-pixel measurements by this so text and chips
-  /// stay a constant on-screen size, and so the "another label is too close"
-  /// test tightens as you zoom in — revealing more names in a dense cluster.
+  /// Current pinch-zoom scale of the enclosing [InteractiveViewer]. Pin and
+  /// label sizes are divided by this so they stay a constant on-screen size
+  /// instead of ballooning, and the "another label is too close" test tightens
+  /// as you zoom in — revealing more names in a dense cluster.
   final double viewScale;
 
   const _VectorMapPainter({
     required this.data,
     required this.canvasSize,
-    required this.markers,
+    required this.clusters,
     required this.elephantZones,
     this.viewScale = 1.0,
   });
@@ -1193,9 +1348,15 @@ class _VectorMapPainter extends CustomPainter {
       _paintLine(canvas, line);
     }
     // Unnamed points get a plain context dot; named ones are drawn as
-    // full pins (with icon + label) in the marker pass below.
+    // full pins (with icon + label) in the marker pass below. Skip a context
+    // dot that a real pin is already sitting on — it only adds speckle around
+    // a cluster.
+    final dotClear = 9.0 / (viewScale <= 0 ? 1.0 : viewScale);
     for (final pt in data.points) {
-      if (pt.name == null) _paintUnnamedDot(canvas, pt);
+      if (pt.name != null) continue;
+      final o = _project(pt.pos);
+      if (clusters.any((c) => (c.lead.screen - o).distance < dotClear)) continue;
+      _paintUnnamedDot(canvas, pt);
     }
 
     // Every named place — landmark, facility, or hotel alike — is drawn as
@@ -1366,18 +1527,16 @@ class _VectorMapPainter extends CustomPainter {
     );
   }
 
-  /// Draws every named place as a pin (always visible + tappable), then makes
-  /// a second, priority-ordered pass that labels as many as read cleanly:
+  /// Draws one pin per folded cluster (see [_VectorMapState._buildClusters]),
+  /// then a second, priority-ordered pass that labels as many as read cleanly:
   ///
-  ///  * All label sizes are screen-pixel values divided by [viewScale], so
-  ///    text stays a constant on-screen size at any zoom instead of
-  ///    ballooning, and the whole pass re-runs (via the painter's
-  ///    `shouldRepaint`) each time the zoom changes.
+  ///  * Pin and label sizes are screen-pixel values divided by [viewScale], so
+  ///    they stay a constant on-screen size at any zoom instead of ballooning,
+  ///    and the whole pass re-runs (via `shouldRepaint`) each zoom change.
   ///  * A name is skipped when another already-labelled pin sits within a
   ///    minimum screen-pixel gap of it. Because that gap is in *screen*
-  ///    pixels, zooming into a cluster spreads its pins apart on screen and
-  ///    the suppressed names appear one by one — real-map behaviour, and what
-  ///    stops the ~8 trail stops (all within ~150 m) stacking their names.
+  ///    pixels, zooming into a cluster spreads its pins apart and the
+  ///    suppressed names appear one by one — real-map behaviour.
   ///  * Ordinary (non must-see) names also share a budget that grows with
   ///    zoom, so Food / All don't try to print forty labels at once.
   ///
@@ -1386,18 +1545,25 @@ class _VectorMapPainter extends CustomPainter {
   void _paintMarkersWithLabels(Canvas canvas) {
     final s = viewScale <= 0 ? 1.0 : viewScale;
     final invS = 1.0 / s;
+    // Keep pins near a constant on-screen size, but don't let them shrink to
+    // nothing when deeply zoomed in or bloat when zoomed right out.
+    final pinScale = invS.clamp(0.65, 1.7);
 
     final pinRects = <Rect>[];
-    for (final m in markers) {
-      _drawPin(canvas, m);
-      pinRects.add(Rect.fromCircle(center: m.screen, radius: m.pinRadius + 2));
+    for (final c in clusters) {
+      _drawPin(canvas, c.lead, stacked: c.isStack, pinScale: pinScale);
+      pinRects.add(Rect.fromCircle(
+        center: c.lead.screen,
+        radius: c.lead.pinRadius * pinScale + 2,
+      ));
     }
 
     // Minimum clear space between two *labelled* pins, in screen px → canvas
-    // units. Must-see landmarks get a tighter rule so more of them survive a
-    // dense cluster before the rest wait for a zoom-in.
+    // units. Landmark names run long ("Boulder Gardens & Cobra Hood Cave"), so
+    // this is generous — better to show four landmark labels cleanly and let
+    // the rest come in on zoom than cram ten on top of each other.
     final minGap = 52.0 * invS;
-    final minGapFeatured = 30.0 * invS;
+    final minGapFeatured = 46.0 * invS;
 
     final placedLabelRects = <Rect>[];
     final labelledPoints = <Offset>[];
@@ -1405,39 +1571,60 @@ class _VectorMapPainter extends CustomPainter {
     if (budget < 16) budget = 16;
     if (budget > 70) budget = 70;
 
-    for (final m in markers) {
+    for (final c in clusters) {
+      final m = c.lead;
       final featured = m.priority >= kAlwaysShowPriority;
       final gate = featured ? minGapFeatured : minGap;
 
       if (labelledPoints.any((p) => (p - m.screen).distance < gate)) continue;
       if (!featured && budget <= 0) continue;
 
-      if (_tryDrawLabel(canvas, m, pinRects, placedLabelRects, invS)) {
+      if (_tryDrawLabel(canvas, m, pinRects, placedLabelRects, invS, pinScale)) {
         labelledPoints.add(m.screen);
         if (!featured) budget--;
       }
     }
   }
 
-  void _drawPin(Canvas canvas, _MapMarker m) {
+  void _drawPin(Canvas canvas, _MapMarker m,
+      {bool stacked = false, double pinScale = 1.0}) {
     final featured = m.priority >= kAlwaysShowPriority;
+    final r = m.pinRadius * pinScale;
+
+    // "More than one place here" hint: a ghost pin peeking out behind, so a
+    // folded group reads as a stack of cards — no number badge.
+    if (stacked) {
+      final backCenter = m.screen + Offset(r * 0.62, r * 0.62);
+      canvas.drawCircle(backCenter, r, Paint()..color = Colors.white);
+      canvas.drawCircle(
+        backCenter,
+        r,
+        Paint()
+          ..color = m.color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.6 * pinScale,
+      );
+      canvas.drawCircle(backCenter, r * 0.5, Paint()..color = m.color.withOpacity(0.55));
+    }
+
     if (featured) {
       // Soft white halo so the must-see Sigiriya landmarks read as clearly
       // more important than the surrounding category-coloured dots/pins.
-      canvas.drawCircle(m.screen, m.pinRadius + 4, Paint()..color = Colors.white.withOpacity(0.9));
+      canvas.drawCircle(m.screen, r + 3.5 * pinScale,
+          Paint()..color = Colors.white.withOpacity(0.9));
     }
-    canvas.drawCircle(m.screen, m.pinRadius, Paint()..color = Colors.white);
+    canvas.drawCircle(m.screen, r, Paint()..color = Colors.white);
     canvas.drawCircle(
       m.screen,
-      m.pinRadius,
+      r,
       Paint()
         ..color = m.color
         ..style = PaintingStyle.stroke
-        ..strokeWidth = featured ? 2.6 : 1.8,
+        ..strokeWidth = (featured ? 2.4 : 1.7) * pinScale,
     );
-    canvas.drawCircle(m.screen, m.pinRadius * 0.68, Paint()..color = m.color);
-    if (m.pinRadius >= 6) {
-      _drawIconGlyph(canvas, m.screen, m.icon, m.pinRadius * 1.15, Colors.white);
+    canvas.drawCircle(m.screen, r * 0.68, Paint()..color = m.color);
+    if (r >= 6) {
+      _drawIconGlyph(canvas, m.screen, m.icon, r * 1.15, Colors.white);
     }
   }
 
@@ -1467,6 +1654,7 @@ class _VectorMapPainter extends CustomPainter {
     List<Rect> pinRects,
     List<Rect> placedLabelRects,
     double invS,
+    double pinScale,
   ) {
     final featured = m.priority >= kAlwaysShowPriority;
     final bold = m.priority >= 4;
@@ -1490,7 +1678,7 @@ class _VectorMapPainter extends CustomPainter {
     final hPad = 6.0 * invS, vPad = 3.0 * invS, gap = 6.0 * invS;
     final labelW = tp.width + hPad * 2;
     final labelH = tp.height + vPad * 2;
-    final cx = m.screen.dx, cy = m.screen.dy, r = m.pinRadius;
+    final cx = m.screen.dx, cy = m.screen.dy, r = m.pinRadius * pinScale;
     final maxRight = canvasSize.width - 2;
     final maxBottom = canvasSize.height - 2;
 
@@ -1544,7 +1732,7 @@ class _VectorMapPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _VectorMapPainter oldDelegate) =>
-      !identical(oldDelegate.markers, markers) ||
+      !identical(oldDelegate.clusters, clusters) ||
       oldDelegate.viewScale != viewScale;
 }
 
