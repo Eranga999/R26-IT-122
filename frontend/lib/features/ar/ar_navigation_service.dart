@@ -294,6 +294,7 @@ class ArNavigationService {
   // ── Starting anchor ─────────────────────────────────────────────────────
   // Used ONLY to help the visitor reach the Ticket Counter before the
   // measured route begins. Never used to generate route geometry afterwards.
+  //latitude
   static const double ticketCounterAnchorLat = 7.9577313;
   static const double ticketCounterAnchorLon = 80.7535045;
   static const String ticketCounterLabel = 'sigiriya_ticket_counter';

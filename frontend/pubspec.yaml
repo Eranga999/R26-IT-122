@@ -8,7 +8,6 @@ environment:
   sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
-  sensors_plus: ^6.0.1
   flutter:
     sdk: flutter
 
