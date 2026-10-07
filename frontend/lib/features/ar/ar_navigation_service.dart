@@ -544,7 +544,28 @@ class ArNavigationService {
   static const int _minCalibrationSteps = 6;
   // Debounce floor: normal walking cadence is ~400-800ms/step, so anything
   // faster is almost certainly a duplicate/noisy re-fire, not a real step.
-  static const int _minStepIntervalMs = 250;
+  // 300ms ⇒ max ~3.3 steps/s; a stride reported < 300ms after the previous
+  // one is the heel-strike/toe-off double-peak of the SAME stride, not a
+  // new step, and crediting it is what made the countdown outrun the walker.
+  static const int _minStepIntervalMs = 300;
+
+  // ── Countdown rate ceiling ──────────────────────────────────────────────
+  // The remaining-distance countdown must never fall faster than a brisk
+  // walk could actually close the gap. Even with the debounce above, a
+  // footstep sensor can over-report while the phone is held up for AR (hand
+  // sway adds spurious peaks; the native detector itself occasionally
+  // fires twice on rough ground), and the surplus is only really visible on
+  // the long straight segments (Segment 11 = 376 m, Segment 12 = 214 m)
+  // where it accumulates for hundreds of metres — exactly the "meters drop
+  // too fast when I walk straight" report. So `_creditStep` caps how far
+  // `_walkedInSegment` may advance per unit of wall-clock time to this
+  // speed. 2.0 m/s (7.2 km/h) is above even a brisk walk, so genuine
+  // walking (~1.0-1.4 m/s while sightseeing) is never throttled — only the
+  // over-count runaway is clipped. Deliberately below
+  // `_maxPlausibleWalkSpeedMps` (2.6, the GPS-jump reject ceiling): a
+  // countdown that lags a beat and catches up reads far better than one
+  // that races to zero mid-path.
+  static const double _maxCountdownSpeedMps = 2.0;
 
   // ── Temporal detection confirmation ─────────────────────────────────────
   static const int _ticketCounterConfirmFrames = 5;
@@ -621,6 +642,11 @@ class ArNavigationService {
   int _calibrationStepCount = 0;
   bool _calibrationComplete = false;
   DateTime? _lastStepEventTime;
+  // Wall-clock of the last step actually credited to `_walkedInSegment`, in
+  // this segment. Anchors the `_maxCountdownSpeedMps` rate ceiling in
+  // `_creditStep`; null at the start of every segment (first step is never
+  // throttled — the ceiling is about a *sustained* rate, not one stride).
+  DateTime? _lastProgressTime;
 
   // Debug-only shadow tracking, purely for comparison against the
   // sensor-driven `_walkedInSegment` — see the GPS section above.
@@ -883,6 +909,19 @@ class ArNavigationService {
 
   /// One step, from whichever source (native or software), credited exactly
   /// the same way — see the class-level "Distance estimation" doc above.
+  ///
+  /// The step adds one calibrated stride to `_walkedInSegment`, but never
+  /// more than [_maxCountdownSpeedMps] × (time since the previous credited
+  /// step) — so a stride that the sensor double-reports for a single
+  /// physical footfall (heel-strike + toe-off, or hand sway while the phone
+  /// is held up for AR) can't push the remaining-distance countdown ahead
+  /// of where the visitor could physically have walked. The first step of a
+  /// segment is always credited in full (the ceiling governs a sustained
+  /// rate, not one stride). `_stepsInSegment` is then re-derived from the
+  /// distance actually credited, so a clipped stride isn't quietly made up
+  /// on the following step — the same reconcile `_maybeCorrectDriftFromGps`
+  /// does. Segment-1 calibration is unaffected: it counts raw sensor fires
+  /// via `_calibrationStepCount`, which this never touches.
   ArNavigationSnapshot _creditStep(String source) {
     _stepsInSegment++;
     final seg = _currentSegmentIndex < _segments.length
@@ -891,9 +930,27 @@ class ArNavigationService {
     if (!_calibrationComplete && seg?.number == 1) {
       _calibrationStepCount++;
     }
-    _walkedInSegment = _stepsInSegment * _calibratedStepLength;
+
+    final now = DateTime.now();
+    double stride = _calibratedStepLength;
+    if (_lastProgressTime != null) {
+      final dtSeconds = math.max(
+          0.001, now.difference(_lastProgressTime!).inMilliseconds / 1000.0);
+      final maxStride = dtSeconds * _maxCountdownSpeedMps;
+      if (stride > maxStride) stride = maxStride;
+    }
+    _lastProgressTime = now;
+
+    final segLen = seg?.distanceMeters ?? double.infinity;
+    _walkedInSegment = _clampD(_walkedInSegment + stride, 0, segLen);
+    // Keep the step tally consistent with the distance actually credited.
+    if (_calibratedStepLength > 0) {
+      _stepsInSegment = (_walkedInSegment / _calibratedStepLength).round();
+    }
+
     _log('step detected ($source) stepsInSegment=$_stepsInSegment '
         'stepLength=${_calibratedStepLength.toStringAsFixed(3)}m '
+        'credited=${stride.toStringAsFixed(2)}m '
         'stepWalked=${_walkedInSegment.toStringAsFixed(2)}m');
     return _compute();
   }
@@ -1116,6 +1173,7 @@ class ArNavigationService {
   /// receive any progress).
   void _resetStepSegmentState() {
     _stepsInSegment = 0;
+    _lastProgressTime = null;
     _gpsWalkedInSegment = 0;
     _gpsFixesThisSegment = 0;
     _segmentStartLat = null;
