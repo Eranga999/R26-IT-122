@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'core/theme/app_theme.dart';
+import 'core/location/wildlife_alert_service.dart';
 import 'features/splash/splash_screen.dart';
 import 'features/sigiriya_guide/screens/splash_screen.dart' as sigiriya_guide;
 import 'features/translation/engine/offline_translation_engine.dart';
@@ -14,6 +15,10 @@ const _mlKitTargetLanguages = ['hi', 'ta', 'zh', 'es', 'fr', 'de'];
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const HeritageArApp());
+
+  // Wildlife alerts are application-wide. The user does not need to open the
+  // map: startup performs an immediate GPS check and starts foreground updates.
+  unawaited(WildlifeAlertService.instance.start());
 
   // Fire-and-forget: warm up every ML Kit offline language pack right when
   // the app launches, instead of waiting for the AR translator screen to
@@ -42,8 +47,33 @@ Future<void> runSigiriyaGuideApp() async {
   runApp(const SigiriyaGuideApp());
 }
 
-class HeritageArApp extends StatelessWidget {
+class HeritageArApp extends StatefulWidget {
   const HeritageArApp({super.key});
+
+  @override
+  State<HeritageArApp> createState() => _HeritageArAppState();
+}
+
+class _HeritageArAppState extends State<HeritageArApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(WildlifeAlertService.instance.start(notifyIfInside: true));
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
