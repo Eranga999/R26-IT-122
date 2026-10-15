@@ -267,10 +267,7 @@ Stores:
 
 ## 📈 Future Enhancements
 
-- Multi-language support
-- Voice-based assistant
 - 3D historical reconstruction
-- AR-based navigation waypoints
 - Advanced on-device RAG integration
 
 ---

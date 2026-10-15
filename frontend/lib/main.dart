@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'core/theme/app_theme.dart';
+import 'core/location/wildlife_alert_service.dart';
+import 'features/home/home_screen.dart';
+import 'features/map/heritage_map_screen.dart';
 import 'features/splash/splash_screen.dart';
 import 'features/sigiriya_guide/screens/splash_screen.dart' as sigiriya_guide;
 import 'features/translation/engine/offline_translation_engine.dart';
@@ -13,7 +16,13 @@ const _mlKitTargetLanguages = ['hi', 'ta', 'zh', 'es', 'fr', 'de'];
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const HeritageArApp());
+  final alerts = WildlifeAlertService.instance;
+  final openMapOnLaunch = await alerts.wasLaunchedFromWarningNotification();
+  runApp(HeritageArApp(openMapOnLaunch: openMapOnLaunch));
+
+  // Wildlife alerts are application-wide. The user does not need to open the
+  // map: startup performs an immediate GPS check and starts foreground updates.
+  unawaited(WildlifeAlertService.instance.start());
 
   // Fire-and-forget: warm up every ML Kit offline language pack right when
   // the app launches, instead of waiting for the AR translator screen to
@@ -42,18 +51,68 @@ Future<void> runSigiriyaGuideApp() async {
   runApp(const SigiriyaGuideApp());
 }
 
-class HeritageArApp extends StatelessWidget {
-  const HeritageArApp({super.key});
+class HeritageArApp extends StatefulWidget {
+  const HeritageArApp({super.key, this.openMapOnLaunch = false});
+
+  final bool openMapOnLaunch;
+
+  @override
+  State<HeritageArApp> createState() => _HeritageArAppState();
+}
+
+class _HeritageArAppState extends State<HeritageArApp>
+    with WidgetsBindingObserver {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  StreamSubscription<void>? _mapOpenSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _mapOpenSubscription =
+        WildlifeAlertService.instance.mapOpenRequests.listen((_) => _openMap());
+    if (widget.openMapOnLaunch) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _openMap());
+    }
+  }
+
+  void _openMap() {
+    if (!mounted) return;
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null) return;
+    navigator.pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => const HomeScreen()),
+      (_) => false,
+    );
+    navigator.push(MaterialPageRoute<void>(
+      builder: (_) => const HeritageMapScreen(),
+    ));
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(WildlifeAlertService.instance.start(notifyIfInside: true));
+    }
+  }
+
+  @override
+  void dispose() {
+    _mapOpenSubscription?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       title: 'HeritageAR',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
-      home: const SplashScreen(),
+      home: widget.openMapOnLaunch ? const HomeScreen() : const SplashScreen(),
     );
   }
 }

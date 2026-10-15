@@ -1,8 +1,9 @@
 {
   "_meta": {
     "layer": "sigiriya_wildlife_areas",
-    "description": "Wildlife/elephant warning reference points. These represent areas where elephant activity has been observed or reported — NOT live/current elephant locations. Additive only; does not modify the base OpenStreetMap GeoPackage. Mirrored in code at frontend/lib/features/map/heritage_map_screen.dart (kElephantWarningZones) — keep both in sync if edited.",
-    "generated": "2026-08-25"
+    "description": "Wildlife hazard warning reference features for the Sigiriya site: wild-elephant activity areas (drawn as discs) and the giant-honeybee / hornet ('wasp', Sinhala 'debara') swarm-attack stretch on the rock (drawn as a dashed line along the upper climb, so it does not blanket the landmark pins it runs through). These represent places where the hazard has been observed or repeatedly reported — NOT live/current animal locations. Additive only; does not modify the base OpenStreetMap GeoPackage. Mirrored in code at frontend/lib/features/map/heritage_map_screen.dart (kElephantWarningZones + kHornetDangerStretch); the code is the rendering source of truth — keep both in sync if edited.",
+    "generated": "2026-08-25",
+    "updated": "2026-09-09"
   },
   "areas": [
     {
@@ -52,10 +53,35 @@
       "verification_status": "verified",
       "priority": "high",
       "icon": "elephant_warning_icon"
+    },
+    {
+      "id": "sigiriya_hornet_001",
+      "name": "Hornet / Wasp Attack Stretch",
+      "type": "wildlife_warning",
+      "subtype": "hornet_warning",
+      "latitude": 7.9572197,
+      "longitude": 80.7594681,
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [80.7590067, 7.9568577],
+          [80.7594681, 7.9572197],
+          [80.7599000, 7.9575200],
+          [80.7597958, 7.9570616]
+        ]
+      },
+      "geometry_status": "approximate_route_visualization",
+      "description": "Asian giant honeybee ('wasp' / 'hornet', Sinhala 'debara') colonies nest on the upper rock faces along one stretch of the climb: the covered spiral staircase up to the Fresco pocket, the Mirror Wall corridor, the Lion's Paw platform, and the open iron staircase from there to the summit (the most attack-reported section, where the green wire-mesh bee-proof shelter cage stands). Swarms attack when disturbed by loud noise or sudden movement; 'keep silent' warning boards are posted here. This marks the reported attack stretch, not a live swarm location or a surveyed nest boundary.",
+      "source": "Published visitor accounts and news reports (Mongabay 2022 'A whiz and a buzz...'; thecommonwanderer.com; wonderfulwanderings.com; travelwithbender.com; Tripadvisor reviews). The four vertices are anchored to the 'Terraced Gardens', 'Mirror Wall & Fresco Gallery', 'Lion's Paw' and 'Summit Palace' trail stops in sigiriya_custom_pois.json / _curatedTrailStops. These spots are all within ~40 m of each other, so the map draws a dashed line through them rather than overlapping pins (which stacked into one blob at the site-overview zoom) or a filled disc (which hid the landmark pins it covered).",
+      "verification_status": "field_verification_required",
+      "priority": "high",
+      "icon": "hornet_warning_icon"
     }
   ],
   "notes": [
-    "No verified ecological habitat boundary or corridor geometry was available from an official source for these points, so no boundary/corridor polygon is stored — the 150m radius is a display-only approximate warning visualization, not a claimed habitat extent.",
-    "News reports (Daily Mirror, Lanka Newspapers — see docs/sigiriya_poi_dataset.md) confirm elephant activity and past incidents in the general Sigiriya/Pidurangala area, corroborating that a wildlife-warning layer is warranted here, but do not provide surveyed corridor coordinates."
+    "No verified ecological habitat boundary or corridor geometry was available from an official source for the elephant points, so no boundary/corridor polygon is stored — the radius is a display-only approximate warning visualization, not a claimed habitat extent.",
+    "News reports (Daily Mirror, Lanka Newspapers — see below) confirm elephant activity and past incidents in the general Sigiriya/Pidurangala area, corroborating that a wildlife-warning layer is warranted here, but do not provide surveyed corridor coordinates.",
+    "Hornet / 'wasp' stretch: the aggressive insects at Sigiriya are Asian giant honeybees (Apis dorsata), commonly called wasps or hornets by visitors and signage. Multiple independent first-hand accounts and news coverage place the nests and swarm attacks along the upper climb — the spiral staircase to the frescoes, the Mirror Wall, the Lion's Paw platform, and the staircase from there to the summit — spots all within ~40 m of each other. They are represented as one dashed LineString through those four trail anchors, drawn under the POI markers so the must-see landmark pins stay visible (earlier attempts: two pins that overlapped, then a single ~110 m disc that blanketed the landmark pins). Sri Lankan authorities post 'keep silent' signs, have installed wire-mesh shelter cages along the stairs, and have closed the site after serious attacks. No official surveyed nest coordinates are published, so the line is an approximate visualization anchored to the matching curated trail features.",
+    "Hornet sources: news.mongabay.com/2022/05/a-whiz-and-a-buzz-bee-attacks-at-sri-lanka-rock-fortress-point-to-need-for-toilets/ ; thecommonwanderer.com/blog/sigiriya-rock-fortress-guide-sri-lanka ; wonderfulwanderings.com/climbing-sigiriya-rock/ ; travelwithbender.com/travel-blog/srilanka/sigiriya-rock-sri-lanka ; Tripadvisor Sigiriya reviews/forums referencing hornet & wasp attacks."
   ]
 }
