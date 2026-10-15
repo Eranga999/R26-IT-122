@@ -817,13 +817,10 @@ const WildlifeWarningZone kHornetWarningInfo = WildlifeWarningZone(
 /// only change which ordinary POIs appear alongside it.
 const List<WildlifeWarningZone> kWildlifeWarningZones = kElephantWarningZones;
 
-/// A zoom factor that keeps the hornet overlay a roughly constant on-screen
-/// size — the enclosing [InteractiveViewer] scales the whole canvas, so
-/// canvas-space sizes are divided by this. Clamped so the overlay still
-/// grows a little when zoomed in (matching the POI pins) and can't balloon
-/// or vanish at the extremes.
+/// Keeps hazard pins and line strokes a constant screen size as the canvas
+/// zooms. Warning-area radii remain geographic and scale with the map.
 double _hornetZoomK(double viewScale) =>
-    (1.0 / (viewScale <= 0 ? 1.0 : viewScale)).clamp(0.55, 1.7);
+    1.0 / (viewScale <= 0 ? 1.0 : viewScale);
 
 /// Screen position of the hornet callout pin: lifted north of its anchor
 /// vertex by a gap that stays roughly constant on screen as you zoom, so it
@@ -874,7 +871,11 @@ class _VectorMapState extends State<_VectorMap> {
   final TransformationController _transformController =
       TransformationController();
   bool _initialViewSet = false;
+  Size _viewportSize = Size.zero;
   MapCategory _selectedCategory = MapCategory.landmark;
+
+  bool get _showElephants => _selectedCategory != MapCategory.hornet;
+  bool get _showHornets => _selectedCategory != MapCategory.elephant;
 
   /// Markers in the selected category (drawn + tappable) — the filter the
   /// chip row controls. Cached with a stable list identity, recomputed only
@@ -900,6 +901,51 @@ class _VectorMapState extends State<_VectorMap> {
       _recomputeVisibleMarkers();
       _clusterKey = double.nan; // force a re-fold for the new marker set
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusCategory();
+    });
+  }
+
+  Rect get _categoryBounds {
+    if (_selectedCategory == MapCategory.elephant) {
+      return _boundsOf(_warningZones.map((z) => z.screen), _canvasSize);
+    }
+    if (_selectedCategory == MapCategory.hornet) {
+      return _boundsOf(_hornetStretch, _canvasSize);
+    }
+    // Keep the busy All view at a useful site scale. Visitors can pan to
+    // outlying POIs without shrinking every pin to fit the complete extract.
+    if (_selectedCategory == MapCategory.landmark ||
+        _selectedCategory == MapCategory.all) {
+      return _importantBounds;
+    }
+    return _boundsOf(_visibleMarkers.map((m) => m.screen), _canvasSize);
+  }
+
+  void _focusCategory() {
+    if (_viewportSize.isEmpty) return;
+    final rect = _categoryBounds;
+    final scale = min(
+      _viewportSize.width / rect.width,
+      _viewportSize.height / rect.height,
+    ).clamp(0.25, 4.0);
+    _transformController.value = Matrix4.identity()
+      ..translate(_viewportSize.width / 2 - rect.center.dx * scale,
+          _viewportSize.height / 2 - rect.center.dy * scale)
+      ..scale(scale);
+  }
+
+  void _zoomBy(double factor) {
+    if (_viewportSize.isEmpty) return;
+    final matrix = _transformController.value;
+    final current = matrix.getMaxScaleOnAxis();
+    final target = (current * factor).clamp(0.25, 8.0);
+    final center = Offset(_viewportSize.width / 2, _viewportSize.height / 2);
+    final mapCenter = _transformController.toScene(center);
+    _transformController.value = Matrix4.identity()
+      ..translate(
+          center.dx - mapCenter.dx * target, center.dy - mapCenter.dy * target)
+      ..scale(target);
   }
 
   // ── Zoom-aware pin declutter ─────────────────────────────────────────────
@@ -1148,10 +1194,11 @@ class _VectorMapState extends State<_VectorMap> {
     final scale = rawScale <= 0 ? 1.0 : rawScale;
     final hitRadius = (20.0 / scale).clamp(6.0, 60.0);
 
-    // Elephant warning discs take tap priority within their radius — they sit
-    // in open ground away from POIs, so safety info wins there with no cost.
+    // A tap on a warning pin opens its safety sheet before nearby POIs.
+    // The wider translucent area is checked after POI pins so it never makes
+    // a visible place marker unreachable.
     for (final z in _warningZones) {
-      if ((z.screen - tap).distance <= z.pixelRadius) {
+      if (_showElephants && (z.screen - tap).distance <= hitRadius) {
         _showWildlifeWarningSheet(z.zone);
         return;
       }
@@ -1159,7 +1206,8 @@ class _VectorMapState extends State<_VectorMap> {
 
     // The hornet callout pin is a distinct target in clear space — check it
     // before the POIs.
-    if (_hornetStretch.length >= 2 &&
+    if (_showHornets &&
+        _hornetStretch.length >= 2 &&
         (_hornetCalloutPos(_hornetPinAnchor, rawScale) - tap).distance <=
             hitRadius) {
       _showWildlifeWarningSheet(kHornetWarningInfo);
@@ -1188,8 +1236,15 @@ class _VectorMapState extends State<_VectorMap> {
       return;
     }
 
+    for (final z in _warningZones) {
+      if (_showElephants && (z.screen - tap).distance <= z.pixelRadius) {
+        _showWildlifeWarningSheet(z.zone);
+        return;
+      }
+    }
+
     // Fallback: a tap on the hornet danger line itself, away from any pin.
-    if (_hornetStretch.length >= 2) {
+    if (_showHornets && _hornetStretch.length >= 2) {
       final lineTol = (16.0 / scale).clamp(7.0, 40.0);
       for (var i = 0; i < _hornetStretch.length - 1; i++) {
         if (_distToSegment(tap, _hornetStretch[i], _hornetStretch[i + 1]) <=
@@ -1475,6 +1530,7 @@ class _VectorMapState extends State<_VectorMap> {
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
+              _viewportSize = constraints.biggest;
               WidgetsBinding.instance.addPostFrameCallback(
                   (_) => _setInitialView(constraints.biggest));
               return Stack(
@@ -1530,6 +1586,11 @@ class _VectorMapState extends State<_VectorMap> {
                                   hornetStretch: _hornetStretch,
                                   hornetPinAnchor: _hornetPinAnchor,
                                   viewScale: scale,
+                                  showElephants: _showElephants,
+                                  showHornets: _showHornets,
+                                  labelWarnings: _selectedCategory ==
+                                          MapCategory.elephant ||
+                                      _selectedCategory == MapCategory.hornet,
                                 ),
                               );
                             },
@@ -1538,14 +1599,38 @@ class _VectorMapState extends State<_VectorMap> {
                       ),
                     ),
                   ),
-                  if (_warningZones.isNotEmpty || _hornetStretch.length >= 2)
+                  Positioned(
+                    right: 12,
+                    bottom: 12,
+                    child: Column(
+                      children: [
+                        _MapControl(
+                            icon: Icons.add,
+                            tooltip: 'Zoom in',
+                            onPressed: () => _zoomBy(1.5)),
+                        const SizedBox(height: 8),
+                        _MapControl(
+                            icon: Icons.remove,
+                            tooltip: 'Zoom out',
+                            onPressed: () => _zoomBy(1 / 1.5)),
+                        const SizedBox(height: 8),
+                        _MapControl(
+                            icon: Icons.center_focus_strong,
+                            tooltip: 'Show selected places',
+                            onPressed: _focusCategory),
+                      ],
+                    ),
+                  ),
+                  if ((_showElephants && _warningZones.isNotEmpty) ||
+                      (_showHornets && _hornetStretch.length >= 2))
                     Positioned(
                       bottom: 12,
                       left: 12,
                       child: _WildlifeLegendChip(
-                        elephant: _warningZones.any(
-                            (z) => z.zone.kind == WildlifeWarningKind.elephant),
-                        hornet: _hornetStretch.length >= 2,
+                        elephant: _showElephants &&
+                            _warningZones.any((z) =>
+                                z.zone.kind == WildlifeWarningKind.elephant),
+                        hornet: _showHornets && _hornetStretch.length >= 2,
                       ),
                     ),
                 ],
@@ -1594,6 +1679,27 @@ class _CategoryChipBar extends StatelessWidget {
       ),
     );
   }
+}
+
+class _MapControl extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  const _MapControl(
+      {required this.icon, required this.tooltip, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: Colors.white,
+        elevation: 3,
+        borderRadius: BorderRadius.circular(12),
+        child: IconButton(
+          icon: Icon(icon, color: AppTheme.primary),
+          tooltip: tooltip,
+          onPressed: onPressed,
+        ),
+      );
 }
 
 class _CategoryChip extends StatelessWidget {
@@ -1717,6 +1823,9 @@ class _VectorMapPainter extends CustomPainter {
   /// instead of ballooning, and the "another label is too close" test tightens
   /// as you zoom in — revealing more names in a dense cluster.
   final double viewScale;
+  final bool showElephants;
+  final bool showHornets;
+  final bool labelWarnings;
 
   const _VectorMapPainter({
     required this.data,
@@ -1726,6 +1835,9 @@ class _VectorMapPainter extends CustomPainter {
     required this.hornetStretch,
     required this.hornetPinAnchor,
     this.viewScale = 1.0,
+    this.showElephants = true,
+    this.showHornets = true,
+    this.labelWarnings = false,
   });
 
   Offset _project(GeoPoint p) {
@@ -1761,48 +1873,108 @@ class _VectorMapPainter extends CustomPainter {
     // landmark pins and labels it threads through (frescoes, Mirror Wall,
     // Lion's Paw, summit) stay readable on top rather than being blanketed
     // by a warning disc.
-    _paintHornetStretch(canvas);
+    if (showHornets) _paintHornetStretch(canvas);
 
-    // Every named place — landmark, facility, or hotel alike — is drawn as
-    // a pin, then labelled via the same priority-ordered collision pass
-    // (see _paintMarkersWithLabels).
-    _paintMarkersWithLabels(canvas);
-
-    // Elephant warning discs and the hornet callout pin sit on top of the
-    // markers so the safety layer is always the most visible.
-    for (final z in warningZones) {
-      _paintWarningZone(canvas, z);
+    if (showElephants) {
+      for (final z in warningZones) {
+        _paintWarningArea(canvas, z);
+      }
     }
-    _paintHornetCallout(canvas);
+
+    // Draw all pins before any text. Every label then tests against every
+    // visible pin and previously placed label, including warning pins.
+    _paintMarkerPins(canvas);
+
+    // Warning pins sit above ordinary pins; text is laid out after both.
+    if (showElephants) {
+      for (final z in warningZones) {
+        _paintWarningPin(canvas, z);
+      }
+    }
+    if (showHornets) _paintHornetCallout(canvas);
+    _paintLabels(canvas);
   }
 
-  /// Deliberately no floating name label here — the elephant areas sit only
-  /// ~150 m apart, so always-on labels collided and cluttered the map. The pin
-  /// itself (haloed, red, warning-icon) is already unmistakable; the name and
-  /// full safety copy are one tap away. A fixed legend chip outside the
-  /// pannable canvas (see [_WildlifeLegendChip]) explains what the discs mean.
-  void _paintWarningZone(Canvas canvas, _ProjectedWarningZone z) {
+  void _paintWarningArea(Canvas canvas, _ProjectedWarningZone z) {
     const warnColor = Color(0xFFD84315);
     canvas.drawCircle(
-        z.screen, z.pixelRadius, Paint()..color = warnColor.withOpacity(0.10));
+        z.screen, z.pixelRadius, Paint()..color = warnColor.withOpacity(0.18));
     _drawDashedCircle(canvas, z.screen, z.pixelRadius, warnColor);
+  }
 
+  void _paintWarningPin(Canvas canvas, _ProjectedWarningZone z) {
+    const warnColor = Color(0xFFD84315);
+    final k = _hornetZoomK(viewScale);
     // Halo + pin, matching the "featured landmark" visual language but in
     // warning colours so it reads as categorically different at a glance.
     canvas.drawCircle(
-        z.screen, 13, Paint()..color = Colors.white.withOpacity(0.95));
-    canvas.drawCircle(z.screen, 10, Paint()..color = Colors.white);
+        z.screen, 13 * k, Paint()..color = Colors.white.withOpacity(0.95));
+    canvas.drawCircle(z.screen, 10 * k, Paint()..color = Colors.white);
     canvas.drawCircle(
       z.screen,
-      10,
+      10 * k,
       Paint()
         ..color = warnColor
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.6,
+        ..strokeWidth = 2.6 * k,
     );
-    canvas.drawCircle(z.screen, 6.8, Paint()..color = warnColor);
+    canvas.drawCircle(z.screen, 6.8 * k, Paint()..color = warnColor);
     _drawIconGlyph(
-        canvas, z.screen, Icons.warning_amber_rounded, 11.5, Colors.white);
+        canvas, z.screen, Icons.warning_amber_rounded, 11.5 * k, Colors.white);
+  }
+
+  bool _tryPaintWarningLabel(
+      Canvas canvas,
+      Offset pin,
+      String name,
+      Color color,
+      double pinRadius,
+      double invS,
+      List<Rect> pinRects,
+      List<Rect> placedLabelRects) {
+    final text = TextPainter(
+      text: TextSpan(
+          text: name,
+          style: TextStyle(
+              color: AppTheme.textBase,
+              fontSize: 12 * invS,
+              fontWeight: FontWeight.w800)),
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: 170 * invS);
+    final pad = 6 * invS;
+    final gap = 6 * invS;
+    final width = text.width + 2 * pad;
+    final height = text.height + 2 * pad;
+    final candidates = <Offset>[
+      Offset(pin.dx - width / 2, pin.dy - pinRadius - gap - height),
+      Offset(pin.dx + pinRadius + gap, pin.dy - height / 2),
+      Offset(pin.dx - pinRadius - gap - width, pin.dy - height / 2),
+      Offset(pin.dx - width / 2, pin.dy + pinRadius + gap),
+    ];
+    for (final origin in candidates) {
+      final rect = Rect.fromLTWH(origin.dx, origin.dy, width, height);
+      if (rect.left < 2 ||
+          rect.top < 2 ||
+          rect.right > canvasSize.width - 2 ||
+          rect.bottom > canvasSize.height - 2 ||
+          pinRects.any((p) => p.overlaps(rect)) ||
+          placedLabelRects.any((p) => p.overlaps(rect))) {
+        continue;
+      }
+      placedLabelRects.add(rect);
+      final rounded = RRect.fromRectAndRadius(rect, Radius.circular(5 * invS));
+      canvas.drawRRect(
+          rounded, Paint()..color = Colors.white.withOpacity(0.96));
+      canvas.drawRRect(
+          rounded,
+          Paint()
+            ..color = color
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = invS);
+      text.paint(canvas, origin + Offset(pad, pad));
+      return true;
+    }
+    return false;
   }
 
   static const Color _kHornetAmber = Color(0xFFF9A825);
@@ -1901,7 +2073,7 @@ class _VectorMapPainter extends CustomPainter {
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.2;
+      ..strokeWidth = 2.2 * _hornetZoomK(viewScale);
     const dashDegrees = 10.0;
     const gapDegrees = 6.0;
     double deg = 0;
@@ -2036,8 +2208,16 @@ class _VectorMapPainter extends CustomPainter {
     );
   }
 
-  /// Draws one pin per folded cluster (see [_VectorMapState._buildClusters]),
-  /// then a second, priority-ordered pass that labels as many as read cleanly:
+  /// Draws one pin per folded cluster (see [_VectorMapState._buildClusters]).
+  void _paintMarkerPins(Canvas canvas) {
+    final invS = 1.0 / (viewScale <= 0 ? 1.0 : viewScale);
+    final pinScale = invS;
+    for (final c in clusters) {
+      _drawPin(canvas, c.lead, stacked: c.isStack, pinScale: pinScale);
+    }
+  }
+
+  /// Priority-ordered pass that labels as many pins as read cleanly:
   ///
   ///  * Pin and label sizes are screen-pixel values divided by [viewScale], so
   ///    they stay a constant on-screen size at any zoom instead of ballooning,
@@ -2051,20 +2231,36 @@ class _VectorMapPainter extends CustomPainter {
   ///
   /// Anything that doesn't get a label is still a pin you can tap. No leader
   /// lines — every drawn label sits directly against its own pin.
-  void _paintMarkersWithLabels(Canvas canvas) {
+  void _paintLabels(Canvas canvas) {
     final s = viewScale <= 0 ? 1.0 : viewScale;
     final invS = 1.0 / s;
-    // Keep pins near a constant on-screen size, but don't let them shrink to
-    // nothing when deeply zoomed in or bloat when zoomed right out.
-    final pinScale = invS.clamp(0.65, 1.7);
+    // Pins retain their screen size while the map geometry zooms underneath.
+    final pinScale = invS;
 
     final pinRects = <Rect>[];
     for (final c in clusters) {
-      _drawPin(canvas, c.lead, stacked: c.isStack, pinScale: pinScale);
+      final r = c.lead.pinRadius * pinScale;
+      // Reserve the halo and offset stack hint separately so the stack does
+      // not block free label space above and to the left of its own pin.
       pinRects.add(Rect.fromCircle(
         center: c.lead.screen,
-        radius: c.lead.pinRadius * pinScale + 2,
+        radius: c.lead.priority >= kAlwaysShowPriority ? r + 3.5 * pinScale : r,
       ));
+      if (c.isStack) {
+        pinRects.add(Rect.fromCircle(
+            center: c.lead.screen + Offset(r * 0.62, r * 0.62), radius: r));
+      }
+    }
+    if (showElephants) {
+      for (final z in warningZones) {
+        pinRects.add(Rect.fromCircle(
+            center: z.screen, radius: 13 * _hornetZoomK(viewScale)));
+      }
+    }
+    if (showHornets && hornetStretch.length >= 2) {
+      pinRects.add(Rect.fromCircle(
+          center: _hornetCalloutPos(hornetPinAnchor, viewScale),
+          radius: 11.5 * _hornetZoomK(viewScale)));
     }
 
     // Minimum clear space between two *labelled* pins, in screen px → canvas
@@ -2075,6 +2271,32 @@ class _VectorMapPainter extends CustomPainter {
     final minGapFeatured = 46.0 * invS;
 
     final placedLabelRects = <Rect>[];
+    if (labelWarnings) {
+      if (showElephants) {
+        for (final z in warningZones) {
+          _tryPaintWarningLabel(
+              canvas,
+              z.screen,
+              z.zone.name.replaceFirst('Elephant Warning ', ''),
+              const Color(0xFFD84315),
+              13 * _hornetZoomK(viewScale),
+              invS,
+              pinRects,
+              placedLabelRects);
+        }
+      }
+      if (showHornets && hornetStretch.length >= 2) {
+        _tryPaintWarningLabel(
+            canvas,
+            _hornetCalloutPos(hornetPinAnchor, viewScale),
+            'Hornet / wasp warning',
+            const Color(0xFFEF6C00),
+            11.5 * _hornetZoomK(viewScale),
+            invS,
+            pinRects,
+            placedLabelRects);
+      }
+    }
     final labelledPoints = <Offset>[];
     var budget = (16 * s).round();
     if (budget < 16) budget = 16;
@@ -2245,7 +2467,10 @@ class _VectorMapPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _VectorMapPainter oldDelegate) =>
       !identical(oldDelegate.clusters, clusters) ||
-      oldDelegate.viewScale != viewScale;
+      oldDelegate.viewScale != viewScale ||
+      oldDelegate.showElephants != showElephants ||
+      oldDelegate.showHornets != showHornets ||
+      oldDelegate.labelWarnings != labelWarnings;
 }
 
 class _PolyFillStyle {
