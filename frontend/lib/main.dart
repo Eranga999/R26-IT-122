@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'core/theme/app_theme.dart';
 import 'core/location/wildlife_alert_service.dart';
+import 'features/home/home_screen.dart';
+import 'features/map/heritage_map_screen.dart';
 import 'features/splash/splash_screen.dart';
 import 'features/sigiriya_guide/screens/splash_screen.dart' as sigiriya_guide;
 import 'features/translation/engine/offline_translation_engine.dart';
@@ -14,7 +16,9 @@ const _mlKitTargetLanguages = ['hi', 'ta', 'zh', 'es', 'fr', 'de'];
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const HeritageArApp());
+  final alerts = WildlifeAlertService.instance;
+  final openMapOnLaunch = await alerts.wasLaunchedFromWarningNotification();
+  runApp(HeritageArApp(openMapOnLaunch: openMapOnLaunch));
 
   // Wildlife alerts are application-wide. The user does not need to open the
   // map: startup performs an immediate GPS check and starts foreground updates.
@@ -48,7 +52,9 @@ Future<void> runSigiriyaGuideApp() async {
 }
 
 class HeritageArApp extends StatefulWidget {
-  const HeritageArApp({super.key});
+  const HeritageArApp({super.key, this.openMapOnLaunch = false});
+
+  final bool openMapOnLaunch;
 
   @override
   State<HeritageArApp> createState() => _HeritageArAppState();
@@ -56,10 +62,31 @@ class HeritageArApp extends StatefulWidget {
 
 class _HeritageArAppState extends State<HeritageArApp>
     with WidgetsBindingObserver {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  StreamSubscription<void>? _mapOpenSubscription;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _mapOpenSubscription =
+        WildlifeAlertService.instance.mapOpenRequests.listen((_) => _openMap());
+    if (widget.openMapOnLaunch) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _openMap());
+    }
+  }
+
+  void _openMap() {
+    if (!mounted) return;
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null) return;
+    navigator.pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => const HomeScreen()),
+      (_) => false,
+    );
+    navigator.push(MaterialPageRoute<void>(
+      builder: (_) => const HeritageMapScreen(),
+    ));
   }
 
   @override
@@ -71,6 +98,7 @@ class _HeritageArAppState extends State<HeritageArApp>
 
   @override
   void dispose() {
+    _mapOpenSubscription?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -78,12 +106,13 @@ class _HeritageArAppState extends State<HeritageArApp>
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       title: 'HeritageAR',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
-      home: const SplashScreen(),
+      home: widget.openMapOnLaunch ? const HomeScreen() : const SplashScreen(),
     );
   }
 }

@@ -69,6 +69,7 @@ class WildlifeAlertService {
   static const _wildlifeAsset = 'assets/vectors/sigiriya_wildlife_areas.json';
   static const _notificationChannelId = 'wildlife_alerts_v2';
   static const _notificationChannelName = 'Wildlife Alerts';
+  static const _mapNotificationPayload = 'open_wildlife_map';
   static const _approachRadiusExtraMeters = 80.0;
   static const _exitHysteresisMeters = 30.0;
   static const _minimumUsefulAccuracyMeters = 100.0;
@@ -80,6 +81,8 @@ class WildlifeAlertService {
   final Map<String, DateTime> _lastEntryAlert = {};
   final StreamController<WildlifeAlertEvent> _events =
       StreamController<WildlifeAlertEvent>.broadcast();
+  final StreamController<void> _mapOpenRequests =
+      StreamController<void>.broadcast();
 
   StreamSubscription<Position>? _positionSubscription;
   List<_WildlifeZone> _zones = const [];
@@ -89,7 +92,20 @@ class WildlifeAlertService {
   Future<bool>? _startFuture;
 
   Stream<WildlifeAlertEvent> get events => _events.stream;
+  Stream<void> get mapOpenRequests => _mapOpenRequests.stream;
   bool get isRunning => _running;
+
+  Future<bool> wasLaunchedFromWarningNotification() async {
+    if (kIsWeb ||
+        (defaultTargetPlatform != TargetPlatform.android &&
+            defaultTargetPlatform != TargetPlatform.iOS &&
+            defaultTargetPlatform != TargetPlatform.macOS)) {
+      return false;
+    }
+    final details = await _notifications.getNotificationAppLaunchDetails();
+    return details?.didNotificationLaunchApp == true &&
+        details?.notificationResponse?.payload == _mapNotificationPayload;
+  }
 
   Future<void> initialize() async {
     if (_initialized) return;
@@ -103,7 +119,20 @@ class WildlifeAlertService {
       macOS: darwinSettings,
     );
 
-    await _notifications.initialize(settings);
+    if (!kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.macOS)) {
+      await _notifications.initialize(
+        settings,
+        onDidReceiveNotificationResponse: (response) {
+          if (response.payload == _mapNotificationPayload &&
+              !_mapOpenRequests.isClosed) {
+            _mapOpenRequests.add(null);
+          }
+        },
+      );
+    }
     await _loadWarningAreas();
     _initialized = true;
   }
@@ -205,6 +234,7 @@ class WildlifeAlertService {
   Future<void> dispose() async {
     await stop();
     await _events.close();
+    await _mapOpenRequests.close();
     await _notifications.cancelAll();
   }
 
@@ -397,6 +427,15 @@ class WildlifeAlertService {
             : (isElephant
                 ? 'You are approaching an area where elephant activity has been reported.'
                 : 'You are approaching the Asian giant honeybee warning stretch.');
+    final preview = isTest
+        ? 'GPS test: ${distanceMeters.round()} m from the test point.'
+        : entered
+            ? (isElephant
+                ? 'Elephant warning area. Stay with your group.'
+                : 'Honeybee warning stretch. Keep silent.')
+            : (isElephant
+                ? 'Approaching elephant warning area.'
+                : 'Approaching honeybee warning stretch.');
 
     final androidDetails = AndroidNotificationDetails(
       _notificationChannelId,
@@ -405,6 +444,11 @@ class WildlifeAlertService {
           'Offline wildlife safety alerts for heritage visitors.',
       importance: Importance.max,
       priority: Priority.high,
+      styleInformation: BigTextStyleInformation(
+        body,
+        contentTitle: title,
+        summaryText: 'Tap to open Sigiriya map',
+      ),
       playSound: true,
       enableVibration: true,
       vibrationPattern: Int64List.fromList([0, 500, 250, 500]),
@@ -418,8 +462,11 @@ class WildlifeAlertService {
     await _notifications.show(
       _notificationId(id),
       title,
-      body,
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android
+          ? preview
+          : body,
       details,
+      payload: _mapNotificationPayload,
     );
 
     if (!_events.isClosed) {
