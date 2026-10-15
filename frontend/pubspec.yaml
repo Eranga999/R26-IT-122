@@ -52,6 +52,7 @@ dependencies:
   latlong2: ^0.9.0
   geolocator: ^14.0.3
   google_mlkit_translation: ^0.11.1
+  flutter_local_notifications: ^19.4.2
 
   # Renders the 3D AR navigation arrow (.glb) via an offline local WebView
   model_viewer_plus: ^1.10.0
