@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../../core/location/wildlife_alert_service.dart';
 import '../../core/theme/app_theme.dart';
 import 'geopackage/gpkg_geometry.dart';
 import 'geopackage/sigiriya_map_loader.dart';
@@ -33,11 +35,38 @@ class HeritageMapScreen extends StatefulWidget {
 
 class _HeritageMapScreenState extends State<HeritageMapScreen> {
   late final Future<SigiriyaMapData> _dataFuture;
+  bool _alertMonitoring = false;
+  StreamSubscription<WildlifeAlertEvent>? _alertSubscription;
 
   @override
   void initState() {
     super.initState();
     _dataFuture = SigiriyaMapLoader.load();
+    _startWildlifeAlerts();
+  }
+
+  Future<void> _startWildlifeAlerts() async {
+    final service = WildlifeAlertService.instance;
+    _alertSubscription = service.events.listen((event) {
+      if (!mounted) return;
+      final label =
+          event.entered ? 'Warning area entered' : 'Warning area nearby';
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text('$label: ${event.zoneName}'),
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+        ));
+    });
+    final started = await service.start();
+    if (mounted) setState(() => _alertMonitoring = started);
+  }
+
+  @override
+  void dispose() {
+    _alertSubscription?.cancel();
+    super.dispose();
   }
 
   @override
@@ -51,6 +80,22 @@ class _HeritageMapScreenState extends State<HeritageMapScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text('Sigiriya Map'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Tooltip(
+              message: _alertMonitoring
+                  ? 'Wildlife alerts active'
+                  : 'Wildlife alerts unavailable',
+              child: Icon(
+                _alertMonitoring
+                    ? Icons.notifications_active_rounded
+                    : Icons.notifications_off_rounded,
+                color: _alertMonitoring ? Colors.white : Colors.white60,
+              ),
+            ),
+          ),
+        ],
       ),
       backgroundColor: _kMapParchment,
       // No banner pushing the map down — it fills the whole body, edge to
@@ -194,14 +239,14 @@ const List<_CuratedStop> _curatedTrailStops = [
       Color(0xFF1565C0)),
   _CuratedStop('Boulder Gardens & Cobra Hood Cave', 80.7582684, 7.9562783,
       Icons.landscape_rounded, Color(0xFF2E7D32)),
-  _CuratedStop('Terraced Gardens', 80.7590067, 7.9568577,
-      Icons.layers_rounded, Color(0xFF2E7D32)),
+  _CuratedStop('Terraced Gardens', 80.7590067, 7.9568577, Icons.layers_rounded,
+      Color(0xFF2E7D32)),
   _CuratedStop('Mirror Wall & Fresco Gallery', 80.7594681, 7.9572197,
       Icons.auto_awesome_rounded, Color(0xFFD4A017)),
   _CuratedStop('Audience Hall & Throne', 80.7585222, 7.9560209,
       Icons.chair_rounded, Color(0xFFD4A017)),
-  _CuratedStop('Summit Palace', 80.75979575, 7.9570616,
-      Icons.castle_rounded, Color(0xFFD4A017)),
+  _CuratedStop('Summit Palace', 80.75979575, 7.9570616, Icons.castle_rounded,
+      Color(0xFFD4A017)),
 ];
 
 /// Real OSM features absorbed into a [_curatedTrailStops] anchor above — kept
@@ -221,7 +266,16 @@ const Set<String> _absorbedIntoCuratedStops = {
 /// and [MapCategory.hornet] match no ordinary POI — selecting one just
 /// empties the pin list so the always-on wildlife warning layer shows
 /// "that only".
-enum MapCategory { landmark, hotel, food, facility, viewpoint, elephant, hornet, all }
+enum MapCategory {
+  landmark,
+  hotel,
+  food,
+  facility,
+  viewpoint,
+  elephant,
+  hornet,
+  all
+}
 
 class MapCategoryInfo {
   final MapCategory category;
@@ -236,14 +290,22 @@ class MapCategoryInfo {
 /// [_VectorMapPainter.paint]) — their chips just also empty the regular POI
 /// list so the map shows "that only", as requested.
 const List<MapCategoryInfo> kMapCategoryChips = [
-  MapCategoryInfo(MapCategory.landmark, 'Landmarks', Icons.account_balance_rounded, Color(0xFFD4A017)),
-  MapCategoryInfo(MapCategory.hotel, 'Hotels', Icons.hotel_rounded, Color(0xFF6A1B9A)),
-  MapCategoryInfo(MapCategory.food, 'Food', Icons.restaurant_rounded, Color(0xFFE64A19)),
-  MapCategoryInfo(MapCategory.facility, 'Facilities', Icons.local_parking_rounded, Color(0xFF455A64)),
-  MapCategoryInfo(MapCategory.viewpoint, 'Viewpoints', Icons.landscape_rounded, Color(0xFF2E7D32)),
-  MapCategoryInfo(MapCategory.elephant, 'Elephant Warning', Icons.warning_amber_rounded, Color(0xFFD84315)),
-  MapCategoryInfo(MapCategory.hornet, 'Hornet Warning', Icons.bug_report_rounded, Color(0xFFF9A825)),
-  MapCategoryInfo(MapCategory.all, 'All', Icons.layers_rounded, AppTheme.primary),
+  MapCategoryInfo(MapCategory.landmark, 'Landmarks',
+      Icons.account_balance_rounded, Color(0xFFD4A017)),
+  MapCategoryInfo(
+      MapCategory.hotel, 'Hotels', Icons.hotel_rounded, Color(0xFF6A1B9A)),
+  MapCategoryInfo(
+      MapCategory.food, 'Food', Icons.restaurant_rounded, Color(0xFFE64A19)),
+  MapCategoryInfo(MapCategory.facility, 'Facilities',
+      Icons.local_parking_rounded, Color(0xFF455A64)),
+  MapCategoryInfo(MapCategory.viewpoint, 'Viewpoints', Icons.landscape_rounded,
+      Color(0xFF2E7D32)),
+  MapCategoryInfo(MapCategory.elephant, 'Elephant Warning',
+      Icons.warning_amber_rounded, Color(0xFFD84315)),
+  MapCategoryInfo(MapCategory.hornet, 'Hornet Warning',
+      Icons.bug_report_rounded, Color(0xFFF9A825)),
+  MapCategoryInfo(
+      MapCategory.all, 'All', Icons.layers_rounded, AppTheme.primary),
 ];
 
 /// How a named feature (point or polygon) renders as a pin: icon, colour,
@@ -409,7 +471,9 @@ _MarkerStyle _polygonMarkerStyle(MapPolygonFeature poly) {
         category: MapCategory.landmark,
         categoryLabel: 'WATER');
   }
-  if (poly.natural == 'bare_rock' || poly.natural == 'rock' || poly.natural == 'stone') {
+  if (poly.natural == 'bare_rock' ||
+      poly.natural == 'rock' ||
+      poly.natural == 'stone') {
     return const _MarkerStyle(
         icon: Icons.terrain_rounded,
         color: Color(0xFF6D4C41),
@@ -456,64 +520,149 @@ _MarkerStyle _pointMarkerStyle(MapPointFeature pt) {
   switch (_tag(tags, 'amenity')) {
     case 'toilets':
       return const _MarkerStyle(
-          icon: Icons.wc_rounded, color: Color(0xFF00838F), priority: 3, pinRadius: 6, category: MapCategory.facility, categoryLabel: 'TOILETS');
+          icon: Icons.wc_rounded,
+          color: Color(0xFF00838F),
+          priority: 3,
+          pinRadius: 6,
+          category: MapCategory.facility,
+          categoryLabel: 'TOILETS');
     case 'drinking_water':
       return const _MarkerStyle(
-          icon: Icons.water_drop_rounded, color: Color(0xFF00838F), priority: 3, pinRadius: 6, category: MapCategory.facility, categoryLabel: 'DRINKING WATER');
+          icon: Icons.water_drop_rounded,
+          color: Color(0xFF00838F),
+          priority: 3,
+          pinRadius: 6,
+          category: MapCategory.facility,
+          categoryLabel: 'DRINKING WATER');
     case 'parking':
       return const _MarkerStyle(
-          icon: Icons.local_parking_rounded, color: Color(0xFF455A64), priority: 2, pinRadius: 6, category: MapCategory.facility, categoryLabel: 'PARKING');
+          icon: Icons.local_parking_rounded,
+          color: Color(0xFF455A64),
+          priority: 2,
+          pinRadius: 6,
+          category: MapCategory.facility,
+          categoryLabel: 'PARKING');
     case 'restaurant':
       return const _MarkerStyle(
-          icon: Icons.restaurant_rounded, color: Color(0xFFE64A19), priority: 1, pinRadius: 4, category: MapCategory.food, categoryLabel: 'RESTAURANT');
+          icon: Icons.restaurant_rounded,
+          color: Color(0xFFE64A19),
+          priority: 1,
+          pinRadius: 4,
+          category: MapCategory.food,
+          categoryLabel: 'RESTAURANT');
     case 'cafe':
       return const _MarkerStyle(
-          icon: Icons.local_cafe_rounded, color: Color(0xFFE64A19), priority: 1, pinRadius: 4, category: MapCategory.food, categoryLabel: 'CAFE');
+          icon: Icons.local_cafe_rounded,
+          color: Color(0xFFE64A19),
+          priority: 1,
+          pinRadius: 4,
+          category: MapCategory.food,
+          categoryLabel: 'CAFE');
     case 'pub':
       return const _MarkerStyle(
-          icon: Icons.restaurant_rounded, color: Color(0xFFE64A19), priority: 1, pinRadius: 4, category: MapCategory.food, categoryLabel: 'RESTAURANT');
+          icon: Icons.restaurant_rounded,
+          color: Color(0xFFE64A19),
+          priority: 1,
+          pinRadius: 4,
+          category: MapCategory.food,
+          categoryLabel: 'RESTAURANT');
     case 'police':
       return const _MarkerStyle(
-          icon: Icons.local_police_rounded, color: Color(0xFFC62828), priority: 3, pinRadius: 6, category: MapCategory.facility, categoryLabel: 'POLICE');
+          icon: Icons.local_police_rounded,
+          color: Color(0xFFC62828),
+          priority: 3,
+          pinRadius: 6,
+          category: MapCategory.facility,
+          categoryLabel: 'POLICE');
     case 'first_aid':
     case 'doctors':
       return const _MarkerStyle(
-          icon: Icons.medical_services_rounded, color: Color(0xFFC62828), priority: 3, pinRadius: 6, category: MapCategory.facility, categoryLabel: 'FIRST AID');
+          icon: Icons.medical_services_rounded,
+          color: Color(0xFFC62828),
+          priority: 3,
+          pinRadius: 6,
+          category: MapCategory.facility,
+          categoryLabel: 'FIRST AID');
     case 'bicycle_rental':
       return const _MarkerStyle(
-          icon: Icons.pedal_bike_rounded, color: Color(0xFF6D4C41), priority: 1, pinRadius: 4, category: MapCategory.facility, categoryLabel: 'BICYCLE RENTAL');
+          icon: Icons.pedal_bike_rounded,
+          color: Color(0xFF6D4C41),
+          priority: 1,
+          pinRadius: 4,
+          category: MapCategory.facility,
+          categoryLabel: 'BICYCLE RENTAL');
     case 'bench':
       return const _MarkerStyle(
-          icon: Icons.chair_rounded, color: Color(0xFF8D6E63), priority: 1, pinRadius: 3, category: MapCategory.facility, categoryLabel: 'REST AREA');
+          icon: Icons.chair_rounded,
+          color: Color(0xFF8D6E63),
+          priority: 1,
+          pinRadius: 3,
+          category: MapCategory.facility,
+          categoryLabel: 'REST AREA');
     case 'atm':
       return const _MarkerStyle(
-          icon: Icons.local_atm_rounded, color: Color(0xFF455A64), priority: 1, pinRadius: 4, category: MapCategory.facility, categoryLabel: 'ATM');
+          icon: Icons.local_atm_rounded,
+          color: Color(0xFF455A64),
+          priority: 1,
+          pinRadius: 4,
+          category: MapCategory.facility,
+          categoryLabel: 'ATM');
     case 'place_of_worship':
       return const _MarkerStyle(
-          icon: Icons.temple_buddhist_rounded, color: Color(0xFFD4A017), priority: 3, pinRadius: 6, category: MapCategory.landmark, categoryLabel: 'TEMPLE');
+          icon: Icons.temple_buddhist_rounded,
+          color: Color(0xFFD4A017),
+          priority: 3,
+          pinRadius: 6,
+          category: MapCategory.landmark,
+          categoryLabel: 'TEMPLE');
   }
 
   switch (_tag(tags, 'shop')) {
     case 'ticket':
       return const _MarkerStyle(
-          icon: Icons.confirmation_num_rounded, color: AppTheme.primary, priority: 3, pinRadius: 6, category: MapCategory.facility, categoryLabel: 'TICKET COUNTER');
+          icon: Icons.confirmation_num_rounded,
+          color: AppTheme.primary,
+          priority: 3,
+          pinRadius: 6,
+          category: MapCategory.facility,
+          categoryLabel: 'TICKET COUNTER');
     case 'gift':
     case 'craft':
       return const _MarkerStyle(
-          icon: Icons.card_giftcard_rounded, color: Color(0xFF6A1B9A), priority: 1, pinRadius: 4, category: MapCategory.facility, categoryLabel: 'SOUVENIR SHOP');
+          icon: Icons.card_giftcard_rounded,
+          color: Color(0xFF6A1B9A),
+          priority: 1,
+          pinRadius: 4,
+          category: MapCategory.facility,
+          categoryLabel: 'SOUVENIR SHOP');
     case 'convenience':
       return const _MarkerStyle(
-          icon: Icons.local_convenience_store_rounded, color: Color(0xFF455A64), priority: 1, pinRadius: 4, category: MapCategory.facility, categoryLabel: 'SHOP');
+          icon: Icons.local_convenience_store_rounded,
+          color: Color(0xFF455A64),
+          priority: 1,
+          pinRadius: 4,
+          category: MapCategory.facility,
+          categoryLabel: 'SHOP');
   }
 
   switch (pt.category) {
     case 'information':
       return const _MarkerStyle(
-          icon: Icons.info_rounded, color: Color(0xFF1565C0), priority: 2, pinRadius: 5, category: MapCategory.facility, categoryLabel: 'TOURIST INFORMATION');
+          icon: Icons.info_rounded,
+          color: Color(0xFF1565C0),
+          priority: 2,
+          pinRadius: 5,
+          category: MapCategory.facility,
+          categoryLabel: 'TOURIST INFORMATION');
     case 'gallery':
     case 'artwork':
       return const _MarkerStyle(
-          icon: Icons.palette_rounded, color: Color(0xFF6A1B9A), priority: 1, pinRadius: 4, category: MapCategory.landmark, categoryLabel: 'GALLERY');
+          icon: Icons.palette_rounded,
+          color: Color(0xFF6A1B9A),
+          priority: 1,
+          pinRadius: 4,
+          category: MapCategory.landmark,
+          categoryLabel: 'GALLERY');
     case 'viewpoint':
       return const _MarkerStyle(
           icon: Icons.landscape_rounded,
@@ -645,7 +794,8 @@ const List<WildlifeWarningZone> kElephantWarningZones = [
 /// wonderfulwanderings.com, travelwithbender.com); Tripadvisor reviews.
 /// Mirrored in sigiriya_wildlife_areas.json.
 const List<GeoPoint> kHornetDangerStretch = [
-  GeoPoint(80.7590067, 7.9568577), // Terraced Gardens — foot of the spiral staircase
+  GeoPoint(
+      80.7590067, 7.9568577), // Terraced Gardens — foot of the spiral staircase
   GeoPoint(80.7594681, 7.9572197), // Mirror Wall & Fresco Gallery
   GeoPoint(80.7599000, 7.9575200), // Lion's Paw platform
   GeoPoint(80.7597958, 7.9570616), // Summit Palace
@@ -721,7 +871,8 @@ class _VectorMapState extends State<_VectorMap> {
   late final List<Offset> _hornetStretch;
   late final Offset _hornetPinAnchor;
   late final Rect _importantBounds;
-  final TransformationController _transformController = TransformationController();
+  final TransformationController _transformController =
+      TransformationController();
   bool _initialViewSet = false;
   MapCategory _selectedCategory = MapCategory.landmark;
 
@@ -843,7 +994,9 @@ class _VectorMapState extends State<_VectorMap> {
     _markers = _buildMarkers(widget.data, _canvasSize);
     _recomputeVisibleMarkers();
     _importantBounds = _boundsOf(
-      _markers.where((m) => m.priority >= kAlwaysShowPriority).map((m) => m.screen),
+      _markers
+          .where((m) => m.priority >= kAlwaysShowPriority)
+          .map((m) => m.screen),
       _canvasSize,
     );
 
@@ -959,7 +1112,8 @@ class _VectorMapState extends State<_VectorMap> {
       final name = pt.name;
       if (name == null) continue;
       if (_absorbedIntoCuratedStops.contains(name)) continue;
-      final m = anchorMarker(name, _project(pt.pos, canvasSize), _pointMarkerStyle(pt));
+      final m = anchorMarker(
+          name, _project(pt.pos, canvasSize), _pointMarkerStyle(pt));
       if (m != null) markers.add(m);
     }
 
@@ -1100,7 +1254,8 @@ class _VectorMapState extends State<_VectorMap> {
                     title: Text(
                       m.name,
                       style: const TextStyle(
-                          fontWeight: FontWeight.w600, color: AppTheme.textBase),
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textBase),
                     ),
                     subtitle: m.categoryLabel == null
                         ? null
@@ -1128,7 +1283,8 @@ class _VectorMapState extends State<_VectorMap> {
   void _showWildlifeWarningSheet(WildlifeWarningZone zone) {
     final hornet = zone.kind == WildlifeWarningKind.hornet;
     final badgeLabel = hornet ? 'HORNET / WASP WARNING' : 'WILDLIFE WARNING';
-    final badgeColor = hornet ? const Color(0xFFEF6C00) : const Color(0xFFC62828);
+    final badgeColor =
+        hornet ? const Color(0xFFEF6C00) : const Color(0xFFC62828);
     final emoji = hornet ? '🐝' : '🐘';
     final body = hornet
         ? 'Giant honeybee / hornet swarms ("wasps", Sinhala debara) nest on '
@@ -1167,7 +1323,8 @@ class _VectorMapState extends State<_VectorMap> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: badgeColor,
                   borderRadius: BorderRadius.circular(999),
@@ -1175,7 +1332,8 @@ class _VectorMapState extends State<_VectorMap> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 14),
+                    const Icon(Icons.warning_amber_rounded,
+                        color: Colors.white, size: 14),
                     const SizedBox(width: 5),
                     Text(badgeLabel,
                         style: const TextStyle(
@@ -1199,12 +1357,14 @@ class _VectorMapState extends State<_VectorMap> {
               const SizedBox(height: 10),
               Text(
                 body,
-                style: const TextStyle(color: Color(0xFF4E342E), fontSize: 13.5, height: 1.6),
+                style: const TextStyle(
+                    color: Color(0xFF4E342E), fontSize: 13.5, height: 1.6),
               ),
               const SizedBox(height: 12),
               Text(
                 sourceNote,
-                style: const TextStyle(color: Colors.grey, fontSize: 11, height: 1.5),
+                style: const TextStyle(
+                    color: Colors.grey, fontSize: 11, height: 1.5),
               ),
             ],
           ),
@@ -1315,8 +1475,8 @@ class _VectorMapState extends State<_VectorMap> {
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              WidgetsBinding.instance
-                  .addPostFrameCallback((_) => _setInitialView(constraints.biggest));
+              WidgetsBinding.instance.addPostFrameCallback(
+                  (_) => _setInitialView(constraints.biggest));
               return Stack(
                 children: [
                   // Parchment ground so the letterbox bands around the
@@ -1383,8 +1543,8 @@ class _VectorMapState extends State<_VectorMap> {
                       bottom: 12,
                       left: 12,
                       child: _WildlifeLegendChip(
-                        elephant: _warningZones.any((z) =>
-                            z.zone.kind == WildlifeWarningKind.elephant),
+                        elephant: _warningZones.any(
+                            (z) => z.zone.kind == WildlifeWarningKind.elephant),
                         hornet: _hornetStretch.length >= 2,
                       ),
                     ),
@@ -1440,7 +1600,8 @@ class _CategoryChip extends StatelessWidget {
   final MapCategoryInfo info;
   final bool selected;
   final VoidCallback onTap;
-  const _CategoryChip({required this.info, required this.selected, required this.onTap});
+  const _CategoryChip(
+      {required this.info, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1452,12 +1613,14 @@ class _CategoryChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? info.color : Colors.white,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: selected ? info.color : Colors.grey.shade300, width: 1.2),
+          border: Border.all(
+              color: selected ? info.color : Colors.grey.shade300, width: 1.2),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(info.icon, size: 16, color: selected ? Colors.white : info.color),
+            Icon(info.icon,
+                size: 16, color: selected ? Colors.white : info.color),
             const SizedBox(width: 6),
             Text(
               info.label,
@@ -1513,7 +1676,10 @@ class _WildlifeLegendChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFFD84315).withOpacity(0.4)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 6, offset: const Offset(0, 2)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.12),
+              blurRadius: 6,
+              offset: const Offset(0, 2)),
         ],
       ),
       child: Column(
@@ -1586,7 +1752,8 @@ class _VectorMapPainter extends CustomPainter {
     for (final pt in data.points) {
       if (pt.name != null) continue;
       final o = _project(pt.pos);
-      if (clusters.any((c) => (c.lead.screen - o).distance < dotClear)) continue;
+      if (clusters.any((c) => (c.lead.screen - o).distance < dotClear))
+        continue;
       _paintUnnamedDot(canvas, pt);
     }
 
@@ -1616,12 +1783,14 @@ class _VectorMapPainter extends CustomPainter {
   /// pannable canvas (see [_WildlifeLegendChip]) explains what the discs mean.
   void _paintWarningZone(Canvas canvas, _ProjectedWarningZone z) {
     const warnColor = Color(0xFFD84315);
-    canvas.drawCircle(z.screen, z.pixelRadius, Paint()..color = warnColor.withOpacity(0.10));
+    canvas.drawCircle(
+        z.screen, z.pixelRadius, Paint()..color = warnColor.withOpacity(0.10));
     _drawDashedCircle(canvas, z.screen, z.pixelRadius, warnColor);
 
     // Halo + pin, matching the "featured landmark" visual language but in
     // warning colours so it reads as categorically different at a glance.
-    canvas.drawCircle(z.screen, 13, Paint()..color = Colors.white.withOpacity(0.95));
+    canvas.drawCircle(
+        z.screen, 13, Paint()..color = Colors.white.withOpacity(0.95));
     canvas.drawCircle(z.screen, 10, Paint()..color = Colors.white);
     canvas.drawCircle(
       z.screen,
@@ -1632,7 +1801,8 @@ class _VectorMapPainter extends CustomPainter {
         ..strokeWidth = 2.6,
     );
     canvas.drawCircle(z.screen, 6.8, Paint()..color = warnColor);
-    _drawIconGlyph(canvas, z.screen, Icons.warning_amber_rounded, 11.5, Colors.white);
+    _drawIconGlyph(
+        canvas, z.screen, Icons.warning_amber_rounded, 11.5, Colors.white);
   }
 
   static const Color _kHornetAmber = Color(0xFFF9A825);
@@ -1646,8 +1816,7 @@ class _VectorMapPainter extends CustomPainter {
   void _paintHornetStretch(Canvas canvas) {
     if (hornetStretch.length < 2) return;
     final k = _hornetZoomK(viewScale);
-    final path = Path()
-      ..moveTo(hornetStretch.first.dx, hornetStretch.first.dy);
+    final path = Path()..moveTo(hornetStretch.first.dx, hornetStretch.first.dy);
     for (final p in hornetStretch.skip(1)) {
       path.lineTo(p.dx, p.dy);
     }
@@ -1727,7 +1896,8 @@ class _VectorMapPainter extends CustomPainter {
     _drawIconGlyph(canvas, pin, Icons.bug_report_rounded, 10 * k, Colors.white);
   }
 
-  void _drawDashedCircle(Canvas canvas, Offset center, double radius, Color color) {
+  void _drawDashedCircle(
+      Canvas canvas, Offset center, double radius, Color color) {
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
@@ -1754,13 +1924,18 @@ class _VectorMapPainter extends CustomPainter {
     if (style == null) return;
     for (final ring in poly.rings) {
       if (ring.length < 3) continue;
-      final path = Path()..moveTo(_project(ring.first).dx, _project(ring.first).dy);
+      final path = Path()
+        ..moveTo(_project(ring.first).dx, _project(ring.first).dy);
       for (final p in ring.skip(1)) {
         final o = _project(p);
         path.lineTo(o.dx, o.dy);
       }
       path.close();
-      canvas.drawPath(path, Paint()..color = style.fill..style = PaintingStyle.fill);
+      canvas.drawPath(
+          path,
+          Paint()
+            ..color = style.fill
+            ..style = PaintingStyle.fill);
       if (style.stroke != null) {
         canvas.drawPath(
           path,
@@ -1774,13 +1949,17 @@ class _VectorMapPainter extends CustomPainter {
   }
 
   _PolyFillStyle? _polygonFillStyle(MapPolygonFeature poly) {
-    if (poly.historic != null || poly.tourism == 'attraction' || poly.tourism == 'museum') {
+    if (poly.historic != null ||
+        poly.tourism == 'attraction' ||
+        poly.tourism == 'museum') {
       return const _PolyFillStyle(Color(0x33D4A017), Color(0xFFD4A017));
     }
     if (poly.natural == 'water') {
       return const _PolyFillStyle(Color(0xFFA9CCE3), null);
     }
-    if (poly.natural == 'bare_rock' || poly.natural == 'rock' || poly.natural == 'stone') {
+    if (poly.natural == 'bare_rock' ||
+        poly.natural == 'rock' ||
+        poly.natural == 'stone') {
       return const _PolyFillStyle(Color(0xFFB0785A), null);
     }
     if (poly.natural == 'wood' || poly.natural == 'heath') {
@@ -1800,7 +1979,8 @@ class _VectorMapPainter extends CustomPainter {
 
   void _paintLine(Canvas canvas, MapLineFeature line) {
     if (line.points.length < 2) return;
-    final path = Path()..moveTo(_project(line.points.first).dx, _project(line.points.first).dy);
+    final path = Path()
+      ..moveTo(_project(line.points.first).dx, _project(line.points.first).dy);
     for (final p in line.points.skip(1)) {
       final o = _project(p);
       path.lineTo(o.dx, o.dy);
@@ -1908,7 +2088,8 @@ class _VectorMapPainter extends CustomPainter {
       if (labelledPoints.any((p) => (p - m.screen).distance < gate)) continue;
       if (!featured && budget <= 0) continue;
 
-      if (_tryDrawLabel(canvas, m, pinRects, placedLabelRects, invS, pinScale)) {
+      if (_tryDrawLabel(
+          canvas, m, pinRects, placedLabelRects, invS, pinScale)) {
         labelledPoints.add(m.screen);
         if (!featured) budget--;
       }
@@ -1933,7 +2114,8 @@ class _VectorMapPainter extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.6 * pinScale,
       );
-      canvas.drawCircle(backCenter, r * 0.5, Paint()..color = m.color.withOpacity(0.55));
+      canvas.drawCircle(
+          backCenter, r * 0.5, Paint()..color = m.color.withOpacity(0.55));
     }
 
     if (featured) {
@@ -1957,7 +2139,8 @@ class _VectorMapPainter extends CustomPainter {
     }
   }
 
-  void _drawIconGlyph(Canvas canvas, Offset center, IconData icon, double size, Color color) {
+  void _drawIconGlyph(
+      Canvas canvas, Offset center, IconData icon, double size, Color color) {
     final tp = TextPainter(
       text: TextSpan(
         text: String.fromCharCode(icon.codePoint),
@@ -2076,4 +2259,3 @@ class _LineStyle {
   final double width;
   const _LineStyle(this.color, this.width);
 }
-
