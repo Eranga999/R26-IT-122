@@ -730,7 +730,7 @@ enum WildlifeWarningKind { elephant, hornet }
 /// visitor accounts and Sri Lankan news reports place the Asian giant
 /// honeybee ("wasp"/"hornet", Sinhala *debara*) nests and swarm attacks.
 /// Neither kind has a surveyed hazard boundary, so [warningRadiusMeters] is
-/// an approximate visual radius only — mirrored, with the source notes, in
+/// an approximate alert and visual radius — mirrored, with the source notes, in
 /// assets/vectors/sigiriya_wildlife_areas.json.
 class WildlifeWarningZone {
   final String id;
@@ -745,7 +745,7 @@ class WildlifeWarningZone {
     required this.kind,
     required this.lon,
     required this.lat,
-    this.warningRadiusMeters = 90,
+    this.warningRadiusMeters = 150,
   });
 }
 
