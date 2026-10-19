@@ -78,7 +78,6 @@ class WildlifeAlertService {
       FlutterLocalNotificationsPlugin();
   final Map<String, bool> _insideState = {};
   final Set<String> _approachNotified = {};
-  final Map<String, DateTime> _lastEntryAlert = {};
   final StreamController<WildlifeAlertEvent> _events =
       StreamController<WildlifeAlertEvent>.broadcast();
   final StreamController<void> _mapOpenRequests =
@@ -140,16 +139,12 @@ class WildlifeAlertService {
   /// Starts monitoring and checks the current position immediately.
   /// The app root calls this when the application becomes active; the map is
   /// only a visualization and is not required for safety alerts.
-  Future<bool> start({bool notifyIfInside = false}) async {
+  Future<bool> start() async {
     final pending = _startFuture;
     if (pending != null) {
-      final started = await pending;
-      if (started && notifyIfInside) {
-        await checkCurrentPosition(notifyIfInside: true);
-      }
-      return started;
+      return pending;
     }
-    final operation = _startMonitoring(notifyIfInside: notifyIfInside);
+    final operation = _startMonitoring();
     _startFuture = operation;
     try {
       return await operation;
@@ -158,10 +153,10 @@ class WildlifeAlertService {
     }
   }
 
-  Future<bool> _startMonitoring({required bool notifyIfInside}) async {
+  Future<bool> _startMonitoring() async {
     await initialize();
     if (_running) {
-      await checkCurrentPosition(notifyIfInside: notifyIfInside);
+      await checkCurrentPosition();
       return true;
     }
 
@@ -199,13 +194,12 @@ class WildlifeAlertService {
       locationSettings: locationSettings,
     ).listen(_handlePosition);
     _running = true;
-    await checkCurrentPosition(notifyIfInside: notifyIfInside);
+    await checkCurrentPosition();
     return true;
   }
 
-  /// Performs a one-shot foreground check for users who are already inside a
-  /// warning area when the app opens or returns from the background.
-  Future<void> checkCurrentPosition({bool notifyIfInside = false}) async {
+  /// Performs a one-shot foreground check when the app opens or resumes.
+  Future<void> checkCurrentPosition() async {
     try {
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
@@ -213,11 +207,18 @@ class WildlifeAlertService {
           timeLimit: Duration(seconds: 12),
         ),
       );
-      _handlePosition(position, notifyIfInside: notifyIfInside);
+      _handlePosition(position);
     } catch (_) {
       final lastKnown = await Geolocator.getLastKnownPosition();
-      if (lastKnown != null) {
-        _handlePosition(lastKnown, notifyIfInside: notifyIfInside);
+      final age = lastKnown == null
+          ? null
+          : DateTime.now().difference(lastKnown.timestamp);
+      // A cached fix from an earlier visit must not trigger a warning now.
+      if (lastKnown != null &&
+          age != null &&
+          age >= Duration.zero &&
+          age <= const Duration(minutes: 2)) {
+        _handlePosition(lastKnown);
       }
     }
   }
@@ -228,7 +229,6 @@ class WildlifeAlertService {
     _running = false;
     _insideState.clear();
     _approachNotified.clear();
-    _lastEntryAlert.clear();
   }
 
   Future<void> dispose() async {
@@ -315,7 +315,7 @@ class WildlifeAlertService {
     _lines = lines;
   }
 
-  void _handlePosition(Position position, {bool notifyIfInside = false}) {
+  void _handlePosition(Position position) {
     if (position.accuracy <= 0 ||
         position.accuracy > _minimumUsefulAccuracyMeters) {
       return;
@@ -334,7 +334,6 @@ class WildlifeAlertService {
         type: zone.type,
         distanceMeters: distance,
         warningRadiusMeters: zone.warningRadiusMeters,
-        notifyIfInside: notifyIfInside,
       );
     }
 
@@ -346,7 +345,6 @@ class WildlifeAlertService {
         type: line.type,
         distanceMeters: distance,
         warningRadiusMeters: line.warningRadiusMeters,
-        notifyIfInside: notifyIfInside,
       );
     }
   }
@@ -357,7 +355,6 @@ class WildlifeAlertService {
     required String type,
     required double distanceMeters,
     required double warningRadiusMeters,
-    bool notifyIfInside = false,
   }) {
     final previousInside = _insideState[id] ?? false;
     final approachRadius = warningRadiusMeters + _approachRadiusExtraMeters;
@@ -366,15 +363,8 @@ class WildlifeAlertService {
         ? distanceMeters <= exitRadius
         : distanceMeters <= warningRadiusMeters;
 
-    final lastAlert = _lastEntryAlert[id];
-    final shouldRepeat = notifyIfInside &&
-        previousInside &&
-        nowInside &&
-        (lastAlert == null ||
-            DateTime.now().difference(lastAlert) >=
-                const Duration(seconds: 30));
-    if ((!previousInside && nowInside) || shouldRepeat) {
-      _lastEntryAlert[id] = DateTime.now();
+    if (!previousInside && nowInside) {
+      _approachNotified.add(id);
       _showAlert(
         id: id,
         name: name,
@@ -395,7 +385,7 @@ class WildlifeAlertService {
     }
 
     _insideState[id] = nowInside;
-    if (!nowInside && distanceMeters > exitRadius) {
+    if (!nowInside && distanceMeters > approachRadius + _exitHysteresisMeters) {
       _approachNotified.remove(id);
     }
   }
