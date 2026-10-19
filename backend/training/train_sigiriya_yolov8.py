@@ -59,7 +59,7 @@ class SigiriyaYOLOv8Trainer:
     
     def train(
         self,
-        epochs: int = 100,
+        epochs: int = 50,
         imgsz: int = 640,
         batch: int = 16,
         device: int = 0,
@@ -71,7 +71,7 @@ class SigiriyaYOLOv8Trainer:
         Train YOLOv8n model on Sigiriya dataset.
         
         Args:
-            epochs: Number of training epochs (default: 100)
+            epochs: Number of training epochs (default: 50)
             imgsz: Input image size (default: 640)
             batch: Batch size (default: 16, adjust based on GPU memory)
             device: GPU device ID (default: 0 for first GPU, set to 'cpu' for CPU)
@@ -220,7 +220,7 @@ def main():
     
     # Train model
     results = trainer.train(
-        epochs=100,         # Full training (100+ epochs)
+        epochs=50,          # Full training (50 epochs)
         imgsz=640,         # Standard input size
         batch=16,          # Adjust if GPU memory is limited (8, 12, etc.)
         device=0,          # First GPU (set to 'cpu' if no GPU)
