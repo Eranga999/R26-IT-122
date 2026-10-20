@@ -92,7 +92,7 @@ class _HeritageArAppState extends State<HeritageArApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      unawaited(WildlifeAlertService.instance.start(notifyIfInside: true));
+      unawaited(WildlifeAlertService.instance.start());
     }
   }
 
